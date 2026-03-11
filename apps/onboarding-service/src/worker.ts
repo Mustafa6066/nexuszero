@@ -23,7 +23,7 @@ export class OnboardingWorker {
       QUEUE_NAMES.ONBOARDING,
       async (job) => this.processStep(job),
       {
-        connection: getRedisConnection(),
+        connection: getRedisConnection() as any,
         concurrency: 5,
       },
     );

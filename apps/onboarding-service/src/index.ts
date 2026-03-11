@@ -27,7 +27,7 @@ app.get('/status/:tenantId', async (c) => {
   }
 
   const sm = new OnboardingStateMachine(tenantId);
-  const progress = sm.getProgress(tenant.onboardingState);
+  const progress = sm.getProgress(tenant.onboardingState as any);
 
   return c.json({
     tenantId,

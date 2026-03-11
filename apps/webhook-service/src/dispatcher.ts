@@ -70,7 +70,6 @@ export class WebhookDispatcher {
             status: 'failed',
             responseBody: error instanceof Error ? error.message : String(error),
             attempts: 1,
-            updatedAt: new Date(),
           })
           .where(eq(webhookDeliveries.id, delivery.id));
         throw error;

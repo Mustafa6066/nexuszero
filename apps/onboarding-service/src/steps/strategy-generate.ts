@@ -38,7 +38,7 @@ export class StrategyGenerateStep {
     await publishAgentTask({
       id: analysisTaskId,
       tenantId,
-      agentType: 'data_nexus',
+      agentType: 'data-nexus',
       type: 'daily_analysis',
       priority: 'high',
       input: {

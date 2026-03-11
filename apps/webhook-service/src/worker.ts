@@ -62,7 +62,7 @@ export class WebhookWorker {
       QUEUE_NAMES.WEBHOOK_DELIVERY,
       async (job) => this.processDelivery(job),
       {
-        connection: getRedisConnection(),
+        connection: getRedisConnection() as any,
         concurrency: 10,
         limiter: {
           max: 50,
