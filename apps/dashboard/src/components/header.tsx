@@ -32,7 +32,7 @@ export function Header() {
             {user && (
               <div className="hidden sm:block">
                 <p className="text-sm font-medium">{user.name || 'User'}</p>
-                <p className="text-xs text-muted-foreground">{user.role || 'Admin'}</p>
+                <p className="text-xs text-muted-foreground">{(user as any).role || 'Admin'}</p>
               </div>
             )}
           </div>
