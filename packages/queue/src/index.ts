@@ -6,6 +6,7 @@ export {
   publishWebhookDelivery, publishOnboardingStep, publishWebhookEvent,
   publishAuditEvent, closeAllQueues,
 } from './producers.js';
+export type { PublishAgentSignalInput, PublishAgentTaskInput } from './producers.js';
 export { BaseAgentWorker, type WorkerConfig } from './base-worker.js';
 export type {
   InterAgentEventType, InterAgentEvent, TaskPayload, TaskResult,

@@ -83,9 +83,9 @@ export class VisibilityAnalysisHandler {
     await publishAgentSignal({
       tenantId,
       type: 'aeo.visibility_changed',
-      sourceAgent: 'aeo',
+      agentId: 'aeo',
       targetAgent: 'broadcast',
-      payload: {
+      data: {
         entitiesAnalyzed: entities.length,
         platformsAnalyzed: targetPlatforms.length,
         averageVisibilityScore: avgScore,

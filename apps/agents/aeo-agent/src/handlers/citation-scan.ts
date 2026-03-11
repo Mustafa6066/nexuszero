@@ -83,9 +83,9 @@ export class CitationScanHandler {
         await publishAgentSignal({
           tenantId,
           type: 'aeo.citation_found',
-          sourceAgent: 'aeo',
+          agentId: 'aeo',
           targetAgent: 'broadcast',
-          payload: {
+          data: {
             entityName: entity.entityName,
             citationsFound: entityCitations,
             brandMentions: brandMentions.length,
