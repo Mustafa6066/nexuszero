@@ -68,7 +68,7 @@ export function IntegrationGrid() {
 
   if (isLoading) {
     return <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => (
-      <Card key={i} className="animate-pulse h-32" />
+      <Card key={i} className="animate-pulse h-32"><div /></Card>
     ))}</div>;
   }
 
