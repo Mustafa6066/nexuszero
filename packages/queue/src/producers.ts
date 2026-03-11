@@ -102,11 +102,19 @@ export async function publishTaskResult(result: TaskResult): Promise<void> {
 
 export interface PublishAgentSignalInput {
   tenantId: string;
-  /** Source agent identifier (e.g. 'seo-worker', a UUID, or an AgentType) */
-  agentId: string;
+  /** Source agent identifier — use agentId or sourceAgent interchangeably */
+  agentId?: string;
+  sourceAgent?: string;
+  /** Optional routing hint for subscribers */
+  targetAgent?: string;
   /** Signal type, e.g. 'seo_keywords_updated' */
   type: string;
+  /** Signal payload — use data or payload interchangeably */
   data?: Record<string, unknown>;
+  payload?: Record<string, unknown>;
+  priority?: 'high' | 'medium' | 'low';
+  confidence?: number;
+  correlationId?: string;
 }
 
 /** Publish an inter-agent signal via Kafka */
@@ -114,9 +122,13 @@ export async function publishAgentSignal(signal: PublishAgentSignalInput): Promi
   const event = {
     id: randomUUID(),
     tenantId: signal.tenantId,
-    sourceAgent: signal.agentId,
+    sourceAgent: signal.agentId ?? signal.sourceAgent ?? 'unknown',
+    targetAgent: signal.targetAgent,
     type: signal.type,
-    payload: signal.data ?? {},
+    payload: signal.data ?? signal.payload ?? {},
+    priority: signal.priority,
+    confidence: signal.confidence,
+    correlationId: signal.correlationId,
     timestamp: new Date().toISOString(),
   };
 
