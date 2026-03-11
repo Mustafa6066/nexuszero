@@ -1,0 +1,11 @@
+[build]
+builder = "nixpacks"
+buildCommand = "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @nexuszero/shared build && pnpm --filter @nexuszero/queue build && pnpm --filter @nexuszero/db build && pnpm --filter ad-agent build"
+
+[deploy]
+startCommand = "node dist/index.js"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5
+
+[service]
+name = "ad-agent"

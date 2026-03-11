@@ -1,0 +1,177 @@
+'use client';
+
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { Card, Button, Badge } from '@/components/ui';
+
+export default function SettingsPage() {
+  const queryClient = useQueryClient();
+  const { data: tenant, isLoading } = useQuery({
+    queryKey: ['tenant', 'me'],
+    queryFn: () => api.getMe(),
+  });
+
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [saved, setSaved] = useState(false);
+
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => api.patch('/tenants/me', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant'] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">Settings</h1>
+        </div>
+        <Card className="animate-pulse">
+          <div className="h-4 w-1/3 rounded bg-secondary" />
+          <div className="mt-4 h-10 w-full rounded bg-secondary" />
+          <div className="mt-4 h-10 w-full rounded bg-secondary" />
+        </Card>
+      </div>
+    );
+  }
+
+  const handleSave = () => {
+    updateMutation.mutate(form);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Settings</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage your organization settings and integrations.</p>
+        </div>
+        {saved && <Badge variant="success">Settings saved!</Badge>}
+      </div>
+
+      <Card>
+        <h3 className="text-sm font-semibold mb-4">Organization</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Company Name</label>
+            <input
+              type="text"
+              defaultValue={tenant?.company_name ?? ''}
+              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Website</label>
+            <input
+              type="url"
+              defaultValue={tenant?.website ?? ''}
+              onChange={(e) => setForm({ ...form, website: e.target.value })}
+              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Industry</label>
+            <input
+              type="text"
+              defaultValue={tenant?.industry ?? ''}
+              onChange={(e) => setForm({ ...form, industry: e.target.value })}
+              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-semibold mb-4">Subscription</h3>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm">Current Plan</p>
+            <p className="mt-1 text-lg font-bold capitalize">{tenant?.plan_tier ?? 'starter'}</p>
+          </div>
+          <Badge variant={tenant?.status === 'active' ? 'success' : 'warning'}>
+            {tenant?.status ?? 'unknown'}
+          </Badge>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Max Agents</p>
+            <p className="text-sm font-medium">{tenant?.config?.max_agents ?? 'Unlimited'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Max Campaigns</p>
+            <p className="text-sm font-medium">{tenant?.config?.max_campaigns ?? 'Unlimited'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">API Rate Limit</p>
+            <p className="text-sm font-medium">{tenant?.config?.rate_limit ?? '100'}/min</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Created</p>
+            <p className="text-sm font-medium">{tenant?.created_at ? new Date(tenant.created_at).toLocaleDateString() : 'N/A'}</p>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-semibold mb-4">OAuth Integrations</h3>
+        <div className="space-y-3">
+          {['google_ads', 'meta_ads', 'tiktok_ads', 'linkedin_ads'].map((platform) => {
+            const isConnected = tenant?.oauth_tokens?.[platform]?.access_token;
+            return (
+              <div key={platform} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium capitalize">{platform.replace('_', ' ')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isConnected ? 'Connected' : 'Not connected'}
+                  </p>
+                </div>
+                <Badge variant={isConnected ? 'success' : 'outline'}>
+                  {isConnected ? 'Connected' : 'Disconnected'}
+                </Badge>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-semibold mb-4">Notification Preferences</h3>
+        <div className="space-y-3">
+          {[
+            { key: 'anomaly_alerts', label: 'Anomaly Alerts', desc: 'Get notified when unusual patterns are detected' },
+            { key: 'daily_digest', label: 'Daily Digest', desc: 'Receive a daily summary of all agent activity' },
+            { key: 'campaign_updates', label: 'Campaign Updates', desc: 'Notifications for campaign status changes' },
+            { key: 'agent_errors', label: 'Agent Errors', desc: 'Alert when an agent encounters an error' },
+          ].map((pref) => (
+            <div key={pref.key} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">{pref.label}</p>
+                <p className="text-xs text-muted-foreground">{pref.desc}</p>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  defaultChecked={tenant?.notification_preferences?.[pref.key] ?? true}
+                  onChange={(e) => setForm({ ...form, [`notification_preferences.${pref.key}`]: String(e.target.checked) })}
+                  className="peer sr-only"
+                />
+                <div className="h-6 w-11 rounded-full bg-secondary peer-checked:bg-primary transition-colors after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:after:translate-x-full" />
+              </label>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={updateMutation.isPending}>
+          {updateMutation.isPending ? 'Saving...' : 'Save Settings'}
+        </Button>
+      </div>
+    </div>
+  );
+}

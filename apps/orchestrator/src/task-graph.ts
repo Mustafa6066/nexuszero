@@ -1,0 +1,195 @@
+import { randomUUID } from 'node:crypto';
+import { getDb, agentTasks } from '@nexuszero/db';
+import { publishAgentTask } from '@nexuszero/queue';
+import { TASK_TO_AGENT_MAP } from '@nexuszero/shared';
+import type { TaskPriority } from '@nexuszero/shared';
+import { eq } from 'drizzle-orm';
+import Redis from 'ioredis';
+import { dispatchQueuedTasksForTenant } from './task-router.js';
+
+interface TaskGraphNode {
+  taskId: string;
+  type: string;
+  input: any;
+  dependsOn: string[];
+}
+
+interface TaskGraphState {
+  tenantId: string;
+  nodes: TaskGraphNode[];
+  completedTasks: string[];
+  failedTasks: string[];
+  dispatchedTasks: string[];
+}
+
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
+export class TaskGraphExecutor {
+  /**
+   * Create and execute a DAG of tasks.
+   * Tasks with no dependencies start immediately.
+   * Dependent tasks start when all their dependencies complete.
+   */
+  async executeGraph(tenantId: string, nodes: TaskGraphNode[], priority: TaskPriority = 'medium') {
+    const graphId = randomUUID();
+
+    // Find root nodes (no dependencies) and start them
+    const rootNodes = nodes.filter(n => n.dependsOn.length === 0);
+
+    // Store graph state in Redis
+    await redis.set(
+      `taskgraph:${graphId}`,
+      JSON.stringify({
+        tenantId,
+        nodes,
+        completedTasks: [],
+        failedTasks: [],
+        dispatchedTasks: rootNodes.map((node) => node.taskId),
+      } satisfies TaskGraphState),
+      'EX',
+      86400, // 24h TTL
+    );
+
+    // Map task IDs to nodes for quick lookup
+    const taskMap = new Map(nodes.map(n => [n.taskId, n]));
+
+    const db = getDb();
+    for (const node of rootNodes) {
+      const agentType = TASK_TO_AGENT_MAP[node.type];
+      if (!agentType) {
+        console.error(`Unknown task type in graph: ${node.type}`);
+        continue;
+      }
+
+      await db.insert(agentTasks).values({
+        id: node.taskId,
+        tenantId,
+        type: node.type,
+        priority,
+        status: 'queued',
+        input: node.input,
+        dependsOn: node.dependsOn,
+      });
+
+      await publishAgentTask({
+        id: node.taskId,
+        tenantId,
+        agentType,
+        type: node.type,
+        priority,
+        input: { ...node.input, graphId },
+      });
+    }
+
+    console.log(`Task graph ${graphId} started with ${rootNodes.length} root tasks out of ${nodes.length} total`);
+    return graphId;
+  }
+
+  /**
+   * Called when a task completes. Checks if any dependent tasks can now start.
+   */
+  async onTaskCompleted(result: { taskId: string; tenantId: string; output: any; graphId?: string }) {
+    // Update task status
+    const db = getDb();
+    await db.update(agentTasks)
+      .set({
+        status: 'completed',
+        output: result.output,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(agentTasks.id, result.taskId));
+
+    // If this task is part of a graph, check for dependent tasks
+    const graphId = result.graphId || (result.output as any)?.graphId;
+    if (!graphId) {
+      await dispatchQueuedTasksForTenant(result.tenantId);
+      return;
+    }
+
+    const graphUpdate = await this.markTaskCompleted(graphId, result.taskId);
+    if (!graphUpdate) {
+      await dispatchQueuedTasksForTenant(result.tenantId);
+      return;
+    }
+
+    const { graph, readyNodes, isComplete } = graphUpdate;
+
+    // Start ready tasks
+    for (const node of readyNodes) {
+      const agentType = TASK_TO_AGENT_MAP[node.type];
+      if (!agentType) continue;
+
+      await db.insert(agentTasks).values({
+        id: node.taskId,
+        tenantId: graph.tenantId,
+        type: node.type,
+        priority: 'medium',
+        status: 'queued',
+        input: node.input,
+        dependsOn: node.dependsOn,
+      }).onConflictDoNothing();
+
+      await publishAgentTask({
+        id: node.taskId,
+        tenantId: graph.tenantId,
+        agentType,
+        type: node.type,
+        priority: 'medium',
+        input: { ...node.input, graphId },
+      });
+
+      console.log(`Graph ${graphId}: started dependent task ${node.taskId} (${node.type})`);
+    }
+
+    if (isComplete) {
+      console.log(`Task graph ${graphId} completed. Success: ${graph.completedTasks.length}, Failed: ${graph.failedTasks.length}`);
+      await redis.del(`taskgraph:${graphId}`);
+    }
+
+    await dispatchQueuedTasksForTenant(graph.tenantId);
+  }
+
+  private async markTaskCompleted(
+    graphId: string,
+    taskId: string,
+  ): Promise<{ graph: TaskGraphState; readyNodes: TaskGraphNode[]; isComplete: boolean } | null> {
+    const key = `taskgraph:${graphId}`;
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await redis.watch(key);
+      const raw = await redis.get(key);
+
+      if (!raw) {
+        await redis.unwatch();
+        return null;
+      }
+
+      const graph = JSON.parse(raw) as TaskGraphState;
+      if (!graph.completedTasks.includes(taskId)) {
+        graph.completedTasks.push(taskId);
+      }
+
+      const readyNodes = graph.nodes.filter((node) => {
+        if (graph.completedTasks.includes(node.taskId)) return false;
+        if (graph.failedTasks.includes(node.taskId)) return false;
+        if (graph.dispatchedTasks.includes(node.taskId)) return false;
+        return node.dependsOn.every((dep) => graph.completedTasks.includes(dep));
+      });
+
+      if (readyNodes.length > 0) {
+        graph.dispatchedTasks.push(...readyNodes.map((node) => node.taskId));
+      }
+
+      const multi = redis.multi();
+      multi.set(key, JSON.stringify(graph), 'EX', 86400);
+      const execResult = await multi.exec();
+      if (execResult) {
+        const isComplete = graph.completedTasks.length + graph.failedTasks.length === graph.nodes.length;
+        return { graph, readyNodes, isComplete };
+      }
+    }
+
+    throw new Error(`Failed to update task graph ${graphId} after multiple retries`);
+  }
+}

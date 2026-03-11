@@ -1,0 +1,35 @@
+{
+  "name": "@nexuszero/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "generate": "drizzle-kit generate",
+    "migrate": "node --require tsx/cjs node_modules/drizzle-kit/bin.cjs push",
+    "seed": "tsx src/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@nexuszero/shared": "workspace:*",
+    "drizzle-orm": "^0.30.0",
+    "postgres": "^3.4.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.21.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.9.0",
+    "typescript": "^5.4.0"
+  }
+}
