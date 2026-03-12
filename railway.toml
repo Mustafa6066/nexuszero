@@ -2,5 +2,6 @@
 builder = "nixpacks"
 
 [deploy]
+startCommand = "node apps/api-gateway/src/migrate.mjs && cd apps/api-gateway && node dist/index.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 5
