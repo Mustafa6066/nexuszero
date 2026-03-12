@@ -22,8 +22,9 @@ const sql = postgres(databaseUrl, {
 });
 
 // Find the migration file - try multiple paths since working directory varies on Railway
+// __dirname = apps/api-gateway/src/, so ../../../ gets to the repo root
 const candidatePaths = [
-  join(__dirname, '../../packages/db/src/migrations/0000_smart_jasper_sitwell.sql'),
+  join(__dirname, '../../../packages/db/src/migrations/0000_smart_jasper_sitwell.sql'),
   join(process.cwd(), 'packages/db/src/migrations/0000_smart_jasper_sitwell.sql'),
   '/app/packages/db/src/migrations/0000_smart_jasper_sitwell.sql',
 ];
