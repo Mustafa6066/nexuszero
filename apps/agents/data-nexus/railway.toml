@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @nexuszero/shared build && pnpm --filter @nexuszero/queue build && pnpm --filter @nexuszero/db build && pnpm --filter data-nexus build"
+buildCommand = "cd ../../.. && pnpm install --frozen-lockfile && pnpm --filter @nexuszero/shared build && pnpm --filter @nexuszero/queue build && pnpm --filter @nexuszero/db build && pnpm --filter @nexuszero/data-nexus-agent build"
 
 [deploy]
 startCommand = "node dist/index.js"
