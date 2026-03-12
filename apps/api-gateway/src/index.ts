@@ -1,3 +1,4 @@
+import { execFileSync } from 'child_process';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
@@ -61,6 +62,14 @@ app.all('/graphql', async (c) => {
     headers: response.headers,
   });
 });
+
+// Run DB migration before starting the server
+try {
+  execFileSync(process.execPath, ['src/migrate.mjs'], { stdio: 'inherit' });
+} catch (e) {
+  console.error('Migration failed, aborting startup:', e);
+  process.exit(1);
+}
 
 const port = parseInt(process.env.PORT || '4000', 10);
 

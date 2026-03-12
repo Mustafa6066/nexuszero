@@ -1,4 +1,7 @@
-api-gateway: cd apps/api-gateway && node dist/index.js
+# Each service has its own apps/*/railway.toml with startCommand.
+# This Procfile is kept for local foreman/honcho usage only.
+# Railway uses the per-service railway.toml startCommand, not this file.
+api-gateway: cd apps/api-gateway && node src/migrate.mjs && node dist/index.js
 orchestrator: cd apps/orchestrator && node dist/index.js
 webhook-service: cd apps/webhook-service && node dist/index.js
 onboarding-service: cd apps/onboarding-service && node dist/index.js
