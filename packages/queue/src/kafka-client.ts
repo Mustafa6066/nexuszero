@@ -1,19 +1,30 @@
-import { Kafka } from '@upstash/kafka';
+import { Kafka, logLevel } from 'kafkajs';
 
 let kafkaInstance: Kafka | null = null;
 
-/** Get or create the Upstash Kafka client */
-export function getKafkaClient(): Kafka {
+function getKafkaInstance(): Kafka {
   if (!kafkaInstance) {
-    const url = process.env['UPSTASH_KAFKA_REST_URL'];
-    const username = process.env['UPSTASH_KAFKA_REST_USERNAME'];
-    const password = process.env['UPSTASH_KAFKA_REST_PASSWORD'];
+    const brokers = process.env['CONFLUENT_BOOTSTRAP_SERVERS'];
+    const apiKey = process.env['CONFLUENT_API_KEY'];
+    const apiSecret = process.env['CONFLUENT_API_SECRET'];
 
-    if (!url || !username || !password) {
-      throw new Error('Upstash Kafka credentials not configured. Set UPSTASH_KAFKA_REST_URL, UPSTASH_KAFKA_REST_USERNAME, UPSTASH_KAFKA_REST_PASSWORD.');
+    if (!brokers || !apiKey || !apiSecret) {
+      throw new Error(
+        'Confluent Kafka credentials not configured. Set CONFLUENT_BOOTSTRAP_SERVERS, CONFLUENT_API_KEY, CONFLUENT_API_SECRET.',
+      );
     }
 
-    kafkaInstance = new Kafka({ url, username, password });
+    kafkaInstance = new Kafka({
+      clientId: 'nexuszero',
+      brokers: brokers.split(',').map(b => b.trim()),
+      ssl: true,
+      sasl: {
+        mechanism: 'plain',
+        username: apiKey,
+        password: apiSecret,
+      },
+      logLevel: logLevel.ERROR,
+    });
   }
   return kafkaInstance;
 }
@@ -24,66 +35,75 @@ export async function publishToKafka<T extends Record<string, unknown>>(
   message: T,
   key?: string,
 ): Promise<void> {
-  const kafka = getKafkaClient();
+  const kafka = getKafkaInstance();
   const producer = kafka.producer();
-  await producer.produce(topic, JSON.stringify(message), {
-    key: key ?? undefined,
-  });
+  await producer.connect();
+  try {
+    await producer.send({
+      topic,
+      messages: [{ key: key ?? null, value: JSON.stringify(message) }],
+    });
+  } finally {
+    await producer.disconnect();
+  }
 }
 
-/** Consume messages from a Kafka topic */
+/** Consume a batch of messages from a Kafka topic (poll once and return) */
 export async function consumeFromKafka<T>(
   topic: string,
   groupId: string,
-  instanceId: string,
+  _instanceId: string,
 ): Promise<Array<{ key: string | null; value: T; offset: number; timestamp: number }>> {
-  const kafka = getKafkaClient();
-  const consumer = kafka.consumer();
+  const kafka = getKafkaInstance();
+  const consumer = kafka.consumer({ groupId });
+  const results: Array<{ key: string | null; value: T; offset: number; timestamp: number }> = [];
 
-  const messages = await consumer.consume({
-    consumerGroupId: groupId,
-    instanceId,
-    topics: [topic],
-    autoOffsetReset: 'earliest',
+  await consumer.connect();
+  await consumer.subscribe({ topic, fromBeginning: false });
+
+  await new Promise<void>((resolve) => {
+    // Collect messages for up to 2 seconds then resolve
+    const timeout = setTimeout(() => resolve(), 2000);
+
+    consumer.run({
+      autoCommit: true,
+      eachMessage: async ({ message }) => {
+        results.push({
+          key: message.key ? message.key.toString() : null,
+          value: JSON.parse(message.value?.toString() ?? '{}') as T,
+          offset: parseInt(message.offset, 10),
+          timestamp: parseInt(message.timestamp, 10),
+        });
+        // If we got at least one batch, resolve sooner
+        clearTimeout(timeout);
+        setTimeout(() => resolve(), 100);
+      },
+    }).catch(() => resolve());
   });
 
-  return messages.map(msg => ({
-    key: msg.key as string | null,
-    value: JSON.parse(msg.value as string) as T,
-    offset: msg.offset,
-    timestamp: msg.timestamp,
-  }));
+  await consumer.disconnect();
+  return results;
 }
 
-/** Create a Kafka topic (Upstash REST API) */
+/** Create a Kafka topic via KafkaJS admin */
 export async function createKafkaTopic(
   topicName: string,
   partitions = 1,
   retentionMs = 604800000, // 7 days
 ): Promise<void> {
-  const url = process.env['UPSTASH_KAFKA_REST_URL'];
-  const username = process.env['UPSTASH_KAFKA_REST_USERNAME'];
-  const password = process.env['UPSTASH_KAFKA_REST_PASSWORD'];
-
-  if (!url || !username || !password) {
-    throw new Error('Upstash Kafka credentials not configured');
-  }
-
-  const response = await fetch(`${url}/topic`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      name: topicName,
-      partitions,
-      retention_time: retentionMs,
-    }),
-  });
-
-  if (!response.ok && response.status !== 409) { // 409 = topic already exists
-    const body = await response.text();
-    throw new Error(`Failed to create Kafka topic ${topicName}: ${response.status} ${body}`);
+  const kafka = getKafkaInstance();
+  const admin = kafka.admin();
+  await admin.connect();
+  try {
+    await admin.createTopics({
+      topics: [{
+        topic: topicName,
+        numPartitions: partitions,
+        configEntries: [{ name: 'retention.ms', value: String(retentionMs) }],
+      }],
+      waitForLeaders: true,
+    });
+  } finally {
+    await admin.disconnect();
   }
 }
