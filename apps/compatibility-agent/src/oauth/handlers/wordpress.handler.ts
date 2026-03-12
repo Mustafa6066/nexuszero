@@ -74,7 +74,7 @@ export async function connectSelfHostedWordPress(
     // Store as non-expiring token (application passwords don't expire)
     const tokens = {
       accessToken: applicationPassword,
-      refreshToken: undefined,
+      refreshToken: null, // Application passwords don't expire
       expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
       scopes: ['global'],
     };

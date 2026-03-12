@@ -168,7 +168,7 @@ export class CompatibilityWorker extends BaseAgentWorker {
 
         return {
           sessionId: tenantId,
-          state: session.state,
+          state: session.currentStep,
           detection,
           connectionUrls: urls,
         };
@@ -232,8 +232,8 @@ export class CompatibilityWorker extends BaseAgentWorker {
     await job.updateProgress(50);
 
     return {
-      state: session.state,
-      detectedPlatforms: detection.platforms,
+      state: session.currentStep,
+      detectedPlatforms: detection.detectedPlatforms,
     };
   }
 
@@ -331,7 +331,7 @@ export class CompatibilityWorker extends BaseAgentWorker {
     // Return a summary scoped by the worker's tenantId context
     const summary = await getHealthSummary(_tenantId);
     await job.updateProgress(100);
-    return summary;
+    return summary as unknown as Record<string, unknown>;
   }
 
   private async handleRateLimitCheck(
@@ -379,10 +379,10 @@ export class CompatibilityWorker extends BaseAgentWorker {
 
     const connector = getConnector(platform);
     const response = await connector.healthCheck(tokens.accessToken);
-    const drift = await checkSchemaDrift(tenantId, integration.id, response, endpoint);
+    const drift = await checkSchemaDrift(tenantId, integration.id, platform, response, endpoint);
     await job.updateProgress(100);
 
-    return drift;
+    return (drift ?? { endpointPath: endpoint, driftFound: false }) as unknown as Record<string, unknown>;
   }
 
   private async handleApiVersionCheck(
@@ -515,7 +515,7 @@ export class CompatibilityWorker extends BaseAgentWorker {
     await job.updateProgress(50);
 
     const recommendations: string[] = [];
-    for (const integration of summary.integrations ?? []) {
+    for (const integration of summary.platformHealth ?? []) {
       const int = integration as Record<string, unknown>;
       if ((int.healthScore as number) < 70) {
         recommendations.push(`${int.platform}: Health score low (${int.healthScore}), consider reconnection`);

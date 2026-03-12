@@ -70,7 +70,7 @@ export async function connectContentfulWithToken(
 
     const tokens = {
       accessToken,
-      refreshToken: undefined,
+      refreshToken: null, // PATs don't expire — no refresh token
       expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // PATs don't expire
       scopes: ['content_management_manage'],
     };

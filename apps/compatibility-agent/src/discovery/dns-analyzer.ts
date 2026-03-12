@@ -3,14 +3,14 @@
  * Also checks for Google Search Console verification, email providers, etc.
  */
 
-import type { TechStackDetection, Platform } from '@nexuszero/shared';
+import type { DetectedTechnology, Platform } from '@nexuszero/shared';
 import { resolve } from 'dns';
 import { promisify } from 'util';
 
 const resolveCname = promisify(resolve);
 
-export async function analyzeDns(url: string): Promise<TechStackDetection[]> {
-  const detections: TechStackDetection[] = [];
+export async function analyzeDns(url: string): Promise<DetectedTechnology[]> {
+  const detections: DetectedTechnology[] = [];
 
   try {
     const hostname = new URL(url).hostname;
@@ -29,8 +29,8 @@ export async function analyzeDns(url: string): Promise<TechStackDetection[]> {
   return detections;
 }
 
-async function checkCnames(hostname: string): Promise<TechStackDetection[]> {
-  const detections: TechStackDetection[] = [];
+async function checkCnames(hostname: string): Promise<DetectedTechnology[]> {
+  const detections: DetectedTechnology[] = [];
 
   try {
     const records = await resolveCname(hostname) as unknown as string[];
@@ -59,7 +59,7 @@ async function checkCnames(hostname: string): Promise<TechStackDetection[]> {
   return detections;
 }
 
-async function detectGscVerification(url: string, _hostname: string): Promise<TechStackDetection | null> {
+async function detectGscVerification(url: string, _hostname: string): Promise<DetectedTechnology | null> {
   // Check for Google site verification meta tag (often indicates GSC is set up)
   try {
     const response = await fetch(url, {

@@ -58,7 +58,7 @@ export type CompatOnboardingState =
 export interface OAuthTokens {
   accessToken: string;
   refreshToken: string | null;
-  tokenType: string;
+  tokenType?: string;
   expiresAt: Date;
   scopes: string[];
 }
@@ -76,10 +76,13 @@ export interface ConnectionResult {
 
 /** Health check result from a connector */
 export interface HealthCheckResult {
-  status: HealthCheckStatus;
+  healthy: boolean;
   latencyMs: number;
-  details: Record<string, unknown>;
-  timestamp: Date;
+  checkedAt: Date;
+  scopesValid?: boolean;
+  apiVersion?: string;
+  error?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /** Scope validation result */
@@ -94,7 +97,8 @@ export interface ScopeValidation {
 export interface RateLimitInfo {
   remaining: number;
   limit: number;
-  resetAt: Date;
+  resetsAt: Date;
+  windowSizeSeconds?: number;
   retryAfterMs?: number;
 }
 
@@ -103,29 +107,30 @@ export interface RateLimitStatus {
   platform: Platform;
   remaining: number;
   limit: number;
-  resetAt: Date;
+  resetsAt: Date;
   utilizationPercent: number;
 }
 
 /** Schema snapshot for drift detection */
 export interface SchemaSnapshot {
-  endpoint: string;
-  schema: Record<string, unknown>;
-  hash: string;
+  endpointPath: string;
+  responseSchema: Record<string, unknown>;
+  schemaHash: string;
   capturedAt: Date;
 }
 
 /** Schema drift detection result */
 export interface SchemaDrift {
-  endpoint: string;
-  fieldsAdded: string[];
-  fieldsRemoved: string[];
-  fieldsTypeChanged: Array<{
-    field: string;
-    oldType: string;
-    newType: string;
+  endpointPath: string;
+  previousHash: string;
+  currentHash: string;
+  changes: Array<{
+    path: string;
+    changeType: 'field_added' | 'field_removed' | 'type_changed';
+    previousType?: string;
+    currentType?: string;
   }>;
-  severity: 'info' | 'warning' | 'breaking';
+  breaking: boolean;
   detectedAt: Date;
 }
 
@@ -232,8 +237,9 @@ export interface TechStackDetection {
 export interface DetectedTechnology {
   platform: Platform;
   confidence: number;
-  evidence: string[];
-  suggestedScopes: string[];
+  detectedVia?: string;
+  evidence: string | string[];
+  suggestedScopes?: string[];
 }
 
 /** DNS analysis result */
@@ -246,17 +252,13 @@ export interface DnsAnalysis {
 
 /** Onboarding session state */
 export interface OnboardingSession {
-  id: string;
   tenantId: string;
-  state: CompatOnboardingState;
-  domain: string;
-  detectedStack: TechStackDetection | null;
+  websiteUrl: string;
+  detectedPlatforms: Platform[];
   connectedPlatforms: Platform[];
-  auditProgress: number;
-  strategyGenerated: boolean;
-  errors: Array<{ step: string; message: string; timestamp: string }>;
+  failedPlatforms: Platform[];
+  currentStep: string;
   startedAt: string;
-  updatedAt: string;
 }
 
 /** Re-auth link details for client */
@@ -270,12 +272,16 @@ export interface ReauthLink {
 
 /** Integration health summary */
 export interface IntegrationHealthSummary {
-  totalIntegrations: number;
-  healthy: number;
-  degraded: number;
-  disconnected: number;
-  overallScore: number;
-  lastCheckedAt: Date | null;
+  tenantId: string;
+  connectedPlatforms: Platform[];
+  overallHealth: number;
+  platformHealth: Array<{
+    platform: Platform;
+    status: string;
+    healthScore: number;
+    lastChecked: Date | null;
+  }>;
+  lastSweepAt: Date;
 }
 
 /** Integration webhook event types */

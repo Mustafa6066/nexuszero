@@ -4,7 +4,7 @@ import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 import { timingSafeEqual } from 'node:crypto';
 import cron from 'node-cron';
-import { getDb, tenants, agents } from '@nexuszero/db';
+import { getDb, tenants, agents, integrations } from '@nexuszero/db';
 import { eq, and } from 'drizzle-orm';
 
 import { CompatibilityWorker } from './agent.js';
@@ -181,7 +181,7 @@ function createApp(): Hono {
     const platform = c.req.query('platform') as Platform | undefined;
     const rawLimit = parseInt(c.req.query('limit') ?? '50', 10);
     const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : 50;
-    const logs = await getHealthLogs(tenantId, platform, limit);
+    const logs = platform ? await getHealthLogs(tenantId, platform, limit) : [];
     return c.json(logs);
   });
 
@@ -209,13 +209,7 @@ function startCronJobs(): void {
   // Health sweep: every 15 minutes
   cron.schedule('*/15 * * * *', async () => {
     try {
-      const db = getDb();
-      const activeTenants = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.status, 'active'));
-      for (const tenant of activeTenants) {
-        await runHealthSweep(tenant.id).catch((err) =>
-          console.error(`[cron] Health sweep failed for ${tenant.id}:`, err),
-        );
-      }
+      await runHealthSweep().catch((err) => console.error('[cron] Health sweep failed:', err));
     } catch (err) {
       console.error('[cron] Health sweep failed:', err);
     }
@@ -225,10 +219,13 @@ function startCronJobs(): void {
   cron.schedule('0 * * * *', async () => {
     try {
       const db = getDb();
-      const activeTenants = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.status, 'active'));
-      for (const tenant of activeTenants) {
-        await refreshSchemaSnapshots(tenant.id).catch((err) =>
-          console.error(`[cron] Schema refresh failed for ${tenant.id}:`, err),
+      const activeIntegrations = await db
+        .select({ tenantId: integrations.tenantId, id: integrations.id, platform: integrations.platform })
+        .from(integrations)
+        .where(eq(integrations.status, 'connected'));
+      for (const integration of activeIntegrations) {
+        await refreshSchemaSnapshots(integration.tenantId, integration.id, integration.platform as Platform).catch((err) =>
+          console.error(`[cron] Schema refresh failed for ${integration.tenantId}/${integration.platform}:`, err),
         );
       }
     } catch (err) {

@@ -25,7 +25,7 @@ export async function connectShopify(
       platform,
       tokens: {
         accessToken: tokens.accessToken,
-        refreshToken: undefined, // Shopify offline tokens don't expire
+        refreshToken: null, // Shopify offline tokens don't expire
         expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         scopes: tokens.scopes,
       },

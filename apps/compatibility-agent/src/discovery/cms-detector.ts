@@ -2,11 +2,11 @@
  * CMS Detector — detects content management systems from HTML and URL patterns.
  */
 
-import type { TechStackDetection, Platform } from '@nexuszero/shared';
+import type { DetectedTechnology, Platform } from '@nexuszero/shared';
 import * as cheerio from 'cheerio';
 
-export function detectCms(html: string, url: string): TechStackDetection[] {
-  const detections: TechStackDetection[] = [];
+export function detectCms(html: string, url: string): DetectedTechnology[] {
+  const detections: DetectedTechnology[] = [];
   const $ = cheerio.load(html);
 
   // WordPress detection

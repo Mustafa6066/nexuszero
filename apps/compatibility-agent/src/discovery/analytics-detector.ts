@@ -2,10 +2,10 @@
  * Analytics Detector — detects analytics platforms from HTML.
  */
 
-import type { TechStackDetection } from '@nexuszero/shared';
+import type { DetectedTechnology } from '@nexuszero/shared';
 
-export function detectAnalytics(html: string): TechStackDetection[] {
-  const detections: TechStackDetection[] = [];
+export function detectAnalytics(html: string): DetectedTechnology[] {
+  const detections: DetectedTechnology[] = [];
 
   // Google Analytics (GA4)
   const ga4Score = detectGA4(html);

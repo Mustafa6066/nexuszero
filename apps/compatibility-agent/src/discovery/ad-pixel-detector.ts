@@ -2,10 +2,10 @@
  * Ad Pixel Detector — detects advertising platforms from HTML tracking pixels/scripts.
  */
 
-import type { TechStackDetection } from '@nexuszero/shared';
+import type { DetectedTechnology } from '@nexuszero/shared';
 
-export function detectAdPixels(html: string): TechStackDetection[] {
-  const detections: TechStackDetection[] = [];
+export function detectAdPixels(html: string): DetectedTechnology[] {
+  const detections: DetectedTechnology[] = [];
 
   // Google Ads (Conversion tracking, remarketing)
   const gadsScore = detectGoogleAds(html);

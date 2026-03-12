@@ -4,8 +4,7 @@
 
 import type { Platform } from '@nexuszero/shared';
 import { eq } from 'drizzle-orm';
-import { db } from '@nexuszero/db';
-import { agents } from '@nexuszero/db/schema';
+import { getDb, agents } from '@nexuszero/db';
 
 /** Map of platforms to the agents that need them */
 const PLATFORM_AGENT_MAP: Record<string, string[]> = {
@@ -61,6 +60,7 @@ export async function activateAgents(
   connectedPlatforms: Platform[],
 ): Promise<string[]> {
   const plan = planAgentActivation(connectedPlatforms);
+  const db = getDb();
 
   // Check which agents already exist for this tenant
   const existingAgents = await db
@@ -68,7 +68,7 @@ export async function activateAgents(
     .from(agents)
     .where(eq(agents.tenantId, tenantId));
 
-  const existingTypes = new Set(existingAgents.map((a) => a.type));
+  const existingTypes = new Set(existingAgents.map((a: { type: string | null }) => a.type));
   const newAgents = plan.agentsToActivate.filter((a) => !existingTypes.has(a as any));
 
   // Create new agent records
@@ -77,7 +77,7 @@ export async function activateAgents(
       tenantId,
       type: agentType as any,
       status: 'idle',
-      config: {},
+      metadata: {},
     });
   }
 

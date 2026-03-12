@@ -2,10 +2,10 @@
  * CRM Detector — detects CRM platforms from HTML form integrations, chatbots, and tracking scripts.
  */
 
-import type { TechStackDetection } from '@nexuszero/shared';
+import type { DetectedTechnology } from '@nexuszero/shared';
 
-export function detectCrm(html: string, url: string): TechStackDetection[] {
-  const detections: TechStackDetection[] = [];
+export function detectCrm(html: string, url: string): DetectedTechnology[] {
+  const detections: DetectedTechnology[] = [];
 
   // HubSpot
   const hsScore = detectHubSpot(html);

@@ -158,6 +158,6 @@ function toSession(ctx: OnboardingContext): OnboardingSession {
     connectedPlatforms: ctx.connectedPlatforms,
     failedPlatforms: ctx.failedPlatforms,
     currentStep: ctx.currentState,
-    startedAt: ctx.startedAt,
+    startedAt: ctx.startedAt.toISOString(),
   };
 }

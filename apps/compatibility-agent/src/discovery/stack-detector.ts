@@ -5,7 +5,7 @@
 
 import { isIP } from 'node:net';
 import { promises as dnsPromises } from 'node:dns';
-import type { TechStackDetection, Platform } from '@nexuszero/shared';
+import type { TechStackDetection, DetectedTechnology, Platform } from '@nexuszero/shared';
 import { detectCms } from './cms-detector.js';
 import { detectAnalytics } from './analytics-detector.js';
 import { detectAdPixels } from './ad-pixel-detector.js';
@@ -78,7 +78,7 @@ async function isSSRFTarget(url: string): Promise<boolean> {
 }
 
 export interface StackDetectionResult {
-  detections: TechStackDetection[];
+  detections: DetectedTechnology[];
   platforms: Platform[];
   confidence: number;
   analyzedUrl: string;
@@ -113,7 +113,7 @@ export async function detectTechStack(url: string): Promise<StackDetectionResult
   const allDetections = [...cmsResults, ...analyticsResults, ...adResults, ...crmResults, ...dnsResults];
 
   // Deduplicate by platform, keeping highest confidence
-  const platformMap = new Map<Platform, TechStackDetection>();
+  const platformMap = new Map<Platform, DetectedTechnology>();
   for (const detection of allDetections) {
     const existing = platformMap.get(detection.platform);
     if (!existing || detection.confidence > existing.confidence) {
