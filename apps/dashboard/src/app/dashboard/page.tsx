@@ -1,26 +1,12 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { api } from '@/lib/api';
-import { Card, MetricCard, Badge } from '@/components/ui';
+import { Badge } from '@/components/ui';
 import { AreaChartWidget, BarChartWidget, DonutChartWidget } from '@/components/charts';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils';
-
-function DollarIcon() {
-  return <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>;
-}
-
-function TrendUpIcon() {
-  return <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>;
-}
-
-function UsersIcon() {
-  return <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-400"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
-}
-
-function ZapIcon() {
-  return <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-400"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>;
-}
+import { Bot, TrendingUp, DollarSign, Zap, Users, ArrowUpRight } from 'lucide-react';
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'outline'> = {
   active: 'success',
@@ -29,7 +15,29 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'ou
   error: 'destructive',
 };
 
+const AGENT_ICONS: Record<string, string> = {
+  seo: '🔍',
+  ad: '📣',
+  aeo: '🤖',
+  data: '📊',
+};
+
+function AgentPulse({ status }: { status: string }) {
+  const color = status === 'active' ? 'bg-green-400' : status === 'processing' ? 'bg-yellow-400' : status === 'error' ? 'bg-red-400' : 'bg-muted-foreground';
+  return (
+    <span className="relative flex h-2 w-2">
+      {(status === 'active' || status === 'processing') && (
+        <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${color} opacity-60`} />
+      )}
+      <span className={`relative inline-flex h-2 w-2 rounded-full ${color}`} />
+    </span>
+  );
+}
+
 export default function DashboardPage() {
+  const { data: session } = useSession();
+  const name = (session?.user?.name ?? '').split(' ')[0] || 'Commander';
+
   const { data: summary } = useQuery({
     queryKey: ['analytics', 'summary'],
     queryFn: () => api.getAnalyticsSummary(),
@@ -53,6 +61,7 @@ export default function DashboardPage() {
   });
 
   const spendData = analytics?.map((d: any) => ({ date: d.date, spend: d.spend, revenue: d.revenue })) ?? [];
+  const activeAgents = agents?.filter((a: any) => a.status === 'active') ?? [];
 
   const agentDistribution = agents
     ? Object.entries(
@@ -63,97 +72,182 @@ export default function DashboardPage() {
       ).map(([name, value]) => ({ name, value: value as number }))
     : [];
 
+  const metrics = [
+    {
+      label: 'Total Spend',
+      value: formatCurrency(summary?.totalSpend ?? 0),
+      delta: summary?.spendChange ? `${summary.spendChange > 0 ? '+' : ''}${formatPercent(summary.spendChange)}` : '—',
+      deltaType: summary?.spendChange > 0 ? 'neg' : 'pos',
+      icon: DollarSign,
+      iconColor: 'text-violet-400',
+      bg: 'from-violet-500/10',
+    },
+    {
+      label: 'Revenue',
+      value: formatCurrency(summary?.totalRevenue ?? 0),
+      delta: summary?.revenueChange ? `${summary.revenueChange > 0 ? '+' : ''}${formatPercent(summary.revenueChange)}` : '—',
+      deltaType: summary?.revenueChange > 0 ? 'pos' : 'neg',
+      icon: TrendingUp,
+      iconColor: 'text-cyan-400',
+      bg: 'from-cyan-500/10',
+    },
+    {
+      label: 'Conversions',
+      value: formatNumber(summary?.totalConversions ?? 0),
+      delta: summary?.conversionChange ? `${summary.conversionChange > 0 ? '+' : ''}${formatPercent(summary.conversionChange)}` : '—',
+      deltaType: summary?.conversionChange > 0 ? 'pos' : 'neg',
+      icon: Users,
+      iconColor: 'text-pink-400',
+      bg: 'from-pink-500/10',
+    },
+    {
+      label: 'Active Agents',
+      value: String(activeAgents.length),
+      delta: `${agents?.length ?? 0} in fleet`,
+      deltaType: 'neutral' as const,
+      icon: Zap,
+      iconColor: 'text-amber-400',
+      bg: 'from-amber-500/10',
+    },
+  ] as const;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Welcome back. Here&apos;s what&apos;s happening across your marketing stack.</p>
+    <div className="space-y-8 animate-fade-in">
+      {/* Greeting */}
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Command Center</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {name}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {activeAgents.length > 0
+              ? `${activeAgents.length} agent${activeAgents.length > 1 ? 's' : ''} running autonomously • Last 30 days`
+              : 'Agents standing by · Last 30 days'}
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-2 text-xs text-muted-foreground">
+          <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse-dot" />
+          System operational
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          title="Total Spend"
-          value={formatCurrency(summary?.totalSpend ?? 0)}
-          change={summary?.spendChange ? `${summary.spendChange > 0 ? '+' : ''}${formatPercent(summary.spendChange)} vs last period` : undefined}
-          changeType={summary?.spendChange > 0 ? 'negative' : 'positive'}
-          icon={<DollarIcon />}
-        />
-        <MetricCard
-          title="Revenue"
-          value={formatCurrency(summary?.totalRevenue ?? 0)}
-          change={summary?.revenueChange ? `${summary.revenueChange > 0 ? '+' : ''}${formatPercent(summary.revenueChange)} vs last period` : undefined}
-          changeType={summary?.revenueChange > 0 ? 'positive' : 'negative'}
-          icon={<TrendUpIcon />}
-        />
-        <MetricCard
-          title="Conversions"
-          value={formatNumber(summary?.totalConversions ?? 0)}
-          change={summary?.conversionChange ? `${summary.conversionChange > 0 ? '+' : ''}${formatPercent(summary.conversionChange)} vs last period` : undefined}
-          changeType={summary?.conversionChange > 0 ? 'positive' : 'negative'}
-          icon={<UsersIcon />}
-        />
-        <MetricCard
-          title="Active Agents"
-          value={String(agents?.filter((a: any) => a.status === 'active').length ?? 0)}
-          change={`${agents?.length ?? 0} total agents`}
-          changeType="neutral"
-          icon={<ZapIcon />}
-        />
+      {/* Metric cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {metrics.map(({ label, value, delta, deltaType, icon: Icon, iconColor, bg }) => (
+          <div key={label} className={`relative rounded-2xl border border-border bg-gradient-to-br ${bg} to-transparent bg-card/60 p-5 overflow-hidden group hover:border-primary/30 transition-all`}>
+            <div className="flex items-start justify-between mb-4">
+              <p className="text-xs text-muted-foreground font-medium">{label}</p>
+              <div className={`rounded-xl bg-card/80 p-2 ${iconColor}`}>
+                <Icon size={14} />
+              </div>
+            </div>
+            <p className="text-2xl font-bold tracking-tight">{value}</p>
+            <p className={`text-xs mt-1 font-medium ${
+              deltaType === 'pos' ? 'text-green-400' :
+              deltaType === 'neg' ? 'text-red-400' :
+              'text-muted-foreground'
+            }`}>
+              {delta} {deltaType !== 'neutral' ? 'vs last period' : ''}
+            </p>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">Spend vs Revenue (30 days)</h3>
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 rounded-2xl border border-border bg-card/60 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-sm font-semibold">Spend vs Revenue</h3>
+              <p className="text-xs text-muted-foreground">Last 30 days</p>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-violet-400" />Spend</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-400" />Revenue</span>
+            </div>
+          </div>
           <BarChartWidget
             data={spendData}
             bars={[
               { dataKey: 'spend', color: '#8b5cf6' },
-              { dataKey: 'revenue', color: '#10b981' },
+              { dataKey: 'revenue', color: '#22d3ee' },
             ]}
             xAxisKey="date"
           />
-        </Card>
-        <Card>
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">Agent Distribution</h3>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card/60 p-6">
+          <h3 className="text-sm font-semibold mb-1">Agent Fleet</h3>
+          <p className="text-xs text-muted-foreground mb-4">By type</p>
           <DonutChartWidget data={agentDistribution} />
           <div className="mt-4 space-y-2">
             {agentDistribution.map((item) => (
-              <div key={item.name} className="flex items-center justify-between text-sm">
-                <span className="capitalize text-muted-foreground">{item.name.replace('_', ' ')}</span>
-                <span className="font-medium">{item.value}</span>
+              <div key={item.name} className="flex items-center justify-between text-xs">
+                <span className="capitalize text-muted-foreground">{item.name.replace('_', ' ')} Agent</span>
+                <span className="font-semibold">{item.value}</span>
               </div>
             ))}
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">Agent Status</h3>
-          <div className="space-y-3">
-            {(agents ?? []).slice(0, 8).map((agent: any) => (
-              <div key={agent.id} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium capitalize">{agent.agent_type.replace('_', ' ')} Agent</p>
-                  <p className="text-xs text-muted-foreground">Tasks completed: {agent.tasks_completed ?? 0}</p>
-                </div>
-                <Badge variant={STATUS_VARIANT[agent.status] ?? 'outline'}>{agent.status}</Badge>
-              </div>
-            ))}
-            {(!agents || agents.length === 0) && (
-              <p className="text-sm text-muted-foreground py-4 text-center">No agents found</p>
+            {agentDistribution.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">No agents provisioned</p>
             )}
           </div>
-        </Card>
+        </div>
+      </div>
 
-        <Card>
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">Recent Campaigns</h3>
-          <div className="space-y-3">
+      {/* Agent status + campaigns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Agent status */}
+        <div className="rounded-2xl border border-border bg-card/60 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-sm font-semibold">Agent Status</h3>
+            <a href="/dashboard/agents" className="flex items-center gap-1 text-xs text-primary hover:underline">
+              View all <ArrowUpRight size={12} />
+            </a>
+          </div>
+          <div className="space-y-2">
+            {(agents ?? []).slice(0, 6).map((agent: any) => {
+              const typeKey = agent.agent_type?.split('_')[0] ?? 'data';
+              return (
+                <div key={agent.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 hover:border-border transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg leading-none">{AGENT_ICONS[typeKey] ?? '🤖'}</span>
+                    <div>
+                      <p className="text-xs font-medium capitalize">{agent.agent_type?.replace(/_/g, ' ')} Agent</p>
+                      <p className="text-xs text-muted-foreground">{agent.tasks_completed ?? 0} tasks</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <AgentPulse status={agent.status} />
+                    <Badge variant={STATUS_VARIANT[agent.status] ?? 'outline'}>{agent.status}</Badge>
+                  </div>
+                </div>
+              );
+            })}
+            {(!agents || agents.length === 0) && (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Bot size={32} className="text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">No agents provisioned</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Visit Agents to deploy your swarm</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent campaigns */}
+        <div className="rounded-2xl border border-border bg-card/60 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-sm font-semibold">Recent Campaigns</h3>
+            <a href="/dashboard/campaigns" className="flex items-center gap-1 text-xs text-primary hover:underline">
+              View all <ArrowUpRight size={12} />
+            </a>
+          </div>
+          <div className="space-y-2">
             {(campaigns ?? []).slice(0, 5).map((campaign: any) => (
-              <div key={campaign.id} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+              <div key={campaign.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 hover:border-border transition-colors">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{campaign.name}</p>
-                  <p className="text-xs text-muted-foreground">{campaign.platform} &middot; {formatCurrency(campaign.daily_budget ?? 0)}/day</p>
+                  <p className="truncate text-xs font-medium">{campaign.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{campaign.platform} · {formatCurrency(campaign.daily_budget ?? 0)}/day</p>
                 </div>
                 <Badge variant={campaign.status === 'active' ? 'success' : campaign.status === 'paused' ? 'warning' : 'outline'}>
                   {campaign.status}
@@ -161,11 +255,16 @@ export default function DashboardPage() {
               </div>
             ))}
             {(!campaigns || campaigns.length === 0) && (
-              <p className="text-sm text-muted-foreground py-4 text-center">No campaigns found</p>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <p className="text-sm text-muted-foreground">No campaigns yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Create your first campaign to get started</p>
+              </div>
             )}
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );
 }
+
+

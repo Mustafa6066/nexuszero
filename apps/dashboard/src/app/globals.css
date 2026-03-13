@@ -2,37 +2,120 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Dark mode (default) ─── */
 :root {
-  --background: 0 0% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 0 0% 6%;
-  --card-foreground: 0 0% 98%;
-  --popover: 0 0% 6%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 262 80% 60%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 0 0% 14.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 14.9%;
-  --muted-foreground: 0 0% 63.9%;
-  --accent: 262 80% 60%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 50.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 14.9%;
-  --input: 0 0% 14.9%;
-  --ring: 262 80% 60%;
-  --radius: 0.5rem;
+  --background: 224 71% 4%;
+  --foreground: 213 31% 91%;
+  --card: 224 71% 6%;
+  --card-foreground: 213 31% 91%;
+  --popover: 224 71% 6%;
+  --popover-foreground: 213 31% 91%;
+  --primary: 250 84% 65%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 28% 12%;
+  --secondary-foreground: 213 31% 91%;
+  --muted: 215 28% 12%;
+  --muted-foreground: 215 20% 55%;
+  --accent: 250 84% 65%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 63% 54%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 215 28% 14%;
+  --input: 215 28% 14%;
+  --ring: 250 84% 65%;
+  --radius: 0.75rem;
   --success: 142 71% 45%;
-  --warning: 48 96% 53%;
+  --warning: 38 92% 50%;
+  --nav-bg: 224 71% 5% / 0.75;
+}
+
+/* ─── Light mode ─── */
+.light {
+  --background: 0 0% 98%;
+  --foreground: 224 71% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 71% 8%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 71% 8%;
+  --primary: 250 84% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 94%;
+  --secondary-foreground: 224 71% 14%;
+  --muted: 220 14% 94%;
+  --muted-foreground: 220 9% 48%;
+  --accent: 250 84% 58%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 63% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 14% 89%;
+  --input: 220 14% 89%;
+  --ring: 250 84% 58%;
+  --success: 142 71% 38%;
+  --warning: 38 92% 44%;
+  --nav-bg: 0 0% 100% / 0.80;
 }
 
 * {
   border-color: hsl(var(--border));
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* ─── Floating nav glassmorphism ─── */
+.glass-nav {
+  background: hsl(var(--nav-bg));
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid hsl(var(--border) / 0.6);
+}
+
+/* ─── Gradient text ─── */
+.gradient-text {
+  background: linear-gradient(135deg, hsl(250 84% 65%), hsl(195 100% 55%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-warm {
+  background: linear-gradient(135deg, hsl(280 80% 65%), hsl(340 90% 65%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Grid pattern background ─── */
+.bg-grid {
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ─── Aurora gradient ─── */
+.aurora-bg {
+  background: linear-gradient(
+    -45deg,
+    hsl(250 84% 65% / 0.15),
+    hsl(195 100% 55% / 0.1),
+    hsl(280 80% 65% / 0.12),
+    hsl(250 84% 65% / 0.08)
+  );
+  background-size: 400% 400%;
+  animation: aurora 12s ease infinite;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
