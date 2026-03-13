@@ -17,6 +17,10 @@ class ApiClient {
     return this.token !== null;
   }
 
+  getToken(): string | null {
+    return this.token;
+  }
+
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     if (!this.token) {
       throw new Error('Not authenticated');
@@ -125,6 +129,10 @@ class ApiClient {
   detectTechStack(websiteUrl: string) { return this.post<any>('/integrations/detect', { websiteUrl }); }
   startOnboarding(websiteUrl: string) { return this.post<any>('/integrations/onboarding/start', { websiteUrl }); }
   completeOnboarding() { return this.post<any>('/integrations/onboarding/complete'); }
+
+  // Assistant
+  getAssistantSessions() { return this.get<any[]>('/assistant/sessions'); }
+  getSessionMessages(sessionId: string) { return this.get<any[]>(`/assistant/sessions/${sessionId}/messages`); }
 }
 
 export const api = new ApiClient();

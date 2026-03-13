@@ -6,3 +6,5 @@ export * from './creative.js';
 export * from './aeo.js';
 export * from './webhook.js';
 export * from './integration.js';
+export * from './assistant.js';
+export * from './tier.js';

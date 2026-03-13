@@ -11,6 +11,7 @@ import { webhookRoutes } from './routes/webhooks.js';
 import { analyticsRoutes } from './routes/analytics.js';
 import { aeoRoutes } from './routes/aeo.js';
 import { integrationRoutes } from './routes/integrations.js';
+import { assistantRoutes } from './routes/assistant.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { tenantMiddleware } from './middleware/tenant.js';
@@ -53,6 +54,7 @@ api.route('/webhooks', webhookRoutes);
 api.route('/analytics', analyticsRoutes);
 api.route('/aeo', aeoRoutes);
 api.route('/integrations', integrationRoutes);
+api.route('/assistant', assistantRoutes);
 
 app.route('/api/v1', api);
 

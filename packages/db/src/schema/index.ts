@@ -15,3 +15,5 @@ export * from './agent-tasks.js';
 export * from './integrations.js';
 export * from './integration-health.js';
 export * from './schema-snapshots.js';
+export * from './assistant-sessions.js';
+export * from './assistant-messages.js';

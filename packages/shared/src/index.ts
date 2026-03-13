@@ -7,6 +7,7 @@ export * from './constants/event-types.js';
 export * from './constants/creative-formats.js';
 export * from './constants/error-codes.js';
 export * from './constants/integration-registry.js';
+export * from './constants/tier-capabilities.js';
 
 // Utils
 export * from './utils/validation.js';
@@ -23,3 +24,4 @@ export * from './schemas/campaign.schema.js';
 export * from './schemas/creative.schema.js';
 export * from './schemas/webhook.schema.js';
 export * from './schemas/integration.schema.js';
+export * from './schemas/assistant.schema.js';
