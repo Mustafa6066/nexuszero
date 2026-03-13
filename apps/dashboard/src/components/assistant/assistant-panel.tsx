@@ -1,8 +1,10 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
-import { Bot, Sparkles, X, RotateCcw } from 'lucide-react';
+import { useRef, useEffect, useMemo } from 'react';
+import { Bot, Sparkles, X, RotateCcw, Sun, Moon, Sunrise } from 'lucide-react';
 import { useAssistant } from '@/hooks/use-assistant';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { ChatMessageBubble } from './chat-message';
 import { ChatInput } from './chat-input';
 import { TypingIndicator } from './typing-indicator';
@@ -93,19 +95,57 @@ export function AssistantPanel() {
   );
 }
 
+function getTimeGreeting(): { greeting: string; icon: typeof Sun } {
+  const hour = new Date().getHours();
+  if (hour < 12) return { greeting: 'Good morning', icon: Sunrise };
+  if (hour < 18) return { greeting: 'Good afternoon', icon: Sun };
+  return { greeting: 'Good evening', icon: Moon };
+}
+
 function EmptyState({ onSuggestionClick, suggestions }: {
   onSuggestionClick: (msg: string) => void;
   suggestions: Array<{ label: string; message: string }>;
 }) {
+  const { greeting, icon: TimeIcon } = useMemo(getTimeGreeting, []);
+
+  // Fetch agent stats for proactive insight
+  const { data: stats } = useQuery({
+    queryKey: ['agents', 'stats'],
+    queryFn: () => api.getAgentStats(),
+    staleTime: 60000,
+  });
+
+  const { data: agents } = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => api.getAgents(),
+    staleTime: 60000,
+  });
+
+  const activeCount = agents?.filter((a: any) => a.status === 'processing').length ?? 0;
+  const totalTasks = stats?.tasksToday ?? 0;
+
+  // Build the proactive insight line
+  const insightLine = activeCount > 0
+    ? `${activeCount} agent${activeCount > 1 ? 's are' : ' is'} running right now with ${totalTasks} task${totalTasks !== 1 ? 's' : ''} processed today.`
+    : totalTasks > 0
+    ? `Your agents processed ${totalTasks} task${totalTasks !== 1 ? 's' : ''} today.`
+    : null;
+
   return (
     <div className="flex flex-col items-center justify-center h-full px-6 py-12 text-center">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20
         border border-indigo-500/20 flex items-center justify-center mb-4">
         <Bot className="w-8 h-8 text-indigo-400" />
       </div>
-      <h3 className="text-lg font-semibold text-foreground mb-1">Hey! I&apos;m NexusAI</h3>
+      <div className="flex items-center gap-1.5 mb-1">
+        <TimeIcon className="w-4 h-4 text-amber-400" />
+        <h3 className="text-lg font-semibold text-foreground">{greeting}, Commander</h3>
+      </div>
+      {insightLine && (
+        <p className="text-xs text-indigo-400/80 mb-1 font-medium">{insightLine}</p>
+      )}
       <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
-        Your AI marketing copilot. Ask me about analytics, campaigns, SEO, or anything else.
+        I&apos;m your AI marketing copilot. Ask me anything about your campaigns, agents, or analytics.
       </p>
       <div className="w-full space-y-2">
         {suggestions.map((chip) => (

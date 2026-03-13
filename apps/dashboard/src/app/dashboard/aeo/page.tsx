@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button, MetricCard } from '@/components/ui';
 import { BarChartWidget } from '@/components/charts';
+import { TierGateOverlay } from '@/components/tier-gate-overlay';
 
 const PLATFORM_COLORS: Record<string, string> = {
   chatgpt: '#10a37f',
@@ -51,6 +52,11 @@ export default function AEOPage() {
   }));
 
   return (
+    <TierGateOverlay
+      feature="AI Engine Optimization"
+      description="Track your brand mentions across ChatGPT, Perplexity, Gemini, and other AI platforms. Optimize your visibility in AI-powered search results."
+      requiredTier="growth"
+    >
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -160,5 +166,6 @@ export default function AEOPage() {
         )}
       </Card>
     </div>
+    </TierGateOverlay>
   );
 }

@@ -8,6 +8,9 @@ import { AreaChartWidget, BarChartWidget, DonutChartWidget } from '@/components/
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils';
 import { Bot, TrendingUp, DollarSign, Zap, Users, ArrowUpRight, Search, Megaphone, BarChart2, Cpu } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { DashboardSkeleton } from '@/components/skeletons';
+import { WeeklyReportCard } from '@/components/weekly-report-card';
+import { MilestonesPanel } from '@/components/milestones';
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'outline'> = {
   active: 'success',
@@ -40,7 +43,7 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const name = (session?.user?.name ?? '').split(' ')[0] || 'Commander';
 
-  const { data: summary } = useQuery({
+  const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['analytics', 'summary'],
     queryFn: () => api.getAnalyticsSummary(),
     refetchInterval: 30000,
@@ -113,6 +116,10 @@ export default function DashboardPage() {
     },
   ] as const;
 
+  if (summaryLoading && !summary) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Greeting */}
@@ -133,6 +140,9 @@ export default function DashboardPage() {
           System operational
         </div>
       </div>
+
+      {/* Weekly Report Card */}
+      <WeeklyReportCard />
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -265,6 +275,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Milestones */}
+      <MilestonesPanel />
     </div>
   );
 }

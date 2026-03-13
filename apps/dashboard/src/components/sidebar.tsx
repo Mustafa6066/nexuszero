@@ -9,6 +9,7 @@ import {
   LayoutDashboard, BarChart3, Bot, Megaphone, Palette,
   Globe, Webhook, Settings, Plug, Sun, Moon, LogOut,
 } from 'lucide-react';
+import { NotificationTray } from './notification-tray';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
@@ -92,6 +93,7 @@ export function FloatingNav() {
 
       {/* Right actions */}
       <div className="flex items-center gap-0.5 ml-1 pl-2 border-l border-border">
+        <NotificationTray />
         <button
           onClick={toggle}
           title="Toggle theme"
