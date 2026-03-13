@@ -52,7 +52,7 @@ export async function seed() {
   console.log(`  Full key (save this): ${rawKey}`);
 
   // Create agents
-  const agentTypes = ['seo', 'ad', 'creative', 'data_nexus', 'aeo'] as const;
+  const agentTypes = ['seo', 'ad', 'creative', 'data-nexus', 'aeo', 'compatibility'] as const;
   for (const type of agentTypes) {
     const [agent] = await db.insert(schema.agents).values({
       tenantId: tenant.id,

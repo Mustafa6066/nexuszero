@@ -45,20 +45,43 @@ console.log(`Running ${statements.length} migration statements...`);
 
 let success = 0;
 let skipped = 0;
+let failed = 0;
 for (const stmt of statements) {
   try {
     await sql.unsafe(stmt);
     success++;
   } catch (err) {
-    // Most errors here are expected (duplicate_object, etc.)
+    // Most errors here are expected (duplicate_object, already exists)
     if (err.message && (err.message.includes('duplicate_object') || err.message.includes('already exists'))) {
       skipped++;
     } else {
-      console.warn(`Warning on statement ${success + skipped + 1}:`, err.message?.substring(0, 100));
-      skipped++;
+      console.error(`[migrate] FAILED statement ${success + skipped + failed + 1}: ${err.message?.substring(0, 200)}`);
+      failed++;
     }
   }
 }
 
-console.log(`Migration complete! ${success} applied, ${skipped} skipped.`);
+console.log(`Migration complete! ${success} applied, ${skipped} already existed, ${failed} failed.`);
+
+// Verify tables exist
+try {
+  const tables = await sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`;
+  const names = tables.map(t => t.table_name);
+  const expected = [
+    'agents','agent_tasks','analytics_data_points','api_keys','audit_logs',
+    'campaigns','compound_insights','creative_tests','creatives','entity_profiles',
+    'forecasts','funnel_analysis','integration_health','integrations','oauth_tokens',
+    'schema_snapshots','tenants','users','webhook_deliveries','webhook_endpoints',
+    'aeo_citations','ai_visibility_scores',
+  ];
+  const missing = expected.filter(t => !names.includes(t));
+  if (missing.length > 0) {
+    console.error('[migrate] WARNING — missing tables:', missing.join(', '));
+  } else {
+    console.log('[migrate] All expected tables present:', names.length, 'total');
+  }
+} catch (checkErr) {
+  console.warn('[migrate] Could not verify table list:', checkErr.message);
+}
+
 await sql.end();

@@ -3,7 +3,7 @@ builder = "nixpacks"
 buildCommand = "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @nexuszero/shared build && pnpm --filter @nexuszero/queue build && pnpm --filter @nexuszero/db build && pnpm --filter @nexuszero/api-gateway build"
 
 [deploy]
-startCommand = "node dist/index.js"
+startCommand = "node src/migrate.mjs && node dist/index.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"

@@ -1,7 +1,18 @@
 import { Hono } from 'hono';
 import { withTenantDb, campaigns } from '@nexuszero/db';
 import { createCampaignSchema, updateCampaignSchema, campaignFiltersSchema, AppError } from '@nexuszero/shared';
-import { eq, and, ilike, sql } from 'drizzle-orm';
+import { eq, and, ilike, sql, asc, desc } from 'drizzle-orm';
+
+const SORT_COLUMNS: Record<string, any> = {
+  name: campaigns.name,
+  createdAt: campaigns.createdAt,
+  updatedAt: campaigns.updatedAt,
+  spend: campaigns.spend,
+  roas: campaigns.roas,
+  // legacy aliases sent by the dashboard
+  created_at: campaigns.createdAt,
+  updated_at: campaigns.updatedAt,
+};
 
 const app = new Hono();
 
@@ -9,14 +20,30 @@ const app = new Hono();
 app.get('/', async (c) => {
   const tenantId = c.get('tenantId');
   const query = c.req.query();
-  const filters = campaignFiltersSchema.parse({
-    status: query.status,
-    type: query.type,
-    platform: query.platform,
-    search: query.search,
-    page: query.page ? parseInt(query.page) : undefined,
-    limit: query.limit ? parseInt(query.limit) : undefined,
-  });
+
+  // Normalize sort aliases: the dashboard sends `sort=updated_at` (snake_case)
+  const SORT_ALIAS: Record<string, string> = {
+    updated_at: 'updatedAt', created_at: 'createdAt',
+    name: 'name', spend: 'spend', roas: 'roas',
+  };
+  const rawSort = query.sortBy ?? query.sort;
+  const normalizedSort = rawSort ? (SORT_ALIAS[rawSort] ?? rawSort) : undefined;
+
+  let filters: ReturnType<typeof campaignFiltersSchema.parse>;
+  try {
+    filters = campaignFiltersSchema.parse({
+      status: query.status,
+      type: query.type,
+      platform: query.platform,
+      search: query.search,
+      sortBy: normalizedSort,
+      sortOrder: query.sortOrder,
+      page: query.page ? parseInt(query.page, 10) : undefined,
+      limit: query.limit ? parseInt(query.limit, 10) : undefined,
+    });
+  } catch (err: any) {
+    throw new AppError('VALIDATION_ERROR', err?.errors ?? err?.message ?? 'Invalid query parameters');
+  }
 
   return withTenantDb(tenantId, async (db) => {
     const conditions = [eq(campaigns.tenantId, tenantId)];
@@ -28,9 +55,11 @@ app.get('/', async (c) => {
     const page = filters.page || 1;
     const limit = filters.limit || 20;
     const offset = (page - 1) * limit;
+    const sortCol = SORT_COLUMNS[filters.sortBy] ?? campaigns.createdAt;
+    const orderFn = filters.sortOrder === 'asc' ? asc : desc;
 
     const [result, [{ count }]] = await Promise.all([
-      db.select().from(campaigns).where(and(...conditions)).limit(limit).offset(offset).orderBy(campaigns.createdAt),
+      db.select().from(campaigns).where(and(...conditions)).limit(limit).offset(offset).orderBy(orderFn(sortCol)),
       db.select({ count: sql<number>`count(*)::int` }).from(campaigns).where(and(...conditions)),
     ]);
 
