@@ -166,7 +166,7 @@ async function getOrRecoverContext(tenantId: string): Promise<OnboardingContext>
     .filter(i => i.status === 'connected')
     .map(i => i.platform as Platform);
   const failedPlatforms = tenantIntegrations
-    .filter(i => i.status === 'error')
+    .filter(i => i.status === 'disconnected' || i.status === 'expired')
     .map(i => i.platform as Platform);
   const detectedPlatforms = tenantIntegrations
     .map(i => i.platform as Platform);
