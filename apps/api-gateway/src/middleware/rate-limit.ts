@@ -8,7 +8,18 @@ let redis: Redis | null = null;
 
 function getRedis() {
   if (!redis) {
-    redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+    // enableOfflineQueue:false causes commands to immediately reject (instead of
+    // buffering forever) when the connection is unavailable.  This prevents the
+    // rate-limit middleware from hanging the entire request pipeline when Redis
+    // is not configured or temporarily down.
+    redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 0,
+      connectTimeout: 2000,
+      lazyConnect: true,
+    });
+    // Suppress unhandled-error events so Node.js doesn't crash on connect failures
+    redis.on('error', () => {});
   }
   return redis;
 }
@@ -62,9 +73,19 @@ export const rateLimitMiddleware = async (c: Context, next: Next) => {
     pipe.zadd(key, now, `${now}:${Math.random()}`);
     pipe.zcard(key);
     pipe.expire(key, 120);
-    const results = await pipe.exec();
+    // Race against a 2-second timeout so a slow/disconnected Redis never
+    // blocks the request; on timeout we simply skip enforcement.
+    const results = await Promise.race([
+      pipe.exec(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+    ]);
 
     const count = (results?.[2]?.[1] as number) || 0;
+
+    if (results === null) {
+      // Timed out waiting for Redis — skip enforcement
+      return next();
+    }
 
     c.header('X-RateLimit-Limit', String(limit));
     c.header('X-RateLimit-Remaining', String(Math.max(0, limit - count)));
