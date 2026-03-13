@@ -79,6 +79,7 @@ export async function sendAssistantMessage(
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let receivedText = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -107,6 +108,7 @@ export async function sendAssistantMessage(
                 }
                 if (text) {
                   store.appendToLastAssistant(text);
+                  receivedText = true;
                 }
                 break;
               }
@@ -114,10 +116,11 @@ export async function sendAssistantMessage(
                 const toolCall = event.toolCall as ToolCallData;
                 store.addToolCallToLast(toolCall);
                 onToolCall?.(toolCall);
+                receivedText = true; // tool calls count as valid response
                 break;
               }
               case 'error': {
-                store.setError(event.message);
+                store.setError(event.message || 'An unexpected error occurred');
                 break;
               }
               case 'done': {
@@ -130,6 +133,10 @@ export async function sendAssistantMessage(
           }
         }
       }
+    }
+    // If stream ended without any assistant content, show a fallback error
+    if (!receivedText && !store.error) {
+      store.setError('No response received. Please check your connection and try again.');
     }
   } catch (err) {
     store.setError(err instanceof Error ? err.message : 'Connection failed');

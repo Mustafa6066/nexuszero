@@ -410,13 +410,34 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
     return;
   }
 
-  const sessionId = await getOrCreateSession(tenantId, userId, params.sessionId);
-  await saveMessage(tenantId, sessionId, 'user', message, [], uiContext);
+  let sessionId: string;
+  try {
+    sessionId = await getOrCreateSession(tenantId, userId, params.sessionId);
+  } catch (err) {
+    console.error('[NexusAI] Session creation failed:', err);
+    yield { type: 'error', message: 'Failed to initialise chat session. Please try again.' };
+    yield { type: 'done' };
+    return;
+  }
+
+  try {
+    await saveMessage(tenantId, sessionId, 'user', message, [], uiContext);
+  } catch (err) {
+    console.error('[NexusAI] Failed to save user message:', err);
+    // Non-fatal — continue even if message save fails
+  }
 
   // 2. Build Claude request
   const systemPrompt = buildSystemPrompt(tenantCtx, uiContext);
   const tools = buildToolDefinitions(tenantCtx.tier);
-  const history = await getConversationHistory(tenantId, sessionId);
+
+  let history: Array<{ role: 'user' | 'assistant'; content: string }>;
+  try {
+    history = await getConversationHistory(tenantId, sessionId);
+  } catch (err) {
+    console.error('[NexusAI] Failed to load history:', err);
+    history = [];
+  }
 
   // Build messages array (history + current message)
   const claudeMessages: Array<{ role: string; content: string | Array<{ type: string; tool_use_id?: string; content?: string }> }> = [];
@@ -433,6 +454,7 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
   let iteration = 0;
   const maxIterations = 5;
 
+  try {
   while (iteration < maxIterations) {
     iteration++;
 
@@ -543,9 +565,20 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
     break;
   }
 
+  } catch (err) {
+    console.error('[NexusAI] Agentic loop error:', err);
+    if (!fullTextResponse) {
+      yield { type: 'error', message: 'Something went wrong generating a response. Please try again.' };
+    }
+  }
+
   // 4. Save response
   const latencyMs = Date.now() - startMs;
-  await saveMessage(tenantId, sessionId, 'assistant', fullTextResponse, allToolCalls, undefined, totalTokens, latencyMs);
+  try {
+    await saveMessage(tenantId, sessionId, 'assistant', fullTextResponse, allToolCalls, undefined, totalTokens, latencyMs);
+  } catch (err) {
+    console.error('[NexusAI] Failed to save assistant message:', err);
+  }
 
   // 5. Emit session ID and done
   yield { type: 'text', content: `\n<!-- session:${sessionId} -->` };

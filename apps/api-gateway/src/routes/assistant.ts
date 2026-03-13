@@ -23,18 +23,30 @@ app.post('/chat', async (c) => {
   const { message, sessionId, uiContext } = parsed.data;
 
   return streamSSE(c, async (stream) => {
-    const generator = handleAssistantChat({
-      tenantId,
-      userId: user.userId,
-      message,
-      sessionId,
-      uiContext,
-    });
+    try {
+      const generator = handleAssistantChat({
+        tenantId,
+        userId: user.userId,
+        message,
+        sessionId,
+        uiContext,
+      });
 
-    for await (const event of generator) {
+      for await (const event of generator) {
+        await stream.writeSSE({
+          event: event.type,
+          data: JSON.stringify(event),
+        });
+      }
+    } catch (err) {
+      console.error('[NexusAI] SSE stream error:', err);
       await stream.writeSSE({
-        event: event.type,
-        data: JSON.stringify(event),
+        event: 'error',
+        data: JSON.stringify({ type: 'error', message: 'An unexpected error occurred. Please try again.' }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({ type: 'done' }),
       });
     }
   });
