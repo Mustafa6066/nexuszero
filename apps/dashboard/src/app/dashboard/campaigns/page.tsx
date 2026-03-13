@@ -79,11 +79,11 @@ export default function CampaignsPage() {
               <div className="mt-4 grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Daily Budget</p>
-                  <p className="text-sm font-medium">{formatCurrency(campaign.daily_budget ?? 0)}</p>
+                  <p className="text-sm font-medium">{formatCurrency((campaign.budget as any)?.dailyBudget ?? 0)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Total Spend</p>
-                  <p className="text-sm font-medium">{formatCurrency(campaign.total_spend ?? 0)}</p>
+                  <p className="text-sm font-medium">{formatCurrency(campaign.spend ?? 0)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Impressions</p>
@@ -137,8 +137,16 @@ function CreateCampaignModal({ onClose }: { onClose: () => void }) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate({
-      ...form,
-      daily_budget: parseFloat(form.daily_budget) || 0,
+      name: form.name,
+      type: 'ppc',
+      platform: form.platform,
+      budget: {
+        dailyBudget: parseFloat(form.daily_budget) || 0,
+        bidStrategy: 'maximize_conversions',
+      },
+      targeting: {},
+      schedule: { startDate: new Date().toISOString().slice(0, 10) },
+      config: {},
     });
   };
 

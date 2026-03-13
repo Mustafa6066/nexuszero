@@ -61,12 +61,12 @@ export default function DashboardPage() {
   });
 
   const spendData = analytics?.map((d: any) => ({ date: d.date, spend: d.spend, revenue: d.revenue })) ?? [];
-  const activeAgents = agents?.filter((a: any) => a.status === 'active') ?? [];
+  const activeAgents = agents?.filter((a: any) => a.status === 'processing') ?? [];
 
   const agentDistribution = agents
     ? Object.entries(
         agents.reduce((acc: Record<string, number>, a: any) => {
-          acc[a.agent_type] = (acc[a.agent_type] || 0) + 1;
+          acc[a.type] = (acc[a.type] || 0) + 1;
           return acc;
         }, {})
       ).map(([name, value]) => ({ name, value: value as number }))
@@ -207,14 +207,14 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             {(agents ?? []).slice(0, 6).map((agent: any) => {
-              const typeKey = agent.agent_type?.split('_')[0] ?? 'data';
+              const typeKey = agent.type?.split('_')[0] ?? 'data';
               return (
                 <div key={agent.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 hover:border-border transition-colors">
                   <div className="flex items-center gap-3">
                     <span className="text-lg leading-none">{AGENT_ICONS[typeKey] ?? '🤖'}</span>
                     <div>
-                      <p className="text-xs font-medium capitalize">{agent.agent_type?.replace(/_/g, ' ')} Agent</p>
-                      <p className="text-xs text-muted-foreground">{agent.tasks_completed ?? 0} tasks</p>
+                      <p className="text-xs font-medium capitalize">{agent.type?.replace(/_/g, ' ')} Agent</p>
+                      <p className="text-xs text-muted-foreground">{agent.tasksCompleted ?? 0} tasks</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -247,7 +247,7 @@ export default function DashboardPage() {
               <div key={campaign.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 hover:border-border transition-colors">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium">{campaign.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{campaign.platform} · {formatCurrency(campaign.daily_budget ?? 0)}/day</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{campaign.platform} · {formatCurrency((campaign.budget as any)?.dailyBudget ?? 0)}/day</p>
                 </div>
                 <Badge variant={campaign.status === 'active' ? 'success' : campaign.status === 'paused' ? 'warning' : 'outline'}>
                   {campaign.status}

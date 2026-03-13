@@ -44,11 +44,11 @@ export default function AgentsPage() {
   });
 
   const tasksByType = AGENT_TYPES.map((type) => {
-    const typeAgents = (agents ?? []).filter((a: any) => a.agent_type === type);
+    const typeAgents = (agents ?? []).filter((a: any) => a.type === type);
     return {
       name: type.replace('_', ' '),
-      completed: typeAgents.reduce((sum: number, a: any) => sum + (a.tasks_completed ?? 0), 0),
-      failed: typeAgents.reduce((sum: number, a: any) => sum + (a.tasks_failed ?? 0), 0),
+      completed: typeAgents.reduce((sum: number, a: any) => sum + (a.tasksCompleted ?? 0), 0),
+      failed: typeAgents.reduce((sum: number, a: any) => sum + (a.tasksFailed ?? 0), 0),
     };
   });
 
@@ -67,7 +67,7 @@ export default function AgentsPage() {
         <Card>
           <p className="text-sm text-muted-foreground">Active</p>
           <p className="mt-1 text-2xl font-bold text-green-400">
-            {agents?.filter((a: any) => a.status === 'active').length ?? 0}
+            {agents?.filter((a: any) => a.status === 'processing').length ?? 0}
           </p>
         </Card>
         <Card>
@@ -110,21 +110,21 @@ export default function AgentsPage() {
                 <div className="flex items-center gap-4">
                   <div
                     className="h-10 w-10 rounded-lg flex items-center justify-center text-xs font-bold uppercase"
-                    style={{ backgroundColor: (AGENT_COLORS[agent.agent_type] ?? '#8b5cf6') + '20', color: AGENT_COLORS[agent.agent_type] ?? '#8b5cf6' }}
+                    style={{ backgroundColor: (AGENT_COLORS[agent.type] ?? '#8b5cf6') + '20', color: AGENT_COLORS[agent.type] ?? '#8b5cf6' }}
                   >
-                    {agent.agent_type.slice(0, 2)}
+                    {(agent.type ?? '??').slice(0, 2)}
                   </div>
                   <div>
-                    <p className="text-sm font-medium capitalize">{agent.agent_type.replace('_', ' ')} Agent</p>
+                    <p className="text-sm font-medium capitalize">{(agent.type ?? 'unknown').replace('_', ' ')} Agent</p>
                     <p className="text-xs text-muted-foreground">
-                      {agent.tasks_completed ?? 0} completed &middot; {agent.tasks_failed ?? 0} failed
-                      {agent.last_heartbeat && <> &middot; Last active: {new Date(agent.last_heartbeat).toLocaleTimeString()}</>}
+                      {agent.tasksCompleted ?? 0} completed &middot; {agent.tasksFailed ?? 0} failed
+                      {agent.lastHeartbeat && <> &middot; Last active: {new Date(agent.lastHeartbeat).toLocaleTimeString()}</>}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge variant={STATUS_VARIANT[agent.status] ?? 'outline'}>{agent.status}</Badge>
-                  {agent.status === 'active' && (
+                  {agent.status === 'processing' && (
                     <Button
                       variant="outline"
                       size="sm"
