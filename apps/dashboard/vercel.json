@@ -3,11 +3,5 @@
   "framework": "nextjs",
   "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @nexuszero/shared build && pnpm --filter @nexuszero/db build && pnpm --filter @nexuszero/dashboard build",
   "outputDirectory": ".next",
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-  "ignoreCommand": "npx turbo-ignore",
-  "env": {
-    "NEXT_PUBLIC_API_URL": "@api_url",
-    "NEXTAUTH_SECRET": "@nextauth_secret",
-    "NEXTAUTH_URL": "@nextauth_url"
-  }
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile"
 }
