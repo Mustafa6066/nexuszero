@@ -29,8 +29,10 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(error.message || `API error: ${response.status}`);
+      const body = await response.json().catch(() => ({ message: response.statusText }));
+      // Gateway returns { error: { message } }, but handle flat { message } too
+      const message = body?.error?.message ?? body?.message ?? `API error: ${response.status}`;
+      throw new Error(message);
     }
 
     return response.json();
