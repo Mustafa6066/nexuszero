@@ -31,7 +31,7 @@ export const authOptions: NextAuthOptions = {
           email: data.user.email,
           name: data.user.name,
           accessToken: data.token,
-          tenantId: data.user.tenant_id,
+          tenantId: data.user.tenantId ?? data.user.tenant_id,
           role: data.user.role,
         };
       },

@@ -4,6 +4,7 @@ const nextConfig = {
   output: 'standalone',
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'https://nexuszero-dashboard.vercel.app',
   },
   images: {
     remotePatterns: [

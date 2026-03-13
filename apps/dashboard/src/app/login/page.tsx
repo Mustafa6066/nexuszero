@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Zap } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,8 +49,8 @@ export default function LoginPage() {
         <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-xl p-8 shadow-2xl shadow-black/20">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4 text-2xl">
-              ⚡
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+              <Zap size={22} className="text-primary" />
             </div>
             <h1 className="text-xl font-bold gradient-text">NexusZero</h1>
             <p className="text-xs text-muted-foreground mt-1">Command Center Access</p>

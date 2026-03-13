@@ -6,7 +6,8 @@ import { api } from '@/lib/api';
 import { Badge } from '@/components/ui';
 import { AreaChartWidget, BarChartWidget, DonutChartWidget } from '@/components/charts';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils';
-import { Bot, TrendingUp, DollarSign, Zap, Users, ArrowUpRight } from 'lucide-react';
+import { Bot, TrendingUp, DollarSign, Zap, Users, ArrowUpRight, Search, Megaphone, BarChart2, Cpu } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'outline'> = {
   active: 'success',
@@ -15,11 +16,12 @@ const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'ou
   error: 'destructive',
 };
 
-const AGENT_ICONS: Record<string, string> = {
-  seo: '🔍',
-  ad: '📣',
-  aeo: '🤖',
-  data: '📊',
+const AGENT_ICONS: Record<string, LucideIcon> = {
+  seo: Search,
+  ad: Megaphone,
+  aeo: Bot,
+  data: BarChart2,
+  creative: Cpu,
 };
 
 function AgentPulse({ status }: { status: string }) {
@@ -211,7 +213,7 @@ export default function DashboardPage() {
               return (
                 <div key={agent.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 hover:border-border transition-colors">
                   <div className="flex items-center gap-3">
-                    <span className="text-lg leading-none">{AGENT_ICONS[typeKey] ?? '🤖'}</span>
+                    {(() => { const Icon = AGENT_ICONS[typeKey] ?? Bot; return <Icon size={16} className="text-primary/80 shrink-0" />; })()}
                     <div>
                       <p className="text-xs font-medium capitalize">{agent.type?.replace(/_/g, ' ')} Agent</p>
                       <p className="text-xs text-muted-foreground">{agent.tasksCompleted ?? 0} tasks</p>
