@@ -28,12 +28,12 @@ export function AssistantPanel() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed right-0 top-0 bottom-0 z-40 w-full sm:w-[420px] flex flex-col
-      bg-card border-l border-border/40 shadow-2xl shadow-black/20 animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-0 z-40 md:inset-auto md:right-6 md:top-24 md:bottom-6 md:w-[420px] flex flex-col
+      bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl shadow-black/30 md:rounded-2xl animate-in slide-in-from-right duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 md:rounded-t-2xl bg-secondary/20">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-sky-500
             flex items-center justify-center">
             <Bot className="w-4.5 h-4.5 text-white" />
           </div>
@@ -42,7 +42,7 @@ export function AssistantPanel() {
               <span className="text-sm font-semibold text-foreground">NexusAI</span>
               <Sparkles className="w-3 h-3 text-yellow-400" />
             </div>
-            <span className="text-[10px] text-muted-foreground">Your AI marketing copilot</span>
+            <span className="text-[10px] text-muted-foreground">AI Strategy Assistant</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -137,29 +137,28 @@ function EmptyState({ onSuggestionClick, suggestions }: {
 
   return (
     <div className="flex flex-col items-center justify-center h-full px-6 py-12 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20
-        border border-indigo-500/20 flex items-center justify-center mb-4">
-        <Bot className="w-8 h-8 text-indigo-400" />
+      <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+        <Bot className="w-7 h-7 text-primary" />
       </div>
       <div className="flex items-center gap-1.5 mb-1">
-        <TimeIcon className="w-4 h-4 text-amber-400" />
-        <h3 className="text-lg font-semibold text-foreground">{greeting}, Commander</h3>
+        <TimeIcon className="w-4 h-4 text-muted-foreground" />
+        <h3 className="text-lg font-semibold text-foreground">{greeting}</h3>
       </div>
       {insightLine && (
-        <p className="text-xs text-indigo-400/80 mb-1 font-medium">{insightLine}</p>
+        <p className="text-xs text-muted-foreground mb-1 font-medium">{insightLine}</p>
       )}
-      <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
-        I&apos;m your AI marketing copilot. Ask me anything about your campaigns, agents, or analytics.
+      <p className="text-sm text-muted-foreground mb-6 max-w-[300px]">
+        NexusAI can summarize performance, diagnose issues, and recommend next actions across campaigns and agents.
       </p>
       <div className="w-full space-y-2">
         {suggestions.map((chip) => (
           <button
             key={chip.label}
             onClick={() => onSuggestionClick(chip.message)}
-            className="w-full text-left px-4 py-3 rounded-xl border border-border/40 bg-secondary/30
-              hover:bg-secondary/60 hover:border-indigo-500/20 transition-all text-sm text-foreground group"
+            className="w-full text-left px-4 py-3 rounded-xl border border-border/40 bg-background/40
+              hover:bg-secondary/50 hover:border-border transition-all text-sm text-foreground group"
           >
-            <span className="text-muted-foreground group-hover:text-indigo-400 transition-colors mr-2">→</span>
+            <span className="text-muted-foreground transition-colors mr-2">→</span>
             {chip.label}
           </button>
         ))}

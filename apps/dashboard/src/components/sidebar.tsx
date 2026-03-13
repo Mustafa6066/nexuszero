@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/app/providers';
 import { signOut } from 'next-auth/react';
+import { useAssistant } from '@/hooks/use-assistant';
 import {
   LayoutDashboard, BarChart3, Bot, Megaphone, Palette,
   Globe, Webhook, Settings, Plug, Sun, Moon, LogOut,
@@ -35,6 +36,7 @@ export function Sidebar() {
 export function FloatingNav() {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
+  const { isOpen, toggle: toggleAssistant } = useAssistant();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -98,6 +100,19 @@ export function FloatingNav() {
 
       {/* Right actions */}
       <div className="flex items-center gap-0.5 ml-1 pl-2 border-l border-border">
+        <button
+          onClick={toggleAssistant}
+          title={isOpen ? 'Close NexusAI' : 'Open NexusAI'}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium transition-all',
+            isOpen
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+          )}
+        >
+          <Bot size={13} />
+          <span className="hidden lg:inline">NexusAI</span>
+        </button>
         <NotificationTray />
         <button
           onClick={toggle}
