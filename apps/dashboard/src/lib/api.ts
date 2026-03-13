@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE = ((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000')).replace(/\/$/, '') + '/api/v1';
 
 class ApiClient {
   private token: string | null = null;
@@ -21,7 +21,7 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(`${API_URL}${path}`, {
+    const response = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers,
     });
@@ -57,7 +57,7 @@ class ApiClient {
   }
 
   // Auth
-  login(email: string, password: string) { return this.post<{ token: string; user: any }>('/tenants/login', { email, password }); }
+  login(email: string, password: string) { return this.post<{ token: string; user: any }>('/auth/login', { email, password }); }
   getMe() { return this.get<any>('/tenants/me'); }
 
   // Campaigns
