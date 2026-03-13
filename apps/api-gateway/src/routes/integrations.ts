@@ -24,8 +24,8 @@ async function fetchHtml(url: string): Promise<string | null> {
   try {
     const res = await fetch(normalized, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; NexusZero/1.0; +https://nexuszero.dev)',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
       },
       signal: AbortSignal.timeout(15_000),
@@ -44,12 +44,13 @@ function detectTechStackInline(html: string): Detection[] {
     if (confidence > 0) d.push({ platform, confidence: Math.min(confidence, 1), evidence });
   };
 
-  // Google Analytics
+  // Google Analytics / GTM
   let ga = 0;
-  if (html.match(/G-[A-Z0-9]{6,}/)) ga += 0.6;
+  if (html.match(/G-[A-Z0-9]{7,10}/)) ga += 0.6;
   if (html.includes('googletagmanager.com/gtag/js') || html.includes('gtag(')) ga += 0.3;
-  if (html.includes('googletagmanager.com/gtm.js')) ga += 0.2;
-  add('google_analytics', ga, 'GA4 measurement ID or gtag.js detected');
+  if (html.includes('googletagmanager.com/gtm.js') || html.match(/GTM-[A-Z0-9]{5,}/)) ga += 0.3;
+  if (html.includes('google-analytics.com/analytics.js') || html.includes('ga.js')) ga += 0.3;
+  add('google_analytics', ga, 'GA4 measurement ID, GTM container, or gtag.js detected');
 
   // Google Ads
   let gads = 0;
