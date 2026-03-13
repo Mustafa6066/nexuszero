@@ -22,6 +22,9 @@ const navItems = [
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 
+const primaryNav = navItems.slice(0, 5);
+const secondaryNav = navItems.slice(5);
+
 export function Sidebar() {
   // Legacy export kept to avoid breaking imports — renders nothing.
   return null;
@@ -33,15 +36,15 @@ export function FloatingNav() {
   const { data: session } = useSession();
 
   return (
-    <header className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-3 py-2 glass-nav rounded-full shadow-xl shadow-black/20 max-w-[calc(100vw-2rem)]">
+    <header className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-3 py-2 glass-nav rounded-full shadow-xl shadow-black/20">
       {/* Brand */}
-      <Link href="/dashboard" className="shrink-0 mr-2 px-2 text-sm font-bold gradient-text whitespace-nowrap">
+      <Link href="/dashboard" className="shrink-0 mr-1 px-2 text-sm font-bold gradient-text whitespace-nowrap">
         NxZ
       </Link>
 
-      {/* Nav links */}
+      {/* Primary nav — icons + labels on xl only */}
       <nav className="flex items-center gap-0.5">
-        {navItems.map(({ href, icon: Icon, label }) => {
+        {primaryNav.map(({ href, icon: Icon, label }) => {
           const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
           return (
             <Link
@@ -49,21 +52,46 @@ export function FloatingNav() {
               href={href}
               title={label}
               className={cn(
-                'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all',
+                'flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium transition-all',
                 active
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80',
               )}
             >
               <Icon size={14} />
-              <span className="hidden lg:inline">{label}</span>
+              <span className="hidden xl:inline">{label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Divider */}
+      <div className="w-px h-4 bg-border mx-1" />
+
+      {/* Secondary nav — icons only */}
+      <nav className="flex items-center gap-0.5">
+        {secondaryNav.map(({ href, icon: Icon, label }) => {
+          const active = pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              title={label}
+              className={cn(
+                'rounded-full p-1.5 text-xs transition-all',
+                active
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+              )}
+            >
+              <Icon size={14} />
             </Link>
           );
         })}
       </nav>
 
       {/* Right actions */}
-      <div className="flex items-center gap-1 ml-2 pl-2 border-l border-border">
+      <div className="flex items-center gap-0.5 ml-1 pl-2 border-l border-border">
         <button
           onClick={toggle}
           title="Toggle theme"

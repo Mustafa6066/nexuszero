@@ -23,7 +23,10 @@ const app = new Hono();
 app.use('*', logger());
 app.use('*', secureHeaders());
 app.use('*', cors({
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+  origin: process.env.CORS_ORIGIN?.split(',') || [
+    'http://localhost:3000',
+    'https://nexuszero-dashboard.vercel.app',
+  ],
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Tenant-ID'],
   credentials: true,
