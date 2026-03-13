@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { SessionProvider, useSession } from 'next-auth/react';
 import type { Session } from 'next-auth';
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { api } from '@/lib/api';
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
@@ -36,13 +36,20 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 function ApiAuthSync() {
   const { data: session, status } = useSession();
   const queryClient = useQueryClient();
+  const hadToken = useRef(api.hasToken());
   useEffect(() => {
     if (status === 'loading') return;
     const token = (session as any)?.accessToken as string | undefined;
     if (token) {
       api.setToken(token);
+      // Re-trigger queries only when transitioning from no-token → token
+      if (!hadToken.current) {
+        hadToken.current = true;
+        queryClient.invalidateQueries();
+      }
     } else {
       api.clearToken();
+      hadToken.current = false;
     }
   }, [session, status, queryClient]);
   return null;
