@@ -3,7 +3,6 @@
 import { FloatingNav } from '@/components/sidebar';
 import { AssistantPanel } from '@/components/assistant/assistant-panel';
 import { AssistantFab } from '@/components/assistant/assistant-fab';
-import { CommandPalette } from '@/components/command-palette';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,7 +14,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
       <AssistantPanel />
       <AssistantFab />
-      <CommandPalette />
     </div>
   );
 }

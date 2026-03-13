@@ -9,7 +9,6 @@ import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { Bot, TrendingUp, DollarSign, Zap, Users, ArrowUpRight, Search, Megaphone, BarChart2, Cpu } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { DashboardSkeleton } from '@/components/skeletons';
 import { WeeklyReportCard } from '@/components/weekly-report-card';
 import { MilestonesPanel } from '@/components/milestones';
 import { DashboardSectionBoundary } from '@/components/dashboard-section-boundary';
@@ -51,32 +50,36 @@ function useTimeOfDay() {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const name = (session?.user?.name ?? '').split(' ')[0] || 'Commander';
   const timeOfDay = useTimeOfDay();
 
-  const { data: summary, isLoading: summaryLoading } = useQuery({
+  const { data: summary, error: summaryError } = useQuery({
     queryKey: ['analytics', 'summary'],
     queryFn: () => api.getAnalyticsSummary(),
     refetchInterval: 120_000,
     refetchOnWindowFocus: false,
+    enabled: status === 'authenticated',
   });
 
-  const { data: agents } = useQuery({
+  const { data: agents, error: agentsError } = useQuery({
     queryKey: ['agents'],
     queryFn: () => api.getAgents(),
     refetchInterval: 60_000,
     refetchOnWindowFocus: false,
+    enabled: status === 'authenticated',
   });
 
-  const { data: campaigns } = useQuery({
+  const { data: campaigns, error: campaignsError } = useQuery({
     queryKey: ['campaigns', 'recent'],
     queryFn: () => api.getCampaigns({ limit: '5', sort: 'updated_at' }),
+    enabled: status === 'authenticated',
   });
 
-  const { data: analytics } = useQuery({
+  const { data: analytics, error: analyticsError } = useQuery({
     queryKey: ['analytics', 'chart'],
     queryFn: () => api.getAnalytics({ period: '30d', granularity: 'daily' }),
+    enabled: status === 'authenticated',
   });
 
   const spendData = analytics?.map((d: any) => ({ date: d.date, spend: d.spend, revenue: d.revenue })) ?? [];
@@ -130,9 +133,7 @@ export default function DashboardPage() {
     },
   ] as const;
 
-  if (summaryLoading && !summary) {
-    return <DashboardSkeleton />;
-  }
+  const hasDataError = Boolean(summaryError || agentsError || campaignsError || analyticsError);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -154,6 +155,12 @@ export default function DashboardPage() {
           System operational
         </div>
       </div>
+
+      {hasDataError && (
+        <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-300">
+          Live dashboard data is temporarily unavailable. Navigation remains active while data reconnects.
+        </div>
+      )}
 
       {/* Weekly Report Card */}
       <DashboardSectionBoundary title="Weekly Report Card">
