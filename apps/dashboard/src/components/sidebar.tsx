@@ -1,10 +1,11 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/app/providers';
-import { signOut, useSession } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
 import {
   LayoutDashboard, BarChart3, Bot, Megaphone, Palette,
   Globe, Webhook, Settings, Plug, Sun, Moon, LogOut,
@@ -34,7 +35,11 @@ export function Sidebar() {
 export function FloatingNav() {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
-  const { data: session } = useSession();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <header className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-3 py-2 glass-nav rounded-full shadow-xl shadow-black/20">
@@ -99,7 +104,7 @@ export function FloatingNav() {
           title="Toggle theme"
           className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
         >
-          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          {mounted ? (theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />) : <span className="block h-[14px] w-[14px]" />}
         </button>
         <button
           onClick={() => signOut({ callbackUrl: '/' })}

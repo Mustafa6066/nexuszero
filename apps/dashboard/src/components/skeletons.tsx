@@ -2,6 +2,8 @@
 
 import { cn } from '@/lib/utils';
 
+const CHART_BAR_HEIGHTS = ['38%', '64%', '52%', '81%', '47%', '69%', '56%', '74%'];
+
 /** Shimmer skeleton — more polished than bare animate-pulse */
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
@@ -34,11 +36,11 @@ export function ChartCardSkeleton({ className }: { className?: string }) {
     <div className={cn('rounded-2xl border border-border/40 bg-card/60 p-5', className)}>
       <Skeleton className="h-3 w-32 mb-4" />
       <div className="flex items-end gap-1.5 h-32">
-        {Array.from({ length: 8 }).map((_, i) => (
+        {CHART_BAR_HEIGHTS.map((height, i) => (
           <Skeleton
             key={i}
             className="flex-1 rounded-t-md"
-            style={{ height: `${30 + Math.random() * 70}%` }}
+            style={{ height }}
           />
         ))}
       </div>

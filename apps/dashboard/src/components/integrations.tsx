@@ -56,7 +56,8 @@ export function IntegrationGrid() {
     queryKey: ['integrations'],
     queryFn: () => api.getIntegrations(),
     enabled: status === 'authenticated',
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
+    refetchOnWindowFocus: false,
   });
 
   const disconnectMutation = useMutation({

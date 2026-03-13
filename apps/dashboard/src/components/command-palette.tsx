@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAssistantStore } from '@/lib/assistant-store';
+import { useAssistant } from '@/hooks/use-assistant';
 import {
   Search, LayoutDashboard, Megaphone, Bot, BarChart3, Palette,
   Globe, Plug, Webhook, Settings, Zap, Plus, Play, Pause, ScanSearch, FileText,
@@ -26,7 +26,7 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const assistantStore = useAssistantStore();
+  const { open, sendMessage } = useAssistant();
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -39,7 +39,7 @@ export function CommandPalette() {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        setIsOpen((prev) => !prev);
+        setIsOpen((prev: boolean) => !prev);
       }
       if (e.key === 'Escape') {
         close();
@@ -52,7 +52,8 @@ export function CommandPalette() {
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
+      const timeoutId = window.setTimeout(() => inputRef.current?.focus(), 50);
+      return () => window.clearTimeout(timeoutId);
     }
   }, [isOpen]);
 
@@ -62,12 +63,12 @@ export function CommandPalette() {
   }, [router, close]);
 
   const askAI = useCallback((message: string) => {
-    assistantStore.open();
-    // Delay to let panel open, then we'd trigger the message
+    open();
     close();
-  }, [assistantStore, close]);
+    void sendMessage(message);
+  }, [open, close, sendMessage]);
 
-  const commands: CommandItem[] = [
+  const commands: CommandItem[] = useMemo(() => [
     // Navigation
     { id: 'nav-overview', label: 'Dashboard Overview', icon: LayoutDashboard, action: () => navigate('/dashboard'), category: 'navigation', keywords: ['home', 'command center'] },
     { id: 'nav-campaigns', label: 'Campaigns', icon: Megaphone, action: () => navigate('/dashboard/campaigns'), category: 'navigation', keywords: ['ads', 'ppc'] },
@@ -88,28 +89,27 @@ export function CommandPalette() {
     { id: 'ai-agents', label: "What's the agent status?", icon: Sparkles, action: () => askAI("What's the status of all my agents?"), category: 'ai', keywords: ['health', 'fleet'] },
     { id: 'ai-seo', label: 'SEO performance overview', icon: Sparkles, action: () => askAI('Give me an overview of my SEO performance'), category: 'ai', keywords: ['organic', 'rankings'] },
     { id: 'ai-recommend', label: 'What should I do next?', icon: Sparkles, action: () => askAI('Based on my current data, what actions do you recommend?'), category: 'ai', keywords: ['suggest', 'next steps'] },
-  ];
+  ], [askAI, navigate]);
 
   // Filter commands
-  const filtered = query.trim()
-    ? commands.filter((cmd) => {
-        const q = query.toLowerCase();
-        return (
-          cmd.label.toLowerCase().includes(q) ||
-          cmd.description?.toLowerCase().includes(q) ||
-          cmd.keywords?.some((k) => k.includes(q))
-        );
-      })
-    : commands;
+  const filtered = useMemo(() => {
+    if (!query.trim()) return commands;
+    const q = query.toLowerCase();
+    return commands.filter((cmd) => (
+      cmd.label.toLowerCase().includes(q) ||
+      cmd.description?.toLowerCase().includes(q) ||
+      cmd.keywords?.some((k) => k.includes(q))
+    ));
+  }, [commands, query]);
 
   // Group by category
-  const grouped = {
-    navigation: filtered.filter((c) => c.category === 'navigation'),
-    action: filtered.filter((c) => c.category === 'action'),
-    ai: filtered.filter((c) => c.category === 'ai'),
-  };
+  const grouped = useMemo(() => ({
+    navigation: filtered.filter((c: CommandItem) => c.category === 'navigation'),
+    action: filtered.filter((c: CommandItem) => c.category === 'action'),
+    ai: filtered.filter((c: CommandItem) => c.category === 'ai'),
+  }), [filtered]);
 
-  const flatFiltered = [...grouped.navigation, ...grouped.action, ...grouped.ai];
+  const flatFiltered = useMemo(() => [...grouped.navigation, ...grouped.action, ...grouped.ai], [grouped]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -118,10 +118,10 @@ export function CommandPalette() {
     function handleNav(e: KeyboardEvent) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex((prev) => Math.min(prev + 1, flatFiltered.length - 1));
+        setSelectedIndex((prev: number) => Math.min(prev + 1, flatFiltered.length - 1));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIndex((prev) => Math.max(prev - 1, 0));
+        setSelectedIndex((prev: number) => Math.max(prev - 1, 0));
       } else if (e.key === 'Enter') {
         e.preventDefault();
         flatFiltered[selectedIndex]?.action();
@@ -162,7 +162,7 @@ export function CommandPalette() {
               ref={inputRef}
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e: { target: { value: string } }) => setQuery(e.target.value)}
               placeholder="Type a command or search..."
               className="flex-1 bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
             />
@@ -183,7 +183,7 @@ export function CommandPalette() {
             {grouped.navigation.length > 0 && (
               <div>
                 <p className="px-4 py-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">Navigate</p>
-                {grouped.navigation.map((cmd) => {
+                {grouped.navigation.map((cmd: CommandItem) => {
                   flatIndex++;
                   const idx = flatIndex;
                   const Icon = cmd.icon;
@@ -208,7 +208,7 @@ export function CommandPalette() {
             {grouped.action.length > 0 && (
               <div>
                 <p className="px-4 py-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mt-1">Quick Actions</p>
-                {grouped.action.map((cmd) => {
+                {grouped.action.map((cmd: CommandItem) => {
                   flatIndex++;
                   const idx = flatIndex;
                   const Icon = cmd.icon;
@@ -236,7 +236,7 @@ export function CommandPalette() {
             {grouped.ai.length > 0 && (
               <div>
                 <p className="px-4 py-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mt-1">Ask NexusAI</p>
-                {grouped.ai.map((cmd) => {
+                {grouped.ai.map((cmd: CommandItem) => {
                   flatIndex++;
                   const idx = flatIndex;
                   return (

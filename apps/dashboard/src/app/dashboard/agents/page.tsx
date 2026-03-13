@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 import { BarChartWidget } from '@/components/charts';
-import { useAssistantStore } from '@/lib/assistant-store';
+import { useAssistant } from '@/hooks/use-assistant';
 import { ChevronDown, ChevronUp, Flame, Sparkles, Check, X, Clock, Loader2 } from 'lucide-react';
 
 const AGENT_TYPES = ['seo', 'ad', 'data_nexus', 'aeo', 'creative'] as const;
@@ -63,7 +63,7 @@ function StreakBadge({ completed, failed }: { completed: number; failed: number 
 export default function AgentsPage() {
   const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const assistantStore = useAssistantStore();
+  const { open, sendMessage } = useAssistant();
 
   const { data: agents, isLoading } = useQuery({
     queryKey: ['agents'],
@@ -94,8 +94,8 @@ export default function AgentsPage() {
   });
 
   function askAboutAgent(agentType: string) {
-    assistantStore.open();
-    // The assistant panel will open; user can type a question
+    open();
+    void sendMessage(`Give me a status update on the ${AGENT_LABELS[agentType] ?? agentType} including current health, recent failures, and recommended next action.`);
   }
 
   return (

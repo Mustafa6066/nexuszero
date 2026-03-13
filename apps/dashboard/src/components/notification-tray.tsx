@@ -119,16 +119,18 @@ export function NotificationTray() {
     setReadIds(new Set(notifications.map((n) => n.id)));
   }, [notifications]);
 
+  const handleClickOutside = useCallback((e: MouseEvent) => {
+    if (trayRef.current && !trayRef.current.contains(e.target as Node)) {
+      setIsOpen(false);
+    }
+  }, []);
+
   // Close on click outside
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (trayRef.current && !trayRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    if (isOpen) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [isOpen]);
+    if (!isOpen) return;
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, handleClickOutside]);
 
   return (
     <div ref={trayRef} className="relative">

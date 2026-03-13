@@ -34,8 +34,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // Session priming failed — client-side SessionProvider will handle it
   }
 
+  const themeInitScript = `(() => {
+    try {
+      const stored = localStorage.getItem('nz-theme');
+      const theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.classList.toggle('light', theme === 'light');
+    } catch {}
+  })();`;
+
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-screen bg-background antialiased">
         <Providers session={session}>{children}</Providers>
       </body>
