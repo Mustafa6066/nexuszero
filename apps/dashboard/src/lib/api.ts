@@ -63,7 +63,7 @@ class ApiClient {
   // Campaigns
   getCampaigns(params?: Record<string, string>) {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-    return this.get<any[]>(`/campaigns${qs}`);
+    return this.get<any>(`/campaigns${qs}`).then((r) => (Array.isArray(r) ? r : r?.data ?? []));
   }
   getCampaign(id: string) { return this.get<any>(`/campaigns/${id}`); }
   createCampaign(data: any) { return this.post<any>('/campaigns', data); }
@@ -89,7 +89,7 @@ class ApiClient {
   // Creatives
   getCreatives(params?: Record<string, string>) {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-    return this.get<any[]>(`/creatives${qs}`);
+    return this.get<any>(`/creatives${qs}`).then((r) => (Array.isArray(r) ? r : r?.data ?? []));
   }
   getCreative(id: string) { return this.get<any>(`/creatives/${id}`); }
   generateCreative(data: any) { return this.post<any>('/creatives/generate', data); }
