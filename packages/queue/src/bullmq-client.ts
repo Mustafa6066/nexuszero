@@ -15,6 +15,7 @@ export function getRedisConnection(url?: string): Redis {
       enableReadyCheck: false,
       retryStrategy: (times) => Math.min(times * 200, 5000),
     });
+    sharedConnection.on('error', () => {});
   }
   return sharedConnection;
 }
@@ -32,6 +33,7 @@ export function getProducerRedisConnection(url?: string): Redis {
       connectTimeout: 3_000,
       retryStrategy: (times) => (times >= 2 ? null : Math.min(times * 500, 1_000)),
     });
+    producerConnection.on('error', () => {});
   }
   return producerConnection;
 }
