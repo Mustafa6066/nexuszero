@@ -63,6 +63,10 @@ module.exports = {
           from: { transform: 'rotate(0deg)' },
           to: { transform: 'rotate(360deg)' },
         },
+        'marquee': {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.5s ease-out forwards',
@@ -72,6 +76,7 @@ module.exports = {
         'aurora': 'aurora 8s ease infinite',
         'shimmer': 'shimmer 2s linear infinite',
         'spin-slow': 'spin-slow 8s linear infinite',
+        'marquee': 'marquee 28s linear infinite',
       },
       backdropBlur: {
         xs: '2px',

@@ -2,57 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Dark mode (default) ─── */
+/* ─── Design tokens: Dark (default) ─── */
 :root {
-  --background: 224 71% 4%;
-  --foreground: 213 31% 91%;
-  --card: 224 71% 6%;
-  --card-foreground: 213 31% 91%;
-  --popover: 224 71% 6%;
-  --popover-foreground: 213 31% 91%;
-  --primary: 250 84% 65%;
+  --background: 222 84% 4%;
+  --foreground: 210 40% 97%;
+  --card: 222 80% 5.5%;
+  --card-foreground: 210 40% 97%;
+  --popover: 222 80% 5.5%;
+  --popover-foreground: 210 40% 97%;
+  --primary: 239 84% 67%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 215 28% 12%;
-  --secondary-foreground: 213 31% 91%;
-  --muted: 215 28% 12%;
-  --muted-foreground: 215 20% 55%;
-  --accent: 250 84% 65%;
+  --secondary: 217 33% 9%;
+  --secondary-foreground: 215 20% 65%;
+  --muted: 217 33% 9%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 199 89% 50%;
   --accent-foreground: 0 0% 100%;
-  --destructive: 0 63% 54%;
+  --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 215 28% 14%;
-  --input: 215 28% 14%;
-  --ring: 250 84% 65%;
+  --border: 217 32% 12%;
+  --input: 217 32% 12%;
+  --ring: 239 84% 67%;
   --radius: 0.75rem;
-  --success: 142 71% 45%;
+  --success: 160 84% 39%;
   --warning: 38 92% 50%;
-  --nav-bg: 224 71% 5% / 0.75;
+  --nav-bg: 222 84% 4% / 0.85;
 }
 
 /* ─── Light mode ─── */
 .light {
-  --background: 0 0% 98%;
-  --foreground: 224 71% 8%;
+  --background: 0 0% 99%;
+  --foreground: 222 84% 8%;
   --card: 0 0% 100%;
-  --card-foreground: 224 71% 8%;
+  --card-foreground: 222 84% 8%;
   --popover: 0 0% 100%;
-  --popover-foreground: 224 71% 8%;
-  --primary: 250 84% 58%;
+  --popover-foreground: 222 84% 8%;
+  --primary: 239 84% 60%;
   --primary-foreground: 0 0% 100%;
   --secondary: 220 14% 94%;
-  --secondary-foreground: 224 71% 14%;
+  --secondary-foreground: 222 84% 14%;
   --muted: 220 14% 94%;
-  --muted-foreground: 220 9% 48%;
-  --accent: 250 84% 58%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 199 89% 45%;
   --accent-foreground: 0 0% 100%;
-  --destructive: 0 63% 50%;
+  --destructive: 0 72% 50%;
   --destructive-foreground: 0 0% 100%;
-  --border: 220 14% 89%;
-  --input: 220 14% 89%;
-  --ring: 250 84% 58%;
-  --success: 142 71% 38%;
+  --border: 220 14% 88%;
+  --input: 220 14% 88%;
+  --ring: 239 84% 60%;
+  --success: 160 84% 35%;
   --warning: 38 92% 44%;
-  --nav-bg: 0 0% 100% / 0.80;
+  --nav-bg: 0 0% 100% / 0.88;
 }
 
 * {
@@ -70,52 +70,101 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ─── Floating nav glassmorphism ─── */
-.glass-nav {
-  background: hsl(var(--nav-bg));
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid hsl(var(--border) / 0.6);
+/* ─── Selection ─── */
+::selection {
+  background: hsl(239 84% 67% / 0.28);
+  color: hsl(var(--foreground));
 }
 
-/* ─── Gradient text ─── */
+/* ─── Navigation glassmorphism ─── */
+.glass-nav {
+  background: hsl(var(--nav-bg));
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+/* ─── Gradient text — indigo → sky ─── */
 .gradient-text {
-  background: linear-gradient(135deg, hsl(250 84% 65%), hsl(195 100% 55%));
+  background: linear-gradient(135deg, #818cf8 10%, #38bdf8 90%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .gradient-text-warm {
-  background: linear-gradient(135deg, hsl(280 80% 65%), hsl(340 90% 65%));
+  background: linear-gradient(135deg, #a78bfa 0%, #f472b6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* ─── Grid pattern background ─── */
+/* ─── Dot grid (more refined than line grid) ─── */
+.bg-dots {
+  background-image: radial-gradient(hsl(var(--border) / 0.7) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ─── Legacy line grid (kept for compatibility) ─── */
 .bg-grid {
   background-image:
-    linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
+    linear-gradient(hsl(var(--border) / 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.2) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
-/* ─── Aurora gradient ─── */
+/* ─── Ambient glow orbs ─── */
+.orb-indigo {
+  width: 700px;
+  height: 700px;
+  border-radius: 50%;
+  background: radial-gradient(circle, hsl(239 84% 67% / 0.14) 0%, transparent 68%);
+  filter: blur(50px);
+  pointer-events: none;
+}
+
+.orb-sky {
+  width: 550px;
+  height: 550px;
+  border-radius: 50%;
+  background: radial-gradient(circle, hsl(199 89% 50% / 0.09) 0%, transparent 68%);
+  filter: blur(50px);
+  pointer-events: none;
+}
+
+/* ─── Aurora — static ambient (no jitter) ─── */
 .aurora-bg {
-  background: linear-gradient(
-    -45deg,
-    hsl(250 84% 65% / 0.15),
-    hsl(195 100% 55% / 0.1),
-    hsl(280 80% 65% / 0.12),
-    hsl(250 84% 65% / 0.08)
-  );
-  background-size: 400% 400%;
-  animation: aurora 12s ease infinite;
+  background:
+    radial-gradient(ellipse 80% 55% at 20% 30%, hsl(239 84% 67% / 0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 75% 50% at 80% 70%, hsl(199 89% 50% / 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 55% 0%,  hsl(270 80% 65% / 0.06) 0%, transparent 50%);
+}
+
+/* ─── Glow button ─── */
+.btn-glow {
+  box-shadow: 0 0 18px hsl(239 84% 67% / 0.40), 0 0 50px hsl(239 84% 67% / 0.14);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.btn-glow:hover {
+  box-shadow: 0 0 28px hsl(239 84% 67% / 0.55), 0 0 80px hsl(239 84% 67% / 0.20);
+}
+
+/* ─── Integration marquee ─── */
+.marquee-track {
+  display: flex;
+  gap: 0;
+  animation: marquee 28s linear infinite;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
