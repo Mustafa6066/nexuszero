@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from './providers';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'NexusZero — AI Marketing Command Center',
   description: 'Autonomous AI agent swarms managing your marketing, SEO, ads, and creative.',
