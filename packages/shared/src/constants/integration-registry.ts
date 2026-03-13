@@ -580,23 +580,34 @@ export const PLATFORM_REGISTRY: Record<Platform, PlatformDefinition> = {
   },
 };
 
-/** Get all platforms in a given category */
-export function getPlatformsByCategory(category: PlatformCategory): PlatformDefinition[] {
-  return Object.values(PLATFORM_REGISTRY).filter(p => p.category === category);
+/** Get all platforms in a given category — returns platform name strings */
+export function getPlatformsByCategory(category: PlatformCategory): Platform[] {
+  return (Object.entries(PLATFORM_REGISTRY) as [Platform, PlatformDefinition][])
+    .filter(([, def]) => def.category === category)
+    .map(([platform]) => platform);
 }
 
-/** Get only OAuth-based platforms (for auto-connect flows) */
-export function getOAuthPlatforms(): PlatformDefinition[] {
-  return Object.values(PLATFORM_REGISTRY).filter(p => p.authType === 'oauth2' || p.authType === 'oauth2_pkce');
+/** Get only OAuth-based platforms (for auto-connect flows) — returns platform name strings */
+export function getOAuthPlatforms(): Platform[] {
+  return (Object.entries(PLATFORM_REGISTRY) as [Platform, PlatformDefinition][])
+    .filter(([, def]) => def.authType === 'oauth2' || def.authType === 'oauth2_pkce')
+    .map(([platform]) => platform);
 }
 
-/** Get all platforms that need active token refresh */
-export function getRefreshablePlatforms(): PlatformDefinition[] {
-  return Object.values(PLATFORM_REGISTRY).filter(p => p.refreshable);
+/** Get all platforms that need active token refresh — returns platform name strings */
+export function getRefreshablePlatforms(): Platform[] {
+  return (Object.entries(PLATFORM_REGISTRY) as [Platform, PlatformDefinition][])
+    .filter(([, def]) => def.refreshable)
+    .map(([platform]) => platform);
 }
 
-/** Lookup a platform definition */
-export function getPlatformDefinition(platform: Platform): PlatformDefinition {
+/** Lookup a platform definition — returns undefined for unknown platforms */
+export function getPlatformDefinition(platform: string): PlatformDefinition | undefined {
+  return PLATFORM_REGISTRY[platform as Platform];
+}
+
+/** Lookup a platform definition or throw — use when platform is guaranteed valid */
+export function requirePlatformDefinition(platform: Platform): PlatformDefinition {
   const def = PLATFORM_REGISTRY[platform];
   if (!def) throw new Error(`Unknown platform: ${platform}`);
   return def;

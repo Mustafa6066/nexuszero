@@ -66,6 +66,8 @@ export function isValidWebhookUrl(url: string): boolean {
 /** Strip HTML tags and limit length to prevent XSS/injection */
 export function sanitizeString(input: string, maxLength = 1000): string {
   return input
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
     .replace(/<[^>]*>/g, '')
     .replace(/[^\S ]+/g, ' ')
     .trim()

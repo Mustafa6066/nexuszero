@@ -33,10 +33,16 @@ export class CircuitBreaker {
   private readonly resetTimeoutMs: number;
   private readonly halfOpenMaxAttempts: number;
 
-  constructor(options: CircuitBreakerOptions) {
-    this.failureThreshold = options.failureThreshold;
-    this.resetTimeoutMs = options.resetTimeoutMs;
-    this.halfOpenMaxAttempts = options.halfOpenRequests ?? 3;
+  constructor(optionsOrThreshold: CircuitBreakerOptions | number, resetTimeoutMs?: number) {
+    if (typeof optionsOrThreshold === 'number') {
+      this.failureThreshold = optionsOrThreshold;
+      this.resetTimeoutMs = resetTimeoutMs ?? 30000;
+      this.halfOpenMaxAttempts = 3;
+    } else {
+      this.failureThreshold = optionsOrThreshold.failureThreshold;
+      this.resetTimeoutMs = optionsOrThreshold.resetTimeoutMs;
+      this.halfOpenMaxAttempts = optionsOrThreshold.halfOpenRequests ?? 3;
+    }
   }
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {

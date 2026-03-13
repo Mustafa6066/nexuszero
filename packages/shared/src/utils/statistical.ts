@@ -14,8 +14,10 @@ export function normalCdf(x: number): number {
 
   const sign = x < 0 ? -1 : 1;
   const absX = Math.abs(x);
-  const t = 1.0 / (1.0 + p * absX);
-  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX);
+  // erf approximation: input must be x/√2 so that CDF(x) = 0.5*(1 + erf(x/√2))
+  const erfInput = absX / Math.SQRT2;
+  const t = 1.0 / (1.0 + p * erfInput);
+  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-erfInput * erfInput);
 
   return 0.5 * (1.0 + sign * y);
 }

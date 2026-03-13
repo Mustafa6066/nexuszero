@@ -132,6 +132,27 @@ CREATE POLICY oauth_tokens_isolation ON oauth_tokens
   TO nexuszero_app
   USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
+-- Integrations: see integrations in own tenant (Compatibility Agent)
+ALTER TABLE integrations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY integrations_isolation ON integrations
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Integration Health: see health logs in own tenant
+ALTER TABLE integration_health ENABLE ROW LEVEL SECURITY;
+CREATE POLICY integration_health_isolation ON integration_health
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Schema Snapshots: see schema snapshots in own tenant
+ALTER TABLE schema_snapshots ENABLE ROW LEVEL SECURITY;
+CREATE POLICY schema_snapshots_isolation ON schema_snapshots
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
 -- Agent Tasks: see tasks in own tenant
 CREATE POLICY agent_tasks_isolation ON agent_tasks
   FOR ALL
@@ -163,6 +184,12 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_id ON audit_logs (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_api_keys_tenant_id ON api_keys (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_tenant_id ON oauth_tokens (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_tenant_id ON agent_tasks (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_integrations_tenant_id ON integrations (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_integrations_tenant_platform ON integrations (tenant_id, platform);
+CREATE INDEX IF NOT EXISTS idx_integration_health_integration_id ON integration_health (integration_id);
+CREATE INDEX IF NOT EXISTS idx_integration_health_tenant_id ON integration_health (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_schema_snapshots_integration_id ON schema_snapshots (integration_id);
+CREATE INDEX IF NOT EXISTS idx_schema_snapshots_tenant_id ON schema_snapshots (tenant_id);
 
 -- Composite indices for common query patterns
 CREATE INDEX IF NOT EXISTS idx_campaigns_tenant_status ON campaigns (tenant_id, status);
