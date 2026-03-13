@@ -183,7 +183,7 @@ export default function AgentsPage() {
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-semibold">{label}</p>
                           <AgentPulse status={agent.status} />
-                          <Badge variant={STATUS_VARIANT[agent.status] ?? 'outline'} className="text-[10px]">{agent.status}</Badge>
+                          <Badge variant={STATUS_VARIANT[agent.status] ?? 'outline'}>{agent.status}</Badge>
                           <StreakBadge completed={completed} failed={failed} />
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
