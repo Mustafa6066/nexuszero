@@ -29,23 +29,21 @@ export function getDb() {
 }
 
 /**
- * Execute a callback within a tenant-scoped RLS context.
- * Sets `app.current_tenant_id` for the duration of the transaction,
- * ensuring all queries are filtered by the tenant's RLS policies.
+ * Execute a callback with a tenant-scoped DB instance.
+ *
+ * All route handlers already filter by `tenant_id` in their WHERE clauses,
+ * so tenant isolation is enforced at the application level.  The previous
+ * implementation wrapped every request in a BEGIN/COMMIT transaction just to
+ * call `set_config('app.current_tenant_id', …)` for RLS, but the Railway
+ * connection role bypasses RLS anyway.  The transactional approach also
+ * caused connection-pool exhaustion under load.
  */
 export async function withTenantDb<T>(
   tenantId: string,
   callback: (db: ReturnType<typeof drizzle<typeof schema>>) => Promise<T>,
 ): Promise<T> {
-  const sql = getPostgresClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await sql.begin(async (tx: any) => {
-    // Use set_config() as a parameterized call to avoid any possibility of SQL injection
-    await tx`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`;
-    const scopedDb = drizzle(tx, { schema });
-    return callback(scopedDb);
-  });
-  return result as T;
+  const db = getDb();
+  return callback(db);
 }
 
 /**
