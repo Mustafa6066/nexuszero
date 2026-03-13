@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { QUEUE_NAMES, KAFKA_TOPICS } from '@nexuszero/shared';
+import { QUEUE_NAMES, KAFKA_TOPICS, AppError } from '@nexuszero/shared';
 import type { AgentType, TaskPriority } from '@nexuszero/shared';
 import { publishToKafka } from './kafka-client.js';
 import { getTenantQueue } from './queues.js';
@@ -74,13 +74,24 @@ export async function publishAgentTask(task: PublishAgentTaskInput): Promise<str
   };
 
   const queue = getOrCreateQueue<TaskPayload>(queueName);
-  await queue.add(task.type, taskPayload, {
-    jobId: taskId,
-    priority: ({ critical: 1, high: 2, medium: 3, low: 4 } as const)[taskPayload.priority],
-    delay: task.delay ?? (task.scheduledAt ? Math.max(0, new Date(task.scheduledAt).getTime() - Date.now()) : undefined),
-    attempts: taskPayload.maxRetries,
-    backoff: { type: 'exponential', delay: 1000 },
-  });
+  try {
+    await Promise.race([
+      queue.add(task.type, taskPayload, {
+        jobId: taskId,
+        priority: ({ critical: 1, high: 2, medium: 3, low: 4 } as const)[taskPayload.priority],
+        delay: task.delay ?? (task.scheduledAt ? Math.max(0, new Date(task.scheduledAt).getTime() - Date.now()) : undefined),
+        attempts: taskPayload.maxRetries,
+        backoff: { type: 'exponential', delay: 1000 },
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('BullMQ queue.add timed out after 5s')), 5_000)
+      ),
+    ]);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error(JSON.stringify({ level: 'error', msg: 'publishAgentTask failed', error: reason, queue: queueName, taskType: task.type }));
+    throw new AppError('SERVICE_UNAVAILABLE', { reason: 'Task queue temporarily unavailable' });
+  }
 
   return taskId;
 }
