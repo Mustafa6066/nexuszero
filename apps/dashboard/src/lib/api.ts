@@ -13,15 +13,20 @@ class ApiClient {
     this.token = null;
   }
 
+  hasToken(): boolean {
+    return this.token !== null;
+  }
+
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    if (!this.token) {
+      throw new Error('Not authenticated');
+    }
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string> || {}),
+      'Authorization': `Bearer ${this.token}`,
     };
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
 
     const response = await fetch(`${API_BASE}${path}`, {
       ...options,

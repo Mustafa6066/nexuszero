@@ -63,7 +63,11 @@ export function Providers({ children, session }: { children: React.ReactNode; se
       queries: {
         staleTime: 30_000,
         refetchOnWindowFocus: false,
-        retry: 1,
+        retry(failureCount, error) {
+          // Don't retry auth errors — the token is simply missing or expired
+          if (error instanceof Error && error.message === 'Not authenticated') return false;
+          return failureCount < 1;
+        },
       },
     },
   }));

@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { api } from '@/lib/api';
 import { Card, Badge } from '@/components/ui';
 
@@ -50,9 +51,11 @@ function HealthBar({ score }: { score: number | null }) {
 
 export function IntegrationGrid() {
   const queryClient = useQueryClient();
+  const { status } = useSession();
   const { data: integrations, isLoading } = useQuery({
     queryKey: ['integrations'],
     queryFn: () => api.getIntegrations(),
+    enabled: status === 'authenticated',
     refetchInterval: 30_000,
   });
 
