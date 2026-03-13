@@ -5,7 +5,7 @@
 
 import { getDb, integrations } from '@nexuszero/db';
 import { eq, and, lt, isNotNull, not } from 'drizzle-orm';
-import { getPlatformDefinition, type Platform } from '@nexuszero/shared';
+import { requirePlatformDefinition, type Platform } from '@nexuszero/shared';
 import { storeTokens, retrieveTokens, isTokenExpired } from './token-vault.js';
 import { env } from '../config/env.js';
 import type { OAuthTokens } from '@nexuszero/shared';
@@ -88,7 +88,7 @@ export async function refreshTokenForIntegration(
     return null;
   }
 
-  const platformDef = getPlatformDefinition(platform);
+  const platformDef = requirePlatformDefinition(platform);
   if (!platformDef.refreshable || !platformDef.oauth) {
     return null;
   }

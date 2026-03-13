@@ -3,7 +3,7 @@
  */
 
 import type { ScopeValidation, Platform } from '@nexuszero/shared';
-import { getPlatformDefinition } from '@nexuszero/shared';
+import { requirePlatformDefinition } from '@nexuszero/shared';
 
 /** Validate that current scopes include all required scopes */
 export function validateScopes(
@@ -23,7 +23,7 @@ export function validateScopes(
 
 /** Get the minimum required scopes for a platform */
 export function getRequiredScopes(platform: Platform): string[] {
-  const def = getPlatformDefinition(platform);
+  const def = requirePlatformDefinition(platform);
   return def.oauth?.defaultScopes ?? [];
 }
 

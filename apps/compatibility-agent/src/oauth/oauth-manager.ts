@@ -4,7 +4,7 @@
  */
 
 import { randomBytes, createHash } from 'node:crypto';
-import { getPlatformDefinition, type Platform, type OAuthTokens, type ConnectionResult } from '@nexuszero/shared';
+import { requirePlatformDefinition, type Platform, type OAuthTokens, type ConnectionResult } from '@nexuszero/shared';
 import { getClientCredentials } from './token-refresher.js';
 import { createIntegration } from './token-vault.js';
 import { env } from '../config/env.js';
@@ -26,7 +26,7 @@ export function generateAuthUrl(
   scopes?: string[],
   codeChallenge?: string,
 ): string {
-  const def = getPlatformDefinition(platform);
+  const def = requirePlatformDefinition(platform);
   if (!def.oauth) {
     throw new Error(`Platform ${platform} does not use OAuth`);
   }
@@ -58,7 +58,7 @@ export async function exchangeCode(
   code: string,
   codeVerifier?: string,
 ): Promise<OAuthTokens> {
-  const def = getPlatformDefinition(platform);
+  const def = requirePlatformDefinition(platform);
   if (!def.oauth) {
     throw new Error(`Platform ${platform} does not use OAuth`);
   }
@@ -111,7 +111,7 @@ export async function completeOAuthFlow(
 ): Promise<ConnectionResult> {
   try {
     const tokens = await exchangeCode(platform, code, codeVerifier);
-    const def = getPlatformDefinition(platform);
+    const def = requirePlatformDefinition(platform);
 
     const integrationId = await createIntegration({
       tenantId,
