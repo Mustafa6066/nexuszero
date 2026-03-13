@@ -18,6 +18,11 @@ function formatCurrencyShort(v: number) {
   return `$${v.toFixed(0)}`;
 }
 
+function toNumber(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function TrendArrow({ current, previous, higherIsBetter }: { current: number; previous: number; higherIsBetter: boolean }) {
   if (previous === 0) return <Minus size={12} className="text-muted-foreground" />;
   const pct = ((current - previous) / previous) * 100;
@@ -38,18 +43,21 @@ export function WeeklyReportCard() {
     queryKey: ['analytics', 'summary'],
     queryFn: () => api.getAnalyticsSummary(),
     staleTime: 60000,
+    enabled: isVisible,
   });
 
   const { data: agents } = useQuery({
     queryKey: ['agents'],
     queryFn: () => api.getAgents(),
     staleTime: 60000,
+    enabled: isVisible,
   });
 
   const { data: stats } = useQuery({
     queryKey: ['agents', 'stats'],
     queryFn: () => api.getAgentStats(),
     staleTime: 60000,
+    enabled: isVisible,
   });
 
   const totalCompleted = agents?.reduce((s: number, a: any) => s + (a.tasksCompleted ?? 0), 0) ?? 0;
@@ -59,29 +67,29 @@ export function WeeklyReportCard() {
   const metrics: ReportMetric[] = useMemo(() => [
     {
       label: 'Revenue',
-      current: summary?.totalRevenue ?? 0,
-      previous: summary?.previousRevenue ?? summary?.totalRevenue ?? 0,
+      current: toNumber(summary?.totalRevenue),
+      previous: toNumber(summary?.previousRevenue ?? summary?.totalRevenue),
       format: formatCurrencyShort,
       higherIsBetter: true,
     },
     {
       label: 'ROAS',
-      current: summary?.roas ?? 0,
-      previous: summary?.previousRoas ?? summary?.roas ?? 0,
+      current: toNumber(summary?.roas),
+      previous: toNumber(summary?.previousRoas ?? summary?.roas),
       format: (v: number) => `${v.toFixed(2)}x`,
       higherIsBetter: true,
     },
     {
       label: 'Agent Tasks',
       current: totalCompleted,
-      previous: stats?.previousCompleted ?? totalCompleted,
+      previous: toNumber(stats?.previousCompleted ?? totalCompleted),
       format: (v: number) => String(v),
       higherIsBetter: true,
     },
     {
       label: 'Success Rate',
       current: successRate * 100,
-      previous: (stats?.previousSuccessRate ?? successRate) * 100,
+      previous: toNumber(stats?.previousSuccessRate ?? successRate) * 100,
       format: (v: number) => `${v.toFixed(1)}%`,
       higherIsBetter: true,
     },
@@ -92,8 +100,8 @@ export function WeeklyReportCard() {
     let score = 0;
     if (successRate >= 0.9) score += 2;
     else if (successRate >= 0.7) score += 1;
-    if ((summary?.roas ?? 0) >= 2) score += 2;
-    else if ((summary?.roas ?? 0) >= 1) score += 1;
+    if (toNumber(summary?.roas) >= 2) score += 2;
+    else if (toNumber(summary?.roas) >= 1) score += 1;
     if (totalCompleted > 10) score += 1;
     return score;
   }, [successRate, summary, totalCompleted]);

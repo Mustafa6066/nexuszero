@@ -12,6 +12,7 @@ import type { LucideIcon } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/skeletons';
 import { WeeklyReportCard } from '@/components/weekly-report-card';
 import { MilestonesPanel } from '@/components/milestones';
+import { DashboardSectionBoundary } from '@/components/dashboard-section-boundary';
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'outline'> = {
   active: 'success',
@@ -155,7 +156,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Weekly Report Card */}
-      <WeeklyReportCard />
+      <DashboardSectionBoundary title="Weekly Report Card">
+        <WeeklyReportCard />
+      </DashboardSectionBoundary>
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -290,7 +293,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Milestones */}
-      <MilestonesPanel />
+      <DashboardSectionBoundary title="Milestones">
+        <MilestonesPanel />
+      </DashboardSectionBoundary>
     </div>
   );
 }
