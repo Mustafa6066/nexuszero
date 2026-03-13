@@ -178,20 +178,26 @@ export function OnboardingWizard() {
 
       {detectMutation.isSuccess && (
         <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-400">
-          Detection started! Check back shortly for results.
-          <button
-            onClick={() => completeMutation.mutate()}
-            disabled={completeMutation.isPending}
-            className="ml-4 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
-          >
-            Complete Onboarding
-          </button>
+          {(detectMutation.data as any)?.detections?.length > 0 ? (
+            <>
+              Detected {(detectMutation.data as any).detections.length} integration{(detectMutation.data as any).detections.length > 1 ? 's' : ''}!
+              <button
+                onClick={() => completeMutation.mutate()}
+                disabled={completeMutation.isPending}
+                className="ml-4 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+              >
+                Complete Onboarding
+              </button>
+            </>
+          ) : (
+            (detectMutation.data as any)?.message || 'Detection complete — no integrations detected for this site.'
+          )}
         </div>
       )}
 
       {detectMutation.isError && (
         <div className="rounded-md bg-red-500/10 p-3 text-sm text-red-400">
-          Detection failed. Please check the URL and try again.
+          {(detectMutation.error as Error)?.message || 'Detection failed. Please check the URL and try again.'}
         </div>
       )}
     </Card>
