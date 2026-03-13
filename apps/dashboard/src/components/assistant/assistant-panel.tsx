@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Bot, Sparkles, X, RotateCcw, Sun, Moon, Sunrise } from 'lucide-react';
 import { useAssistant } from '@/hooks/use-assistant';
 import { useQuery } from '@tanstack/react-query';
@@ -95,18 +95,22 @@ export function AssistantPanel() {
   );
 }
 
-function getTimeGreeting(): { greeting: string; icon: typeof Sun } {
-  const hour = new Date().getHours();
-  if (hour < 12) return { greeting: 'Good morning', icon: Sunrise };
-  if (hour < 18) return { greeting: 'Good afternoon', icon: Sun };
-  return { greeting: 'Good evening', icon: Moon };
+function useTimeGreeting() {
+  const [result, setResult] = useState<{ greeting: string; icon: typeof Sun }>({ greeting: 'Hello', icon: Sparkles });
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setResult({ greeting: 'Good morning', icon: Sunrise });
+    else if (hour < 18) setResult({ greeting: 'Good afternoon', icon: Sun });
+    else setResult({ greeting: 'Good evening', icon: Moon });
+  }, []);
+  return result;
 }
 
 function EmptyState({ onSuggestionClick, suggestions }: {
   onSuggestionClick: (msg: string) => void;
   suggestions: Array<{ label: string; message: string }>;
 }) {
-  const { greeting, icon: TimeIcon } = useMemo(getTimeGreeting, []);
+  const { greeting, icon: TimeIcon } = useTimeGreeting();
 
   // Fetch agent stats for proactive insight
   const { data: stats } = useQuery({

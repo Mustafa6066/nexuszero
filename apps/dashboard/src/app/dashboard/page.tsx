@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { Badge } from '@/components/ui';
 import { AreaChartWidget, BarChartWidget, DonutChartWidget } from '@/components/charts';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils';
+import { useState, useEffect } from 'react';
 import { Bot, TrendingUp, DollarSign, Zap, Users, ArrowUpRight, Search, Megaphone, BarChart2, Cpu } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/skeletons';
@@ -39,20 +40,32 @@ function AgentPulse({ status }: { status: string }) {
   );
 }
 
+function useTimeOfDay() {
+  const [tod, setTod] = useState('');
+  useEffect(() => {
+    const h = new Date().getHours();
+    setTod(h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening');
+  }, []);
+  return tod;
+}
+
 export default function DashboardPage() {
   const { data: session } = useSession();
   const name = (session?.user?.name ?? '').split(' ')[0] || 'Commander';
+  const timeOfDay = useTimeOfDay();
 
   const { data: summary, isLoading: summaryLoading } = useQuery({
     queryKey: ['analytics', 'summary'],
     queryFn: () => api.getAnalyticsSummary(),
-    refetchInterval: 30000,
+    refetchInterval: 120_000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: agents } = useQuery({
     queryKey: ['agents'],
     queryFn: () => api.getAgents(),
-    refetchInterval: 15000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: campaigns } = useQuery({
@@ -127,7 +140,7 @@ export default function DashboardPage() {
         <div>
           <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Command Center</p>
           <h1 className="text-3xl font-bold tracking-tight">
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {name}
+            {timeOfDay ? `Good ${timeOfDay}, ${name}` : `Welcome, ${name}`}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {activeAgents.length > 0

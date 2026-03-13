@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Bell, Bot, AlertTriangle, CheckCircle, Info, X, Sparkles, ChevronRight } from 'lucide-react';
@@ -106,8 +106,14 @@ export function NotificationTray() {
     staleTime: 30000,
   });
 
-  const notifications = generateNotifications(agents ?? [], stats);
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
+  const notifications = useMemo(
+    () => generateNotifications(agents ?? [], stats),
+    [agents, stats],
+  );
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !readIds.has(n.id)).length,
+    [notifications, readIds],
+  );
 
   const markAllRead = useCallback(() => {
     setReadIds(new Set(notifications.map((n) => n.id)));
@@ -133,7 +139,7 @@ export function NotificationTray() {
       >
         <Bell size={14} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-red-500 text-[8px] font-bold text-white flex items-center justify-center animate-pulse">
+          <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-red-500 text-[8px] font-bold text-white flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}

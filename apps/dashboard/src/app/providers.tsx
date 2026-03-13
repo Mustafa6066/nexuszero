@@ -41,8 +41,6 @@ function ApiAuthSync() {
     const token = (session as any)?.accessToken as string | undefined;
     if (token) {
       api.setToken(token);
-      // Force all active queries to refetch now that we have the auth token
-      queryClient.refetchQueries();
     } else {
       api.clearToken();
     }

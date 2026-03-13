@@ -68,13 +68,15 @@ export default function AgentsPage() {
   const { data: agents, isLoading } = useQuery({
     queryKey: ['agents'],
     queryFn: () => api.getAgents(),
-    refetchInterval: 10000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: stats } = useQuery({
     queryKey: ['agents', 'stats'],
     queryFn: () => api.getAgentStats(),
-    refetchInterval: 30000,
+    refetchInterval: 120_000,
+    refetchOnWindowFocus: false,
   });
 
   const signalMutation = useMutation({
