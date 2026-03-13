@@ -41,29 +41,42 @@ export const rateLimitMiddleware = async (c: Context, next: Next) => {
   const tenantId = c.get('tenantId');
   if (!tenantId) return next();
 
-  const plan = await getTenantPlan(tenantId);
+  let plan: string;
+  try {
+    plan = await getTenantPlan(tenantId);
+  } catch {
+    // DB unavailable — skip rate limiting and proceed
+    return next();
+  }
+
   const limit = PLAN_RATE_LIMITS[plan as keyof typeof PLAN_RATE_LIMITS] || PLAN_RATE_LIMITS.launchpad;
 
-  const r = getRedis();
-  const key = `ratelimit:${tenantId}`;
-  const now = Math.floor(Date.now() / 1000);
-  const windowStart = now - 60;
+  try {
+    const r = getRedis();
+    const key = `ratelimit:${tenantId}`;
+    const now = Math.floor(Date.now() / 1000);
+    const windowStart = now - 60;
 
-  const pipe = r.pipeline();
-  pipe.zremrangebyscore(key, 0, windowStart);
-  pipe.zadd(key, now, `${now}:${Math.random()}`);
-  pipe.zcard(key);
-  pipe.expire(key, 120);
-  const results = await pipe.exec();
+    const pipe = r.pipeline();
+    pipe.zremrangebyscore(key, 0, windowStart);
+    pipe.zadd(key, now, `${now}:${Math.random()}`);
+    pipe.zcard(key);
+    pipe.expire(key, 120);
+    const results = await pipe.exec();
 
-  const count = (results?.[2]?.[1] as number) || 0;
+    const count = (results?.[2]?.[1] as number) || 0;
 
-  c.header('X-RateLimit-Limit', String(limit));
-  c.header('X-RateLimit-Remaining', String(Math.max(0, limit - count)));
-  c.header('X-RateLimit-Reset', String(now + 60));
+    c.header('X-RateLimit-Limit', String(limit));
+    c.header('X-RateLimit-Remaining', String(Math.max(0, limit - count)));
+    c.header('X-RateLimit-Reset', String(now + 60));
 
-  if (count > limit) {
-    throw new AppError('RATE_LIMIT_EXCEEDED', { limit, resetAt: now + 60 });
+    if (count > limit) {
+      throw new AppError('RATE_LIMIT_EXCEEDED', { limit, resetAt: now + 60 });
+    }
+  } catch (err) {
+    // Re-throw rate limit errors; for Redis connectivity issues, fail open
+    if (err instanceof AppError) throw err;
+    console.warn('Rate limit Redis unavailable, skipping enforcement:', err instanceof Error ? err.message : String(err));
   }
 
   return next();

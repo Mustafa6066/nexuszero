@@ -1,21 +1,36 @@
 import { Hono } from 'hono';
 import { withTenantDb, analyticsDataPoints, funnelAnalysis, forecasts } from '@nexuszero/db';
-import { analyticsQuerySchema, AppError, ERROR_CODES } from '@nexuszero/shared';
+import { AppError, ERROR_CODES } from '@nexuszero/shared';
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
+import { z } from 'zod';
 
 const app = new Hono();
+
+// Matches the DB enum: time_granularity ('hourly', 'daily', 'weekly', 'monthly')
+const dataPointsQuerySchema = z.object({
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  granularity: z.enum(['hourly', 'daily', 'weekly', 'monthly']).optional(),
+  channel: z.string().optional(),
+  campaignId: z.string().uuid().optional(),
+});
 
 // GET /analytics/data-points
 app.get('/data-points', async (c) => {
   const tenantId = c.get('tenantId');
   const query = c.req.query();
-  const filters = analyticsQuerySchema.parse({
+  const parsed = dataPointsQuerySchema.safeParse({
     startDate: query.startDate,
     endDate: query.endDate,
     granularity: query.granularity,
     channel: query.channel,
     campaignId: query.campaignId,
   });
+
+  if (!parsed.success) {
+    throw new AppError('VALIDATION_ERROR', parsed.error.issues);
+  }
+  const filters = parsed.data;
 
   return withTenantDb(tenantId, async (db) => {
     const conditions = [eq(analyticsDataPoints.tenantId, tenantId)];
