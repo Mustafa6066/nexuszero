@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'NexusZero — AI Marketing Command Center',
   description: 'Autonomous AI agent swarms managing your marketing, SEO, ads, and creative.',
+  icons: { icon: '/icon', shortcut: '/icon' },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
