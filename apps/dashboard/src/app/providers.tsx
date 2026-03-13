@@ -34,8 +34,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
-      <ApiAuthSync />
       <QueryClientProvider client={queryClient}>
+        <ApiAuthSync />
         {children}
       </QueryClientProvider>
     </SessionProvider>
