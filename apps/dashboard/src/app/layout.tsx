@@ -20,9 +20,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   try {
     const cookieStore = cookies();
     const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
+    // secureCookie must be true in production (HTTPS) so getToken reads the
+    // __Secure-next-auth.session-token cookie instead of next-auth.session-token
     const token = await getToken({
       req: { headers: { cookie: cookieHeader } } as any,
       secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === 'production',
     });
     if (token?.accessToken) {
       session = { accessToken: token.accessToken, user: { email: token.email as string }, expires: '' } as any;

@@ -1,4 +1,6 @@
-const API_BASE = ((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000')).replace(/\/$/, '') + '/api/v1';
+const _rawBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+// Handle case where NEXT_PUBLIC_API_URL already includes the /api/v1 suffix
+const API_BASE = _rawBase.endsWith('/api/v1') ? _rawBase : `${_rawBase}/api/v1`;
 
 class ApiClient {
   private token: string | null = null;
