@@ -50,6 +50,7 @@ export class CircuitBreaker {
       if (Date.now() - this.lastFailureTime >= this.resetTimeoutMs) {
         this.state = 'half-open';
         this.halfOpenAttempts = 0;
+        this.successes = 0;
       } else {
         throw new CircuitBreakerOpenError();
       }
@@ -87,6 +88,7 @@ export class CircuitBreaker {
     if (this.state === 'half-open') {
       this.state = 'open';
       this.halfOpenAttempts = 0;
+      this.successes = 0;
     } else if (this.failures >= this.failureThreshold) {
       this.state = 'open';
     }

@@ -15,6 +15,36 @@ app.get('/', async (c) => {
   });
 });
 
+// GET /agents/stats — must be registered before /:id to avoid shadowing
+app.get('/stats/overview', async (c) => {
+  const tenantId = c.get('tenantId');
+
+  return withTenantDb(tenantId, async (db) => {
+    const agentList = await db.select().from(agents).where(eq(agents.tenantId, tenantId));
+
+    const [taskStats] = await db.select({
+      total: sql<number>`count(*)::int`,
+      completed: sql<number>`count(*) filter (where status = 'completed')::int`,
+      failed: sql<number>`count(*) filter (where status = 'failed')::int`,
+      processing: sql<number>`count(*) filter (where status = 'processing')::int`,
+      pending: sql<number>`count(*) filter (where status = 'pending')::int`,
+    }).from(agentTasks).where(eq(agentTasks.tenantId, tenantId));
+
+    return c.json({
+      agents: agentList.map(a => ({
+        id: a.id,
+        type: a.type,
+        status: a.status,
+        tasksCompleted: a.tasksCompleted,
+        tasksFailed: a.tasksFailed,
+        avgProcessingTimeMs: a.avgProcessingTimeMs,
+        lastHeartbeat: a.lastHeartbeat,
+      })),
+      tasks: taskStats,
+    });
+  });
+});
+
 // GET /agents/:id
 app.get('/:id', async (c) => {
   const tenantId = c.get('tenantId');
@@ -70,36 +100,6 @@ app.post('/:id/signal', async (c) => {
   });
 
   return c.json({ sent: true });
-});
-
-// GET /agents/stats
-app.get('/stats/overview', async (c) => {
-  const tenantId = c.get('tenantId');
-
-  return withTenantDb(tenantId, async (db) => {
-    const agentList = await db.select().from(agents).where(eq(agents.tenantId, tenantId));
-
-    const [taskStats] = await db.select({
-      total: sql<number>`count(*)::int`,
-      completed: sql<number>`count(*) filter (where status = 'completed')::int`,
-      failed: sql<number>`count(*) filter (where status = 'failed')::int`,
-      processing: sql<number>`count(*) filter (where status = 'processing')::int`,
-      pending: sql<number>`count(*) filter (where status = 'pending')::int`,
-    }).from(agentTasks).where(eq(agentTasks.tenantId, tenantId));
-
-    return c.json({
-      agents: agentList.map(a => ({
-        id: a.id,
-        type: a.type,
-        status: a.status,
-        tasksCompleted: a.tasksCompleted,
-        tasksFailed: a.tasksFailed,
-        avgProcessingTimeMs: a.avgProcessingTimeMs,
-        lastHeartbeat: a.lastHeartbeat,
-      })),
-      tasks: taskStats,
-    });
-  });
 });
 
 export { app as agentRoutes };

@@ -75,7 +75,7 @@ export class CreativeEngine {
     // Store creatives in database
     const storedCreatives = [];
     for (const variant of variants.slice(0, count)) {
-      const creative = await withTenantDb(tenantId, async (db) => {
+      const stored = await withTenantDb(tenantId, async (db) => {
         const [c] = await db.insert(creatives).values({
           tenantId,
           campaignId,
@@ -91,7 +91,7 @@ export class CreativeEngine {
         }).returning();
         return c;
       });
-      storedCreatives.push(creative);
+      storedCreatives.push(stored);
     }
 
     await job.updateProgress(90);

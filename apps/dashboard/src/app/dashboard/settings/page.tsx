@@ -12,7 +12,8 @@ export default function SettingsPage() {
     queryFn: () => api.getMe(),
   });
 
-  const [form, setForm] = useState<Record<string, string>>({});
+  const [form, setForm] = useState<Record<string, unknown>>({});
+  const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState(false);
 
   const updateMutation = useMutation({
@@ -40,7 +41,14 @@ export default function SettingsPage() {
   }
 
   const handleSave = () => {
-    updateMutation.mutate(form);
+    const payload: Record<string, unknown> = { ...form };
+    if (Object.keys(notificationPrefs).length > 0) {
+      payload.notification_preferences = {
+        ...tenant?.notification_preferences,
+        ...notificationPrefs,
+      };
+    }
+    updateMutation.mutate(payload);
   };
 
   return (
@@ -60,7 +68,7 @@ export default function SettingsPage() {
             <label className="block text-sm font-medium mb-1">Company Name</label>
             <input
               type="text"
-              defaultValue={tenant?.company_name ?? ''}
+              value={(form.company_name as string) ?? tenant?.company_name ?? ''}
               onChange={(e) => setForm({ ...form, company_name: e.target.value })}
               className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
@@ -69,7 +77,7 @@ export default function SettingsPage() {
             <label className="block text-sm font-medium mb-1">Website</label>
             <input
               type="url"
-              defaultValue={tenant?.website ?? ''}
+              value={(form.website as string) ?? tenant?.website ?? ''}
               onChange={(e) => setForm({ ...form, website: e.target.value })}
               className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
@@ -78,7 +86,7 @@ export default function SettingsPage() {
             <label className="block text-sm font-medium mb-1">Industry</label>
             <input
               type="text"
-              defaultValue={tenant?.industry ?? ''}
+              value={(form.industry as string) ?? tenant?.industry ?? ''}
               onChange={(e) => setForm({ ...form, industry: e.target.value })}
               className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
@@ -156,8 +164,8 @@ export default function SettingsPage() {
               <label className="relative inline-flex cursor-pointer items-center">
                 <input
                   type="checkbox"
-                  defaultChecked={tenant?.notification_preferences?.[pref.key] ?? true}
-                  onChange={(e) => setForm({ ...form, [`notification_preferences.${pref.key}`]: String(e.target.checked) })}
+                  checked={notificationPrefs[pref.key] ?? tenant?.notification_preferences?.[pref.key] ?? true}
+                  onChange={(e) => setNotificationPrefs({ ...notificationPrefs, [pref.key]: e.target.checked })}
                   className="peer sr-only"
                 />
                 <div className="h-6 w-11 rounded-full bg-secondary peer-checked:bg-primary transition-colors after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:after:translate-x-full" />

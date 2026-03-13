@@ -41,6 +41,8 @@ export async function isNearRateLimit(
 
   if (result.length === 0 || result[0]!.remaining === null) return false;
 
-  // If less than threshold% remaining (compared to reset window), we're near the limit
-  return result[0]!.remaining < 10;
+  // Use threshold-based check: near limit when remaining is below threshold ratio
+  const remaining = result[0]!.remaining;
+  const absoluteMinimum = Math.max(10, Math.ceil(threshold * 100));
+  return remaining < absoluteMinimum;
 }

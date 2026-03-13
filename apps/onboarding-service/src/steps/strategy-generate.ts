@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { getDb, tenants, campaigns } from '@nexuszero/db';
 import { eq } from 'drizzle-orm';
 import { publishAgentTask } from '@nexuszero/queue';
@@ -19,7 +20,7 @@ export class StrategyGenerateStep {
     const auditResults = config.auditResults as Record<string, unknown> | undefined;
 
     // Queue keyword research for SEO strategy
-    const keywordTaskId = crypto.randomUUID();
+    const keywordTaskId = randomUUID();
     await publishAgentTask({
       id: keywordTaskId,
       tenantId,
@@ -34,7 +35,7 @@ export class StrategyGenerateStep {
     });
 
     // Queue initial data analysis
-    const analysisTaskId = crypto.randomUUID();
+    const analysisTaskId = randomUUID();
     await publishAgentTask({
       id: analysisTaskId,
       tenantId,
@@ -49,7 +50,7 @@ export class StrategyGenerateStep {
     // Queue AEO entity setup if applicable
     let aeoTaskId: string | null = null;
     if (tenant.plan !== 'launchpad') {
-      aeoTaskId = crypto.randomUUID();
+      aeoTaskId = randomUUID();
       await publishAgentTask({
         id: aeoTaskId,
         tenantId,

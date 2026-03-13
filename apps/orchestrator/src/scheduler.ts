@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import cron from 'node-cron';
 import { getDb, tenants, campaigns, agents } from '@nexuszero/db';
 import { publishAgentTask } from '@nexuszero/queue';
@@ -64,7 +65,7 @@ export class Scheduler {
     const activeTenants = await this.getActiveTenants();
     for (const tenant of activeTenants) {
       await publishAgentTask({
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         tenantId: tenant.id,
         agentType: 'seo',
         type: 'seo_audit',
@@ -86,7 +87,7 @@ export class Scheduler {
 
       for (const campaign of activeCampaigns) {
         await publishAgentTask({
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           tenantId: tenant.id,
           agentType: 'ad',
           type: 'optimize_bids',
@@ -101,7 +102,7 @@ export class Scheduler {
     const activeTenants = await this.getActiveTenants();
     for (const tenant of activeTenants) {
       await publishAgentTask({
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         tenantId: tenant.id,
         agentType: 'ad',
         type: 'check_fatigue',
@@ -116,7 +117,7 @@ export class Scheduler {
     for (const tenant of activeTenants) {
       if (tenant.plan === 'growth' || tenant.plan === 'enterprise') {
         await publishAgentTask({
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           tenantId: tenant.id,
           agentType: 'aeo',
           type: 'scan_citations',
@@ -131,7 +132,7 @@ export class Scheduler {
     const activeTenants = await this.getActiveTenants();
     for (const tenant of activeTenants) {
       await publishAgentTask({
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         tenantId: tenant.id,
         agentType: 'data-nexus',
         type: 'daily_analysis',

@@ -272,10 +272,12 @@ export class CompatibilityWorker extends BaseAgentWorker {
       return result as unknown as Record<string, unknown>;
     }
 
-    // Generate auth URL
-    const authUrl = await generateAuthUrl(platform, tenantId);
+    // Generate auth URL with cryptographically random state
+    const { generateOAuthState } = await import('./oauth/oauth-manager.js');
+    const state = generateOAuthState();
+    const authUrl = await generateAuthUrl(platform, state);
     await job.updateProgress(100);
-    return { authUrl, platform };
+    return { authUrl, platform, state };
   }
 
   private async handleOAuthRefresh(

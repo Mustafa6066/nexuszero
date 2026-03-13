@@ -38,9 +38,10 @@ export class HealthMonitor {
 
     return allAgents.map((agent) => {
       const heartbeatMs = agent.lastHeartbeat ? new Date(agent.lastHeartbeat).getTime() : 0;
+      const hasHeartbeat = heartbeatMs > 0;
       const isHealthy =
         agent.status !== 'error' &&
-        (!heartbeatMs || now - heartbeatMs < staleThresholdMs);
+        (!hasHeartbeat || now - heartbeatMs < staleThresholdMs);
 
       return {
         agentId: agent.id,
@@ -77,7 +78,7 @@ export class HealthMonitor {
     const recoveredAgents = await db.select().from(agents).where(eq(agents.status, 'error'));
     for (const agent of recoveredAgents) {
       const beatTime = agent.lastHeartbeat ? new Date(agent.lastHeartbeat).getTime() : 0;
-      if (beatTime >= staleThreshold) {
+      if (beatTime > 0 && beatTime >= staleThreshold) {
         await db.update(agents)
           .set({
             status: agent.currentTaskId ? 'processing' : 'idle',

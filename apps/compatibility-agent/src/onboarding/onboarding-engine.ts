@@ -4,8 +4,8 @@
  *  initiated → detecting → connecting → activating → live
  */
 
-import { eq } from 'drizzle-orm';
-import { getDb, tenants } from '@nexuszero/db';
+import { eq, and } from 'drizzle-orm';
+import { getDb, tenants, integrations } from '@nexuszero/db';
 import type { Platform, OnboardingSession } from '@nexuszero/shared';
 import { detectTechStack } from '../discovery/stack-detector.js';
 import { generateAuthUrl } from '../oauth/oauth-manager.js';
@@ -52,7 +52,7 @@ export async function initiateOnboarding(
 
 /** Run the tech stack detection step */
 export async function runDetection(tenantId: string): Promise<OnboardingSession> {
-  const ctx = getContext(tenantId);
+  const ctx = await getOrRecoverContext(tenantId);
   ctx.currentState = 'detecting';
 
   const db = getDb();
@@ -70,7 +70,7 @@ export async function runDetection(tenantId: string): Promise<OnboardingSession>
 export async function generateConnectionUrls(
   tenantId: string,
 ): Promise<{ platform: Platform; authUrl: string }[]> {
-  const ctx = getContext(tenantId);
+  const ctx = await getOrRecoverContext(tenantId);
   ctx.currentState = 'connecting';
 
   const db = getDb();
@@ -93,8 +93,8 @@ export async function generateConnectionUrls(
 }
 
 /** Record that a platform was successfully connected */
-export function markPlatformConnected(tenantId: string, platform: Platform): void {
-  const ctx = getContext(tenantId);
+export async function markPlatformConnected(tenantId: string, platform: Platform): Promise<void> {
+  const ctx = await getOrRecoverContext(tenantId);
   if (!ctx.connectedPlatforms.includes(platform)) {
     ctx.connectedPlatforms.push(platform);
   }
@@ -103,8 +103,8 @@ export function markPlatformConnected(tenantId: string, platform: Platform): voi
 }
 
 /** Record that a platform connection failed */
-export function markPlatformFailed(tenantId: string, platform: Platform): void {
-  const ctx = getContext(tenantId);
+export async function markPlatformFailed(tenantId: string, platform: Platform): Promise<void> {
+  const ctx = await getOrRecoverContext(tenantId);
   if (!ctx.failedPlatforms.includes(platform)) {
     ctx.failedPlatforms.push(platform);
   }
@@ -112,7 +112,7 @@ export function markPlatformFailed(tenantId: string, platform: Platform): void {
 
 /** Transition to activating state (agents are being assigned) */
 export async function transitionToActivating(tenantId: string): Promise<OnboardingSession> {
-  const ctx = getContext(tenantId);
+  const ctx = await getOrRecoverContext(tenantId);
   ctx.currentState = 'activating';
 
   const db = getDb();
@@ -125,7 +125,7 @@ export async function transitionToActivating(tenantId: string): Promise<Onboardi
 
 /** Mark onboarding as complete — tenant is live */
 export async function completeOnboarding(tenantId: string): Promise<OnboardingSession> {
-  const ctx = getContext(tenantId);
+  const ctx = await getOrRecoverContext(tenantId);
   ctx.currentState = 'live';
 
   const db = getDb();
@@ -147,6 +147,41 @@ export function getOnboardingContext(tenantId: string): OnboardingContext | unde
 function getContext(tenantId: string): OnboardingContext {
   const ctx = onboardingSessions.get(tenantId);
   if (!ctx) throw new Error(`No onboarding session found for tenant ${tenantId}`);
+  return ctx;
+}
+
+/** Recover session from DB if not in memory (handles service restarts) */
+async function getOrRecoverContext(tenantId: string): Promise<OnboardingContext> {
+  const existing = onboardingSessions.get(tenantId);
+  if (existing) return existing;
+
+  const db = getDb();
+  const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
+  if (!tenant) throw new Error(`No tenant found for ${tenantId}`);
+
+  const tenantIntegrations = await db.select().from(integrations)
+    .where(eq(integrations.tenantId, tenantId));
+
+  const connectedPlatforms = tenantIntegrations
+    .filter(i => i.status === 'connected')
+    .map(i => i.platform as Platform);
+  const failedPlatforms = tenantIntegrations
+    .filter(i => i.status === 'error')
+    .map(i => i.platform as Platform);
+  const detectedPlatforms = tenantIntegrations
+    .map(i => i.platform as Platform);
+
+  const ctx: OnboardingContext = {
+    tenantId,
+    websiteUrl: (tenant as any).domain ?? '',
+    detectedPlatforms,
+    connectedPlatforms,
+    failedPlatforms,
+    currentState: ((tenant as any).onboardingState ?? 'initiated') as OnboardingState,
+    startedAt: new Date((tenant as any).createdAt ?? Date.now()),
+  };
+
+  onboardingSessions.set(tenantId, ctx);
   return ctx;
 }
 

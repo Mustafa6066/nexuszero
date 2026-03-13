@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { getDb, tenants, campaigns } from '@nexuszero/db';
 import { eq } from 'drizzle-orm';
 import { publishAgentTask } from '@nexuszero/queue';
@@ -22,7 +23,7 @@ export class InstantAuditStep {
       .where(eq(campaigns.tenantId, tenantId));
 
     // Queue SEO audit task
-    const seoTaskId = crypto.randomUUID();
+    const seoTaskId = randomUUID();
     await publishAgentTask({
       id: seoTaskId,
       tenantId,

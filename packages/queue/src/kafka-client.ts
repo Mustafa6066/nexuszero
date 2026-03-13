@@ -78,7 +78,10 @@ export async function consumeFromKafka<T>(
         clearTimeout(timeout);
         setTimeout(() => resolve(), 100);
       },
-    }).catch(() => resolve());
+    }).catch((err) => {
+      console.error('Kafka consumer.run() failed:', err instanceof Error ? err.message : String(err));
+      resolve();
+    });
   });
 
   await consumer.disconnect();

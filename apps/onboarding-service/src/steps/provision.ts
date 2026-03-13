@@ -33,15 +33,14 @@ export class ProvisionStep {
 
     const provisioned: string[] = [];
 
+    // Query existing agents once upfront instead of per-iteration
+    const existingAgents = await db.select().from(agents)
+      .where(eq(agents.tenantId, tenantId));
+
     for (const agentDef of agentsToProvision) {
       if (!agentDef.enabled) continue;
 
-      // Check if agent already exists
-      const existing = await db.select().from(agents)
-        .where(eq(agents.tenantId, tenantId))
-        .limit(1);
-
-      const alreadyExists = existing.some(a => a.type === agentDef.type);
+      const alreadyExists = existingAgents.some(a => a.type === agentDef.type);
 
       if (!alreadyExists) {
         await db.insert(agents).values({
