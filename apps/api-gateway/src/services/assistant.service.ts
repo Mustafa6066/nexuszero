@@ -27,6 +27,7 @@ import {
   getRequiredTier,
 } from '@nexuszero/shared';
 import { gateTool } from './tier-gate.service.js';
+import { buildCustomerIntelligence, renderIntelligencePrompt } from './intelligence/index.js';
 
 // ── Claude API configuration ───────────────────────────────────────────────
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? '';
@@ -296,7 +297,7 @@ async function buildTenantContext(tenantId: string): Promise<TenantContext> {
   });
 }
 
-function buildSystemPrompt(ctx: TenantContext, uiContext: UIContext, userMessage: string): string {
+function buildSystemPrompt(ctx: TenantContext, uiContext: UIContext, userMessage: string, intelligenceBlock?: string): string {
   return `You are NexusAI, the intelligent digital assistant for the NexusZero marketing platform.
 
 ## About You
@@ -318,6 +319,8 @@ ${uiContext.visibleDataSummary ? `- **Visible Data**: ${uiContext.visibleDataSum
 ## Subscription: ${TIER_DISPLAY_NAMES[ctx.tier]}
 ${ctx.tier !== 'enterprise' ? `Some features are not available on this plan. When the user asks for a gated feature, explain it warmly and suggest upgrading. Use the showUpgradePrompt tool when appropriate.` : 'All features are available.'}
 
+${intelligenceBlock ?? ''}
+
 ${buildLanguageGuidance(userMessage)}
 
 ## Guidelines
@@ -329,7 +332,10 @@ ${buildLanguageGuidance(userMessage)}
 6. When suggesting actions, be specific and offer to execute them.
 7. Always format currency with $ and percentages with %.
 8. If data is empty or missing, say so honestly and suggest next steps.
-9. Do not use emojis or decorative pictographs. Keep the tone professional and businesslike.`;
+9. Do not use emojis or decorative pictographs. Keep the tone professional and businesslike.
+10. Use the Customer Intelligence section to personalise every response. Adapt your tone, depth, and suggestions to the customer's skill level, journey phase, and focus areas.
+11. When proactive guidance includes health warnings or performance alerts relevant to the conversation, mention them naturally without being alarmist.
+12. Suggest unexplored features only when contextually relevant to what the user is asking about.`;
 }
 
 function sanitizeAssistantText(text: string): string {
@@ -431,10 +437,21 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
     return;
   }
 
-  // 1. Load tenant context & session
+  // 1. Load tenant context, customer intelligence & session
   let tenantCtx: TenantContext;
+  let intelligenceBlock = '';
   try {
-    tenantCtx = await buildTenantContext(tenantId);
+    const [ctx, intel] = await Promise.all([
+      buildTenantContext(tenantId),
+      buildCustomerIntelligence(tenantId, userId).catch((err) => {
+        console.error('[NexusAI] Intelligence layers failed (non-fatal):', err instanceof Error ? err.message : err);
+        return null;
+      }),
+    ]);
+    tenantCtx = ctx;
+    if (intel) {
+      intelligenceBlock = renderIntelligencePrompt(intel);
+    }
   } catch {
     yield { type: 'error', message: 'Failed to load tenant context' };
     yield { type: 'done' };
@@ -465,7 +482,7 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
   }
 
   // 2. Build Claude request
-  const systemPrompt = buildSystemPrompt(tenantCtx, uiContext, message);
+  const systemPrompt = buildSystemPrompt(tenantCtx, uiContext, message, intelligenceBlock);
   const tools = buildToolDefinitions(tenantCtx.tier);
 
   let history: Array<{ role: 'user' | 'assistant'; content: string }>;
