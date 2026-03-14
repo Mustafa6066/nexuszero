@@ -52,34 +52,38 @@ app.post('/login', async (c) => {
     throw new AppError('AUTH_INVALID_TOKEN', { reason: 'Invalid credentials' });
   }
 
-  // Update login streak
-  const today = new Date().toISOString().slice(0, 10);
-  const [existing] = await db.select().from(loginStreaks)
-    .where(and(eq(loginStreaks.userId, user.id), eq(loginStreaks.tenantId, user.tenantId))).limit(1);
+  // Update login streak (non-blocking — login must succeed even if streak table is missing)
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const [existing] = await db.select().from(loginStreaks)
+      .where(and(eq(loginStreaks.userId, user.id), eq(loginStreaks.tenantId, user.tenantId))).limit(1);
 
-  if (existing) {
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const newStreak = existing.lastLoginDate === yesterday
-      ? existing.currentStreak + 1
-      : existing.lastLoginDate === today ? existing.currentStreak : 1;
-    await db.update(loginStreaks)
-      .set({
-        currentStreak: newStreak,
-        longestStreak: Math.max(existing.longestStreak, newStreak),
+    if (existing) {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const newStreak = existing.lastLoginDate === yesterday
+        ? existing.currentStreak + 1
+        : existing.lastLoginDate === today ? existing.currentStreak : 1;
+      await db.update(loginStreaks)
+        .set({
+          currentStreak: newStreak,
+          longestStreak: Math.max(existing.longestStreak, newStreak),
+          lastLoginDate: today,
+          totalLogins: existing.totalLogins + (existing.lastLoginDate === today ? 0 : 1),
+          updatedAt: new Date(),
+        })
+        .where(eq(loginStreaks.id, existing.id));
+    } else {
+      await db.insert(loginStreaks).values({
+        tenantId: user.tenantId,
+        userId: user.id,
+        currentStreak: 1,
+        longestStreak: 1,
         lastLoginDate: today,
-        totalLogins: existing.totalLogins + (existing.lastLoginDate === today ? 0 : 1),
-        updatedAt: new Date(),
-      })
-      .where(eq(loginStreaks.id, existing.id));
-  } else {
-    await db.insert(loginStreaks).values({
-      tenantId: user.tenantId,
-      userId: user.id,
-      currentStreak: 1,
-      longestStreak: 1,
-      lastLoginDate: today,
-      totalLogins: 1,
-    });
+        totalLogins: 1,
+      });
+    }
+  } catch (e) {
+    console.warn('Login streak update failed (table may not exist yet):', (e as Error).message);
   }
 
   // Update lastLoginAt
@@ -149,16 +153,20 @@ app.post('/register', async (c) => {
     role: 'owner',
   }).returning();
 
-  // Initialize login streak
-  const today = new Date().toISOString().slice(0, 10);
-  await db.insert(loginStreaks).values({
-    tenantId: tenant.id,
-    userId: user.id,
-    currentStreak: 1,
-    longestStreak: 1,
-    lastLoginDate: today,
-    totalLogins: 1,
-  });
+  // Initialize login streak (non-blocking — registration must succeed even if streak table is missing)
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    await db.insert(loginStreaks).values({
+      tenantId: tenant.id,
+      userId: user.id,
+      currentStreak: 1,
+      longestStreak: 1,
+      lastLoginDate: today,
+      totalLogins: 1,
+    });
+  } catch (e) {
+    console.warn('Login streak init failed (table may not exist yet):', (e as Error).message);
+  }
 
   const token = signJwt({
     userId: user.id,

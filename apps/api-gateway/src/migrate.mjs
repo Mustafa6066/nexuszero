@@ -21,42 +21,52 @@ const sql = postgres(databaseUrl, {
   max: 1,
 });
 
-// Find the migration file - try multiple paths since working directory varies on Railway
+// Find the migrations directory - try multiple paths since working directory varies on Railway
 // __dirname = apps/api-gateway/src/, so ../../../ gets to the repo root
-const candidatePaths = [
-  join(__dirname, '../../../packages/db/src/migrations/0000_smart_jasper_sitwell.sql'),
-  join(process.cwd(), 'packages/db/src/migrations/0000_smart_jasper_sitwell.sql'),
-  '/app/packages/db/src/migrations/0000_smart_jasper_sitwell.sql',
+import { readdirSync } from 'fs';
+
+const candidateDirs = [
+  join(__dirname, '../../../packages/db/src/migrations'),
+  join(process.cwd(), 'packages/db/src/migrations'),
+  '/app/packages/db/src/migrations',
 ];
 
-const migrationPath = candidatePaths.find(p => existsSync(p));
-if (!migrationPath) {
-  console.error('Could not find migration file. Checked:', candidatePaths);
+const migrationsDir = candidateDirs.find(p => existsSync(p));
+if (!migrationsDir) {
+  console.error('Could not find migrations directory. Checked:', candidateDirs);
   // Don't fail - let the server start anyway
   process.exit(0);
 }
-console.log('Using migration file:', migrationPath);
-const migrationSQL = readFileSync(migrationPath, 'utf-8');
 
-// Split on --> statement-breakpoint and run each statement
-const statements = migrationSQL.split('--> statement-breakpoint').map(s => s.trim()).filter(Boolean);
+// Discover all .sql migration files, sorted by name
+const migrationFiles = readdirSync(migrationsDir)
+  .filter(f => f.endsWith('.sql'))
+  .sort();
 
-console.log(`Running ${statements.length} migration statements...`);
+console.log(`Found ${migrationFiles.length} migration files:`, migrationFiles.join(', '));
 
 let success = 0;
 let skipped = 0;
 let failed = 0;
-for (const stmt of statements) {
-  try {
-    await sql.unsafe(stmt);
-    success++;
-  } catch (err) {
-    // Most errors here are expected (duplicate_object, already exists)
-    if (err.message && (err.message.includes('duplicate_object') || err.message.includes('already exists'))) {
-      skipped++;
-    } else {
-      console.error(`[migrate] FAILED statement ${success + skipped + failed + 1}: ${err.message?.substring(0, 200)}`);
-      failed++;
+
+for (const file of migrationFiles) {
+  const migrationPath = join(migrationsDir, file);
+  console.log('Running migration:', file);
+  const migrationSQL = readFileSync(migrationPath, 'utf-8');
+  const statements = migrationSQL.split('--> statement-breakpoint').map(s => s.trim()).filter(Boolean);
+
+  for (const stmt of statements) {
+    try {
+      await sql.unsafe(stmt);
+      success++;
+    } catch (err) {
+      // Most errors here are expected (duplicate_object, already exists)
+      if (err.message && (err.message.includes('duplicate_object') || err.message.includes('already exists'))) {
+        skipped++;
+      } else {
+        console.error(`[migrate] FAILED statement in ${file}: ${err.message?.substring(0, 200)}`);
+        failed++;
+      }
     }
   }
 }
@@ -115,6 +125,7 @@ try {
     'forecasts','funnel_analysis','integration_health','integrations','oauth_tokens',
     'schema_snapshots','tenants','users','webhook_deliveries','webhook_endpoints',
     'aeo_citations','ai_visibility_scores','assistant_sessions','assistant_messages',
+    'approval_queue','alert_rules','login_streaks',
   ];
   const missing = expected.filter(t => !names.includes(t));
   if (missing.length > 0) {
