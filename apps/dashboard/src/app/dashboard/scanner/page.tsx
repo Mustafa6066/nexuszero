@@ -79,7 +79,7 @@ const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; b
   detected: { icon: CheckCircle2, color: 'text-green-400', badge: 'success' },
   missing: { icon: XCircle, color: 'text-red-400', badge: 'destructive' },
   partial: { icon: AlertCircle, color: 'text-yellow-400', badge: 'warning' },
-  recommended: { icon: AlertCircle, color: 'text-blue-400', badge: 'outline' },
+  recommended: { icon: AlertCircle, color: 'text-primary', badge: 'outline' },
 };
 
 function scoreColor(score: number): string {
@@ -174,7 +174,7 @@ export default function ScannerPage() {
 
       {/* Scan Input */}
       <Card className="p-4">
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
             <input
@@ -186,7 +186,7 @@ export default function ScannerPage() {
               className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
-          <Button onClick={handleScan} disabled={scanning || !url.trim()} size="md">
+          <Button onClick={handleScan} disabled={scanning || !url.trim()} size="md" className="w-full sm:w-auto">
             {scanning ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -213,15 +213,15 @@ export default function ScannerPage() {
       {result && (
         <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
           {/* Score + Summary Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {/* Score Card */}
-            <Card className="flex flex-col items-center justify-center p-6">
+            <Card className="flex flex-col items-center justify-center p-5 sm:p-6">
               <ScoreRing score={result.readinessScore} />
               <p className="mt-2 text-sm text-muted-foreground">{result.domain}</p>
             </Card>
 
             {/* Quick Stats */}
-            <Card className="p-6 space-y-3">
+            <Card className="space-y-3 p-5 sm:p-6">
               <h3 className="text-sm font-medium text-muted-foreground">Detection Summary</h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -246,7 +246,7 @@ export default function ScannerPage() {
             </Card>
 
             {/* Recommended Agents */}
-            <Card className="p-6 space-y-3">
+            <Card className="space-y-3 p-5 sm:p-6">
               <h3 className="text-sm font-medium text-muted-foreground">Recommended Agents</h3>
               <div className="space-y-2">
                 {result.recommendedAgents.map((agent) => (

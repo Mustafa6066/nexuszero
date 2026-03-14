@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell,
 } from 'recharts';
 
-const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
+const COLORS = ['#16a34a', '#22c55e', '#86efac', '#15803d', '#84cc16', '#4ade80'];
 
 interface AreaChartProps {
   data: any[];
@@ -15,7 +15,7 @@ interface AreaChartProps {
   color?: string;
 }
 
-export function AreaChartWidget({ data, dataKey, xAxisKey = 'date', height = 300, color = '#8b5cf6' }: AreaChartProps) {
+export function AreaChartWidget({ data, dataKey, xAxisKey = 'date', height = 300, color = '#16a34a' }: AreaChartProps) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>

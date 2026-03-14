@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { LandingThemeToggle } from '@/components/landing-theme-toggle';
 
 /* ── Inline SVG icons (Lucide-style, no external dep) ── */
 function SearchIcon({ className }: { className?: string }) {
@@ -119,10 +120,10 @@ const AGENTS = [
     tag: 'Search Intelligence',
     desc: 'Monitors rankings, identifies keyword gaps, generates optimized content briefs, and submits sitemaps autonomously — 24 hours a day.',
     metrics: ['+47 average ranking positions gained', 'Real-time SERP tracking across 1M+ keywords'],
-    iconBg: 'bg-violet-500/10 border-violet-500/20',
-    iconColor: 'text-violet-400',
-    gradient: 'from-violet-500/6',
-    badge: 'text-violet-400 bg-violet-500/10 border-violet-500/20',
+    iconBg: 'bg-primary/10 border-primary/20',
+    iconColor: 'text-primary',
+    gradient: 'from-primary/6',
+    badge: 'text-primary bg-primary/10 border-primary/20',
   },
   {
     Icon: TargetIcon,
@@ -130,10 +131,10 @@ const AGENTS = [
     tag: 'Paid Media Optimizer',
     desc: 'Allocates budget across Google, Meta, and TikTok in real time. Kills underperformers, scales winners, and writes copy without waiting for approval.',
     metrics: ['3.2× average ROAS across managed accounts', 'Bid optimization every 15 minutes'],
-    iconBg: 'bg-sky-500/10 border-sky-500/20',
-    iconColor: 'text-sky-400',
-    gradient: 'from-sky-500/6',
-    badge: 'text-sky-400 bg-sky-500/10 border-sky-500/20',
+    iconBg: 'bg-green-500/10 border-green-500/20',
+    iconColor: 'text-green-500',
+    gradient: 'from-green-500/6',
+    badge: 'text-green-500 bg-green-500/10 border-green-500/20',
   },
   {
     Icon: BrainIcon,
@@ -141,10 +142,10 @@ const AGENTS = [
     tag: 'Answer Engine Optimization',
     desc: 'Ensures your brand appears in AI-generated answers across ChatGPT, Perplexity, and Gemini. Structures data for LLM consumption at scale.',
     metrics: ['68% AI citation rate across tracked queries', 'Schema injection and FAQ auto-generation'],
-    iconBg: 'bg-pink-500/10 border-pink-500/20',
-    iconColor: 'text-pink-400',
-    gradient: 'from-pink-500/6',
-    badge: 'text-pink-400 bg-pink-500/10 border-pink-500/20',
+    iconBg: 'bg-emerald-500/10 border-emerald-500/20',
+    iconColor: 'text-emerald-500',
+    gradient: 'from-emerald-500/6',
+    badge: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
   },
   {
     Icon: BarChartIcon,
@@ -164,36 +165,36 @@ const CAPABILITIES = [
     Icon: ZapIcon,
     title: 'Real-time orchestration',
     desc: 'Task graph with dependency resolution executes jobs across the swarm in parallel with sub-second scheduling.',
-    color: 'text-indigo-400',
-    bg: 'bg-indigo-500/10',
+    color: 'text-primary',
+    bg: 'bg-primary/10',
   },
   {
     Icon: ActivityIcon,
     title: 'Self-healing loops',
     desc: 'Agents detect execution failures, apply exponential backoff, and escalate through webhook channels automatically.',
-    color: 'text-sky-400',
-    bg: 'bg-sky-500/10',
+    color: 'text-green-500',
+    bg: 'bg-green-500/10',
   },
   {
     Icon: ShieldIcon,
     title: 'Multi-tenant isolation',
     desc: 'Row-level security enforced at the database layer ensures complete data isolation across every account.',
-    color: 'text-violet-400',
-    bg: 'bg-violet-500/10',
+    color: 'text-emerald-500',
+    bg: 'bg-emerald-500/10',
   },
   {
     Icon: NetworkIcon,
     title: 'Event-driven pipeline',
     desc: 'Kafka streams synchronize agents for zero-latency cross-signal analysis and coordinated execution.',
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-500/10',
+    color: 'text-lime-500',
+    bg: 'bg-lime-500/10',
   },
   {
     Icon: LinkIcon,
     title: 'Webhook automation',
     desc: 'Push agent decisions to Slack, Notion, HubSpot, or any HTTP endpoint — fully configurable event routing.',
-    color: 'text-pink-400',
-    bg: 'bg-pink-500/10',
+    color: 'text-green-600',
+    bg: 'bg-green-600/10',
   },
   {
     Icon: TrendingUpIcon,
@@ -246,6 +247,7 @@ export default async function LandingPage() {
           <a href="#platform" className="hover:text-foreground transition-colors">Platform</a>
           <a href="#how" className="hover:text-foreground transition-colors">How it works</a>
         </div>
+        <LandingThemeToggle />
         <Link
           href="/login"
           className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary/85 transition-colors"
@@ -334,16 +336,16 @@ export default async function LandingPage() {
           style={{ animationDelay: '0.48s', opacity: 0 }}
         >
           {/* Browser chrome */}
-          <div className="rounded-2xl border border-white/[0.07] bg-card/80 backdrop-blur-xl shadow-2xl shadow-black/60 overflow-hidden">
+          <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl shadow-black/30 overflow-hidden">
             {/* Titlebar */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.05] bg-white/[0.015]">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40 bg-secondary/20">
               <div className="flex gap-1.5">
                 <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
                 <div className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
                 <div className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
               </div>
               <div className="flex-1 flex justify-center">
-                <div className="text-xs text-muted-foreground/50 bg-white/[0.03] border border-white/[0.05] rounded px-10 py-1 tabular-nums">
+                <div className="rounded border border-border/40 bg-background/40 px-10 py-1 text-xs tabular-nums text-muted-foreground/70">
                   nexuszero.io/dashboard
                 </div>
               </div>
@@ -352,27 +354,27 @@ export default async function LandingPage() {
             <div className="p-4 grid grid-cols-12 gap-3">
               {/* Stat cards */}
               {[
-                { label: 'Active Campaigns', val: '142',    sub: '+12 today',       c: 'text-indigo-400' },
-                { label: 'Avg ROAS',          val: '3.2×',  sub: '+0.4 vs last wk', c: 'text-sky-400' },
-                { label: 'SERP Coverage',     val: '94.3%', sub: '+3.1 pts',        c: 'text-violet-400' },
+                { label: 'Active Campaigns', val: '142',    sub: '+12 today',       c: 'text-primary' },
+                { label: 'Avg ROAS',          val: '3.2×',  sub: '+0.4 vs last wk', c: 'text-green-500' },
+                { label: 'SERP Coverage',     val: '94.3%', sub: '+3.1 pts',        c: 'text-emerald-500' },
                 { label: 'Tasks Automated',   val: '8,291', sub: '+847 today',      c: 'text-emerald-400' },
               ].map(s => (
-                <div key={s.label} className="col-span-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
+                <div key={s.label} className="col-span-3 rounded-xl border border-border/40 bg-background/30 p-3">
                   <p className="text-[10px] text-muted-foreground">{s.label}</p>
                   <p className="text-lg font-bold mt-1 tabular-nums">{s.val}</p>
                   <p className={`text-[10px] mt-1 ${s.c}`}>{s.sub}</p>
                 </div>
               ))}
               {/* Agent status */}
-              <div className="col-span-5 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3.5">
+              <div className="col-span-5 rounded-xl border border-border/40 bg-background/30 p-3.5">
                 <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Agent Status</p>
                 {[
-                  { name: 'SEO Agent',  tasks: '23 active', dot: 'bg-violet-400' },
-                  { name: 'Ad Agent',   tasks: '12 active', dot: 'bg-sky-400' },
-                  { name: 'AEO Agent',  tasks: '8 active',  dot: 'bg-pink-400' },
+                  { name: 'SEO Agent',  tasks: '23 active', dot: 'bg-primary' },
+                  { name: 'Ad Agent',   tasks: '12 active', dot: 'bg-green-500' },
+                  { name: 'AEO Agent',  tasks: '8 active',  dot: 'bg-emerald-500' },
                   { name: 'Data Nexus', tasks: '47 events', dot: 'bg-amber-400' },
                 ].map(a => (
-                  <div key={a.name} className="flex items-center gap-2 py-1.5 border-b border-white/[0.04] last:border-0">
+                  <div key={a.name} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
                     <div className={`h-1.5 w-1.5 rounded-full ${a.dot} flex-shrink-0`} />
                     <span className="text-[11px] flex-1 text-foreground/70">{a.name}</span>
                     <span className="text-[10px] text-muted-foreground">{a.tasks}</span>
@@ -381,7 +383,7 @@ export default async function LandingPage() {
                 ))}
               </div>
               {/* Mini chart */}
-              <div className="col-span-7 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3.5">
+              <div className="col-span-7 rounded-xl border border-border/40 bg-background/30 p-3.5">
                 <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Revenue Impact (30 days)</p>
                 <div className="flex items-end gap-[3px] h-14">
                   {[35,48,42,65,58,72,68,80,76,88,82,95,90,100,94,97,85,92,96,100].map((h, i) => (
@@ -391,8 +393,8 @@ export default async function LandingPage() {
                       style={{
                         height: `${h}%`,
                         background: i >= 17
-                          ? 'hsl(239 84% 67% / 0.85)'
-                          : 'hsl(239 84% 67% / 0.22)',
+                          ? 'hsl(142 72% 42% / 0.85)'
+                          : 'hsl(142 72% 42% / 0.22)',
                       }}
                     />
                   ))}
@@ -405,7 +407,7 @@ export default async function LandingPage() {
             </div>
           </div>
           {/* Glow reflection */}
-          <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-2/3 h-14 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none" />
+          <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-2/3 h-14 bg-primary/10 blur-3xl rounded-full pointer-events-none" />
         </div>
       </section>
 

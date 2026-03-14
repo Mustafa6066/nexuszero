@@ -101,8 +101,8 @@ export default function DashboardPage() {
       delta: summary?.spendChange ? `${summary.spendChange > 0 ? '+' : ''}${formatPercent(summary.spendChange)}` : '—',
       deltaType: summary?.spendChange > 0 ? 'neg' : 'pos',
       icon: DollarSign,
-      iconColor: 'text-violet-400',
-      bg: 'from-violet-500/10',
+      iconColor: 'text-primary',
+      bg: 'from-primary/10',
     },
     {
       label: 'Revenue',
@@ -110,8 +110,8 @@ export default function DashboardPage() {
       delta: summary?.revenueChange ? `${summary.revenueChange > 0 ? '+' : ''}${formatPercent(summary.revenueChange)}` : '—',
       deltaType: summary?.revenueChange > 0 ? 'pos' : 'neg',
       icon: TrendingUp,
-      iconColor: 'text-cyan-400',
-      bg: 'from-cyan-500/10',
+      iconColor: 'text-green-400',
+      bg: 'from-green-500/10',
     },
     {
       label: 'Conversions',
@@ -119,8 +119,8 @@ export default function DashboardPage() {
       delta: summary?.conversionChange ? `${summary.conversionChange > 0 ? '+' : ''}${formatPercent(summary.conversionChange)}` : '—',
       deltaType: summary?.conversionChange > 0 ? 'pos' : 'neg',
       icon: Users,
-      iconColor: 'text-pink-400',
-      bg: 'from-pink-500/10',
+      iconColor: 'text-emerald-400',
+      bg: 'from-emerald-500/10',
     },
     {
       label: 'Active Agents',
@@ -136,21 +136,21 @@ export default function DashboardPage() {
   const hasDataError = Boolean(summaryError || agentsError || campaignsError || analyticsError);
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6 animate-fade-in sm:space-y-8">
       {/* Greeting */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Command Center</p>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             {timeOfDay ? `Good ${timeOfDay}, ${name}` : `Welcome, ${name}`}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {activeAgents.length > 0
-              ? `${activeAgents.length} agent${activeAgents.length > 1 ? 's' : ''} running autonomously • Last 30 days`
-              : 'Agents standing by · Last 30 days'}
+              ? `${activeAgents.length} agent${activeAgents.length > 1 ? 's' : ''} running autonomously over the last 30 days`
+              : 'Agents standing by for the last 30 days'}
           </p>
         </div>
-        <div className="hidden sm:flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-2 text-xs text-muted-foreground">
+        <div className="flex w-fit items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-2 text-[11px] text-muted-foreground sm:px-4 sm:text-xs">
           <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse-dot" />
           System operational
         </div>
@@ -168,9 +168,9 @@ export default function DashboardPage() {
       </DashboardSectionBoundary>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(({ label, value, delta, deltaType, icon: Icon, iconColor, bg }) => (
-          <div key={label} className={`relative rounded-2xl border border-border bg-gradient-to-br ${bg} to-transparent bg-card/60 p-5 overflow-hidden group hover:border-primary/30 transition-all`}>
+          <div key={label} className={`group relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br ${bg} to-transparent bg-card/60 p-4 transition-all hover:border-primary/30 sm:p-5`}>
             <div className="flex items-start justify-between mb-4">
               <p className="text-xs text-muted-foreground font-medium">{label}</p>
               <div className={`rounded-xl bg-card/80 p-2 ${iconColor}`}>
@@ -190,29 +190,29 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-2xl border border-border bg-card/60 p-6">
-          <div className="flex items-center justify-between mb-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6 lg:col-span-2">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-sm font-semibold">Spend vs Revenue</h3>
               <p className="text-xs text-muted-foreground">Last 30 days</p>
             </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-violet-400" />Spend</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-400" />Revenue</span>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" />Spend</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-400" />Revenue</span>
             </div>
           </div>
           <BarChartWidget
             data={spendData}
             bars={[
-              { dataKey: 'spend', color: '#8b5cf6' },
-              { dataKey: 'revenue', color: '#22d3ee' },
+              { dataKey: 'spend', color: '#16a34a' },
+              { dataKey: 'revenue', color: '#86efac' },
             ]}
             xAxisKey="date"
           />
         </div>
 
-        <div className="rounded-2xl border border-border bg-card/60 p-6">
+        <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6">
           <h3 className="text-sm font-semibold mb-1">Agent Fleet</h3>
           <p className="text-xs text-muted-foreground mb-4">By type</p>
           <DonutChartWidget data={agentDistribution} />
@@ -231,10 +231,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Agent status + campaigns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Agent status */}
-        <div className="rounded-2xl border border-border bg-card/60 p-6">
-          <div className="flex items-center justify-between mb-5">
+        <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold">Agent Status</h3>
             <a href="/dashboard/agents" className="flex items-center gap-1 text-xs text-primary hover:underline">
               View all <ArrowUpRight size={12} />
@@ -244,7 +244,7 @@ export default function DashboardPage() {
             {(agents ?? []).slice(0, 6).map((agent: any) => {
               const typeKey = agent.type?.split('_')[0] ?? 'data';
               return (
-                <div key={agent.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 hover:border-border transition-colors">
+                <div key={agent.id} className="flex flex-col gap-3 rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 transition-colors hover:border-border sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     {(() => { const Icon = AGENT_ICONS[typeKey] ?? Bot; return <Icon size={16} className="text-primary/80 shrink-0" />; })()}
                     <div>
@@ -252,7 +252,7 @@ export default function DashboardPage() {
                       <p className="text-xs text-muted-foreground">{agent.tasksCompleted ?? 0} tasks</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 sm:justify-end">
                     <AgentPulse status={agent.status} />
                     <Badge variant={STATUS_VARIANT[agent.status] ?? 'outline'}>{agent.status}</Badge>
                   </div>
@@ -270,8 +270,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent campaigns */}
-        <div className="rounded-2xl border border-border bg-card/60 p-6">
-          <div className="flex items-center justify-between mb-5">
+        <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold">Recent Campaigns</h3>
             <a href="/dashboard/campaigns" className="flex items-center gap-1 text-xs text-primary hover:underline">
               View all <ArrowUpRight size={12} />
@@ -279,7 +279,7 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             {(campaigns ?? []).slice(0, 5).map((campaign: any) => (
-              <div key={campaign.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 hover:border-border transition-colors">
+              <div key={campaign.id} className="flex flex-col gap-2 rounded-xl border border-border/60 bg-secondary/30 px-4 py-3 transition-colors hover:border-border sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium">{campaign.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{campaign.platform} · {formatCurrency((campaign.budget as any)?.dailyBudget ?? 0)}/day</p>

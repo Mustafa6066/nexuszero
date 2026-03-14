@@ -34,7 +34,7 @@ export function ThinkingIndicator() {
   return (
     <div className="flex gap-3 px-4 py-3 msg-enter">
       {/* AI icon with pulse ring */}
-      <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-violet-500/20 to-blue-500/20 
+      <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-primary/20 to-primary/8 
         border border-primary/20 flex items-center justify-center mt-0.5 pulse-ring">
         <NexusIcon size={16} thinking active className="text-primary" />
       </div>

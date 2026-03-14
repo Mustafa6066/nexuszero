@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Lock, ArrowUpRight, Sparkles } from 'lucide-react';
+import { Lock, ArrowUpRight, ShieldCheck } from 'lucide-react';
 
 interface TierGateProps {
   /** Feature name shown to the user */
@@ -56,7 +56,7 @@ export function TierGateOverlay({ feature, description, requiredTier, children }
       <div className="absolute inset-0 flex items-start justify-center pt-24 z-20">
         <div className="w-full max-w-md rounded-2xl border border-border bg-card/95 backdrop-blur-xl p-8 shadow-2xl shadow-black/30 text-center space-y-5 animate-fade-in">
           {/* Icon */}
-          <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 flex items-center justify-center">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/8 flex items-center justify-center">
             <Lock size={24} className="text-primary" />
           </div>
 
@@ -68,7 +68,7 @@ export function TierGateOverlay({ feature, description, requiredTier, children }
 
           {/* Tier badge */}
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary">
-            <Sparkles size={12} />
+            <ShieldCheck size={12} />
             Available on {TIER_LABELS[requiredTier]} ({TIER_PRICES[requiredTier]})
           </div>
 
@@ -105,7 +105,7 @@ export function TierGateOverlay({ feature, description, requiredTier, children }
             </a>
             <a
               href="/dashboard/settings?upgrade=true"
-              className="flex-1 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors text-center flex items-center justify-center gap-1.5"
+              className="flex-1 rounded-xl bg-gradient-to-r from-primary to-green-600 hover:from-green-700 hover:to-green-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors text-center flex items-center justify-center gap-1.5"
             >
               Upgrade <ArrowUpRight size={12} />
             </a>

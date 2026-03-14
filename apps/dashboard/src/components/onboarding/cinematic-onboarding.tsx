@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Check, Loader2, Plug, Search, Rocket, AlertCircle, RefreshCw } from 'lucide-react';
+import { ArrowRight, Check, Loader2, Plug, Search, Rocket, AlertCircle, RefreshCw } from 'lucide-react';
 
 /* ─── Visual step mapping ─── */
 type VisualStep = 'connecting' | 'analyzing' | 'launching';
@@ -126,7 +126,7 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
           { delay: 2000, text: 'SEO Agent online ✓', step: 'launching' as VisualStep },
           { delay: 1000, text: 'Ad Agent online ✓', step: 'launching' as VisualStep },
           { delay: 1000, text: 'Data Nexus online ✓', step: 'launching' as VisualStep },
-          { delay: 1500, text: 'All systems operational — Welcome to NexusZero! 🚀', step: 'launching' as VisualStep },
+          { delay: 1500, text: 'All systems operational — Welcome to NexusZero.', step: 'launching' as VisualStep },
         ];
 
         let totalDelay = 0;
@@ -235,7 +235,7 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
             {isComplete
-              ? "Your AI agents are deployed and ready. Let's make some magic. 🚀"
+              ? 'Your AI agents are deployed and ready for operation.'
               : 'This usually takes 2-3 minutes. Watch your AI team get briefed and deployed.'}
           </p>
         </div>
@@ -244,7 +244,7 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
         <div className="relative">
           <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400 transition-all duration-1000 ease-out"
+              className="h-full rounded-full bg-gradient-to-r from-primary to-green-500 transition-all duration-1000 ease-out"
               style={{ width: `${progressPct}%` }}
             />
           </div>
@@ -336,9 +336,10 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
           <div className="flex justify-center">
             <button
               onClick={handleContinue}
-              className="btn-glow rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 px-8 py-3 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              className="btn-glow inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-green-600 px-8 py-3 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
             >
-              Open Command Center →
+              Open Command Center
+              <ArrowRight size={16} />
             </button>
           </div>
         )}

@@ -305,7 +305,12 @@ ${ctx.tier !== 'enterprise' ? `Some features are not available on this plan. Whe
 5. Be context-aware — reference the page the user is on and the data they're looking at.
 6. When suggesting actions, be specific and offer to execute them.
 7. Always format currency with $ and percentages with %.
-8. If data is empty or missing, say so honestly and suggest next steps.`;
+8. If data is empty or missing, say so honestly and suggest next steps.
+9. Do not use emojis or decorative pictographs. Keep the tone professional and businesslike.`;
+}
+
+function sanitizeAssistantText(text: string): string {
+  return text.replace(/[\p{Extended_Pictographic}\u200D\uFE0F]/gu, '');
 }
 
 // ── Session management ─────────────────────────────────────────────────────
@@ -525,9 +530,10 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
 
     for (const block of claudeResponse.content) {
       if (block.type === 'text' && block.text) {
-        fullTextResponse += block.text;
+        const sanitizedText = sanitizeAssistantText(block.text);
+        fullTextResponse += sanitizedText;
         assistantContent.push(block);
-        yield { type: 'text', content: block.text };
+        yield { type: 'text', content: sanitizedText };
       } else if (block.type === 'tool_use' && block.name && block.id) {
         hasToolUse = true;
         assistantContent.push(block);

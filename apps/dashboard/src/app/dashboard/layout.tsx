@@ -9,7 +9,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="fixed inset-0 bg-dots opacity-20 pointer-events-none" />
       <div className="fixed inset-0 aurora-bg opacity-60 pointer-events-none" />
       <FloatingNav />
-      <main className="relative pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+      <main className="relative mx-auto max-w-6xl px-3 pb-16 pt-32 sm:px-5 sm:pb-20 sm:pt-36 lg:px-8 lg:pb-12 lg:pt-24">
         {children}
       </main>
       <AssistantPanel />

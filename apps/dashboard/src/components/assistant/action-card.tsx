@@ -42,7 +42,7 @@ export function ActionCard({ tool, args, result }: ActionCardProps) {
 function getDetailString(tool: string, args: Record<string, unknown>): string | null {
   switch (tool) {
     case 'navigate': return args.page as string;
-    case 'setDateRange': return `${args.start} → ${args.end}`;
+    case 'setDateRange': return `${args.start} to ${args.end}`;
     case 'setFilter': return `${args.key} = ${args.value}`;
     case 'createCampaign': return args.name as string;
     case 'pauseCampaign':

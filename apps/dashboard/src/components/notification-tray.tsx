@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Bell, Bot, AlertTriangle, CheckCircle, Info, X, Sparkles, ChevronRight } from 'lucide-react';
+import { Bell, Bot, AlertTriangle, CheckCircle, Info, X, ChevronRight } from 'lucide-react';
 import { useAssistantStore } from '@/lib/assistant-store';
 
 interface Notification {
@@ -85,7 +85,7 @@ function generateNotifications(agents: any[], stats: any): Notification[] {
 const priorityConfig = {
   critical: { color: 'text-red-400', bg: 'bg-red-500/10', dot: 'bg-red-400', Icon: AlertTriangle },
   advisory: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', dot: 'bg-yellow-400', Icon: AlertTriangle },
-  info: { color: 'text-blue-400', bg: 'bg-blue-500/10', dot: 'bg-blue-400', Icon: Info },
+  info: { color: 'text-primary', bg: 'bg-primary/10', dot: 'bg-primary', Icon: Info },
 };
 
 export function NotificationTray() {
@@ -148,7 +148,7 @@ export function NotificationTray() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border border-border/50 bg-card shadow-2xl shadow-black/30 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-border/50 bg-card shadow-2xl shadow-black/30 animate-in fade-in slide-in-from-top-2 duration-150 sm:w-96">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
             <h3 className="text-sm font-semibold">Notifications</h3>
@@ -161,7 +161,7 @@ export function NotificationTray() {
           </div>
 
           {/* Notification list */}
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[min(24rem,calc(100vh-10rem))] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="py-8 text-center">
                 <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
@@ -202,7 +202,7 @@ export function NotificationTray() {
               onClick={() => { assistantStore.open(); setIsOpen(false); }}
               className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
             >
-              <Sparkles size={12} />
+              <Bot size={12} />
               Ask NexusAI for details
               <ChevronRight size={12} />
             </button>

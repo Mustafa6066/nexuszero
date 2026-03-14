@@ -17,14 +17,14 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex gap-3 px-4 py-2.5 msg-enter ${isUser ? 'justify-end' : ''}`}>
+    <div className={`flex gap-2 px-3 py-2.5 msg-enter sm:gap-3 sm:px-4 ${isUser ? 'justify-end' : ''}`}>
       {!isUser && (
-        <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-violet-500/15 to-blue-500/15
+        <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-primary/15 to-primary/6
           border border-primary/15 flex items-center justify-center mt-0.5">
           <NexusIcon size={14} className="text-primary" />
         </div>
       )}
-      <div className={`max-w-[85%] space-y-1 ${isUser ? 'order-first' : ''}`}>
+      <div className={`max-w-[92%] space-y-1 sm:max-w-[85%] ${isUser ? 'order-first' : ''}`}>
         {/* Text content */}
         {message.content && (
           <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${

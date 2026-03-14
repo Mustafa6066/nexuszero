@@ -13,7 +13,7 @@ export function AssistantFab() {
       onClick={toggle}
       aria-label={isOpen ? 'Close NexusAI' : 'Open NexusAI'}
       className="fixed bottom-6 right-6 z-50 group flex items-center justify-center w-14 h-14 rounded-full
-        bg-gradient-to-br from-violet-500/90 to-blue-500/90 text-white shadow-lg
+        bg-gradient-to-br from-primary to-green-600 text-white shadow-lg
         hover:shadow-xl hover:shadow-primary/15 transition-all duration-300
         hover:scale-105 active:scale-95"
     >

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { Sparkles, X, RotateCcw, Sun, Moon, Sunrise } from 'lucide-react';
+import { Bot, ChevronRight, X, RotateCcw, Sun, Moon, Sunrise } from 'lucide-react';
 import { useAssistant } from '@/hooks/use-assistant';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -29,19 +29,18 @@ export function AssistantPanel() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-40 md:inset-auto md:right-6 md:top-24 md:bottom-6 md:w-[420px] flex flex-col
-      bg-card/95 backdrop-blur-2xl border border-border/30 shadow-2xl shadow-black/20 md:rounded-2xl animate-in slide-in-from-right">
+    <div className="fixed inset-0 z-40 flex flex-col border border-border/30 bg-card/95 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl shadow-black/20 backdrop-blur-2xl animate-in slide-in-from-right lg:inset-auto lg:bottom-6 lg:right-6 lg:top-24 lg:w-[420px] lg:rounded-2xl">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 md:rounded-t-2xl bg-secondary/10">
+      <div className="flex items-center justify-between border-b border-border/30 bg-secondary/10 px-3 py-3 sm:px-4 lg:rounded-t-2xl">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500/15 to-blue-500/15
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/18 to-primary/8
             border border-primary/15 flex items-center justify-center">
             <NexusIcon size={18} active className="text-primary" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-semibold text-foreground">NexusAI</span>
-              <Sparkles className="w-3 h-3 text-violet-400/60" />
+              <Bot className="w-3 h-3 text-primary/70" />
             </div>
             <span className="text-[10px] text-muted-foreground/70">Strategy Assistant</span>
           </div>
@@ -79,7 +78,7 @@ export function AssistantPanel() {
         )}
 
         {error && (
-          <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-red-500/8 border border-red-500/15 text-xs text-red-400/80">
+          <div className="mx-3 mb-2 rounded-lg border border-red-500/15 bg-red-500/8 px-3 py-2 text-xs text-red-400/80 sm:mx-4">
             {error}
           </div>
         )}
@@ -97,7 +96,7 @@ export function AssistantPanel() {
 }
 
 function useTimeGreeting() {
-  const [result, setResult] = useState<{ greeting: string; icon: typeof Sun }>({ greeting: 'Hello', icon: Sparkles });
+  const [result, setResult] = useState<{ greeting: string; icon: typeof Sun | typeof Bot }>({ greeting: 'Hello', icon: Bot });
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setResult({ greeting: 'Good morning', icon: Sunrise });
@@ -137,8 +136,8 @@ function EmptyState({ onSuggestionClick, suggestions }: {
     : null;
 
   return (
-    <div className="flex flex-col items-center justify-center h-full px-6 py-12 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/10 to-blue-500/10
+    <div className="flex h-full flex-col items-center justify-center px-4 py-10 text-center sm:px-6 sm:py-12">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/12 to-primary/5
         border border-primary/10 flex items-center justify-center mb-5">
         <NexusIcon size={28} active className="text-primary" />
       </div>
@@ -149,7 +148,7 @@ function EmptyState({ onSuggestionClick, suggestions }: {
       {insightLine && (
         <p className="text-xs text-muted-foreground/80 mb-1 font-medium">{insightLine}</p>
       )}
-      <p className="text-sm text-muted-foreground/60 mb-6 max-w-[280px] leading-relaxed">
+      <p className="mb-6 max-w-[280px] text-sm leading-relaxed text-muted-foreground/60">
         Ask me to analyze performance, diagnose issues, or suggest next steps.
       </p>
       <div className="w-full space-y-2">
@@ -161,7 +160,7 @@ function EmptyState({ onSuggestionClick, suggestions }: {
               hover:bg-secondary/40 hover:border-border/50 transition-all duration-200 text-sm text-foreground/80
               hover:text-foreground group"
           >
-            <span className="text-primary/40 group-hover:text-primary/60 transition-colors mr-2">→</span>
+            <ChevronRight className="mr-2 inline-block h-4 w-4 text-primary/50 transition-colors group-hover:text-primary/70" />
             {chip.label}
           </button>
         ))}

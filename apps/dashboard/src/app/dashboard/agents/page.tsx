@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 import { BarChartWidget } from '@/components/charts';
 import { useAssistant } from '@/hooks/use-assistant';
-import { ChevronDown, ChevronUp, Flame, Sparkles, Check, X, Clock, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Flame, Bot, Check, X, Clock, Loader2 } from 'lucide-react';
 
 const AGENT_TYPES = ['seo', 'ad', 'data_nexus', 'aeo', 'creative'] as const;
 
@@ -284,7 +284,7 @@ export default function AgentsPage() {
                           onClick={() => askAboutAgent(agent.type)}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 px-3 py-1.5 text-xs font-medium text-primary transition-colors"
                         >
-                          <Sparkles size={12} /> Ask NexusAI about this agent
+                          <Bot size={12} /> Ask NexusAI about this agent
                         </button>
                       </div>
                     </div>

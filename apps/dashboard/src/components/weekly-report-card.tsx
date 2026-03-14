@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { TrendingUp, TrendingDown, Minus, X, Sparkles, Trophy, AlertTriangle, CheckCircle, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, X, Trophy, AlertTriangle, CheckCircle, BarChart3 } from 'lucide-react';
 
 interface ReportMetric {
   label: string;
@@ -127,7 +127,7 @@ export function WeeklyReportCard() {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/30 bg-gradient-to-r from-primary/5 to-transparent">
         <div className="flex items-center gap-2">
-          <Sparkles size={14} className="text-primary" />
+          <BarChart3 size={14} className="text-primary" />
           <h3 className="text-sm font-semibold">Weekly AI Report Card</h3>
         </div>
         <button

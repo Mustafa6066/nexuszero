@@ -6,7 +6,7 @@ import { useAssistant } from '@/hooks/use-assistant';
 import {
   Search, LayoutDashboard, Megaphone, Bot, BarChart3, Palette,
   Globe, Plug, Webhook, Settings, Zap, Plus, Play, Pause, ScanSearch, FileText,
-  Sparkles, ArrowRight, Command,
+  ArrowRight, Command,
 } from 'lucide-react';
 
 interface CommandItem {
@@ -85,10 +85,10 @@ export function CommandPalette() {
     { id: 'act-aeo-scan', label: 'Run AEO Citation Scan', description: 'Scan AI platforms for brand mentions', icon: Globe, action: () => askAI('Run an AEO citation scan'), category: 'action', keywords: ['citations', 'visibility'] },
     { id: 'act-report', label: 'Generate Report', description: 'Create a downloadable performance report', icon: FileText, action: () => askAI('Generate an executive summary report'), category: 'action', keywords: ['export', 'pdf'] },
     // AI shortcuts
-    { id: 'ai-performance', label: 'How are my campaigns doing?', icon: Sparkles, action: () => askAI('How are my campaigns performing this month?'), category: 'ai', keywords: ['performance', 'stats'] },
-    { id: 'ai-agents', label: "What's the agent status?", icon: Sparkles, action: () => askAI("What's the status of all my agents?"), category: 'ai', keywords: ['health', 'fleet'] },
-    { id: 'ai-seo', label: 'SEO performance overview', icon: Sparkles, action: () => askAI('Give me an overview of my SEO performance'), category: 'ai', keywords: ['organic', 'rankings'] },
-    { id: 'ai-recommend', label: 'What should I do next?', icon: Sparkles, action: () => askAI('Based on my current data, what actions do you recommend?'), category: 'ai', keywords: ['suggest', 'next steps'] },
+    { id: 'ai-performance', label: 'How are my campaigns doing?', icon: Bot, action: () => askAI('How are my campaigns performing this month?'), category: 'ai', keywords: ['performance', 'stats'] },
+    { id: 'ai-agents', label: "What's the agent status?", icon: Bot, action: () => askAI("What's the status of all my agents?"), category: 'ai', keywords: ['health', 'fleet'] },
+    { id: 'ai-seo', label: 'SEO performance overview', icon: Bot, action: () => askAI('Give me an overview of my SEO performance'), category: 'ai', keywords: ['organic', 'rankings'] },
+    { id: 'ai-recommend', label: 'What should I do next?', icon: Bot, action: () => askAI('Based on my current data, what actions do you recommend?'), category: 'ai', keywords: ['suggest', 'next steps'] },
   ], [askAI, navigate]);
 
   // Filter commands
@@ -239,6 +239,7 @@ export function CommandPalette() {
                 {grouped.ai.map((cmd: CommandItem) => {
                   flatIndex++;
                   const idx = flatIndex;
+                  const Icon = cmd.icon;
                   return (
                     <button
                       key={cmd.id}
@@ -248,7 +249,7 @@ export function CommandPalette() {
                         idx === selectedIndex ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-secondary/60'
                       }`}
                     >
-                      <Sparkles size={15} className="shrink-0 text-indigo-400" />
+                      <Icon size={15} className="shrink-0 text-primary" />
                       <span className="flex-1 text-left">{cmd.label}</span>
                       <ArrowRight size={10} className="text-muted-foreground" />
                     </button>
