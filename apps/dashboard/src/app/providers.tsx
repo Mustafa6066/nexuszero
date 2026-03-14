@@ -11,14 +11,19 @@ type Theme = 'dark' | 'light';
 const ThemeContext = createContext<{ theme: Theme; toggle: () => void }>({ theme: 'dark', toggle: () => {} });
 export function useTheme() { return useContext(ThemeContext); }
 
-function getInitialTheme(): Theme {
+function resolveBrowserTheme(): Theme {
   if (typeof window === 'undefined') return 'dark';
   const stored = localStorage.getItem('nz-theme') as Theme | null;
-  return stored ?? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  if (stored === 'light' || stored === 'dark') return stored;
+  return document.documentElement.classList.contains('light') ? 'light' : 'dark';
 }
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [theme, setTheme] = useState<Theme>('dark');
+
+  useEffect(() => {
+    setTheme(resolveBrowserTheme());
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light');
