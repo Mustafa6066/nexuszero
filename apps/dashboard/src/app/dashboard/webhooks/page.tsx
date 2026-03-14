@@ -65,7 +65,7 @@ export default function WebhooksPage() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => deleteMutation.mutate(webhook.id)}
+                    onClick={() => { if (confirm('Delete this webhook endpoint? This cannot be undone.')) deleteMutation.mutate(webhook.id); }}
                     disabled={deleteMutation.isPending}
                   >
                     Delete
@@ -128,6 +128,7 @@ function CreateWebhookModal({ onClose }: { onClose: () => void }) {
     events: 'campaign.*',
     secret: '',
   });
+  const [error, setError] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.createWebhook(data),
@@ -135,13 +136,21 @@ function CreateWebhookModal({ onClose }: { onClose: () => void }) {
       queryClient.invalidateQueries({ queryKey: ['webhooks'] });
       onClose();
     },
+    onError: (err: any) => {
+      setError(err?.message || 'Failed to create webhook');
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    try { new URL(form.url); } catch { setError('Invalid URL format'); return; }
+    if (!form.url.startsWith('https://')) { setError('Webhook URL must use HTTPS'); return; }
+    const events = form.events.split(',').map((s) => s.trim()).filter(Boolean);
+    if (events.length === 0) { setError('At least one event is required'); return; }
     createMutation.mutate({
       url: form.url,
-      events: form.events.split(',').map((s) => s.trim()).filter(Boolean),
+      events,
       secret: form.secret || undefined,
     });
   };
@@ -160,6 +169,7 @@ function CreateWebhookModal({ onClose }: { onClose: () => void }) {
       <Card className="w-full max-w-md" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-4">Add Webhook Endpoint</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-400">{error}</div>}
           <div>
             <label className="block text-sm font-medium mb-1">Endpoint URL</label>
             <input

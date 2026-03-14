@@ -174,7 +174,7 @@ async function executeDataTool(
         const result = await db.select().from(analyticsDataPoints)
           .where(and(
             eq(analyticsDataPoints.tenantId, tenantId),
-            eq(analyticsDataPoints.channel, 'organic' as never),
+            eq(analyticsDataPoints.channel, 'organic_search' as never),
             gte(analyticsDataPoints.date, since),
           ))
           .orderBy(desc(analyticsDataPoints.date)).limit(50);
@@ -198,7 +198,7 @@ async function executeDataTool(
       });
     }
     default:
-      return { message: `Tool ${tool} executed successfully` };
+      throw new Error(`Unknown data tool: ${tool}`);
   }
 }
 

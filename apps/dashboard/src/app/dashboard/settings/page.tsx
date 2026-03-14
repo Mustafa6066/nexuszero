@@ -15,13 +15,18 @@ export default function SettingsPage() {
   const [form, setForm] = useState<Record<string, unknown>>({});
   const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => api.patch('/tenants/me', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant'] });
+      setError(null);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    },
+    onError: (err: any) => {
+      setError(err?.message || 'Failed to save settings');
     },
   });
 
@@ -41,6 +46,11 @@ export default function SettingsPage() {
   }
 
   const handleSave = () => {
+    setError(null);
+    if (form.company_name !== undefined && !(form.company_name as string).trim()) {
+      setError('Company name cannot be empty');
+      return;
+    }
     const payload: Record<string, unknown> = { ...form };
     if (Object.keys(notificationPrefs).length > 0) {
       payload.notification_preferences = {
@@ -59,6 +69,7 @@ export default function SettingsPage() {
           <p className="text-sm text-muted-foreground mt-1">Manage your organization settings and integrations.</p>
         </div>
         {saved && <Badge variant="success">Settings saved!</Badge>}
+        {error && <Badge variant="destructive">{error}</Badge>}
       </div>
 
       <Card>

@@ -111,11 +111,11 @@ export default function CampaignsPage() {
               </div>
 
               <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">Edit</Button>
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(`/dashboard/campaigns/${campaign.id}`)}>Edit</Button>
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => deleteMutation.mutate(campaign.id)}
+                  onClick={() => { if (confirm(`Delete "${campaign.name}"? This cannot be undone.`)) deleteMutation.mutate(campaign.id); }}
                   disabled={deleteMutation.isPending}
                 >
                   Delete
@@ -140,6 +140,7 @@ export default function CampaignsPage() {
 function CreateCampaignModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name: '', platform: 'google_ads', daily_budget: '', objective: 'conversions' });
+  const [error, setError] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.createCampaign(data),
@@ -147,12 +148,19 @@ function CreateCampaignModal({ onClose }: { onClose: () => void }) {
       queryClient.invalidateQueries({ queryKey: ['campaigns'] });
       onClose();
     },
+    onError: (err: any) => {
+      setError(err?.message || 'Failed to create campaign');
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    if (!form.name.trim()) { setError('Campaign name is required'); return; }
+    const budget = parseFloat(form.daily_budget);
+    if (!budget || budget <= 0) { setError('Daily budget must be greater than 0'); return; }
     createMutation.mutate({
-      name: form.name,
+      name: form.name.trim(),
       type: 'ppc',
       platform: form.platform,
       budget: {
@@ -170,6 +178,7 @@ function CreateCampaignModal({ onClose }: { onClose: () => void }) {
       <Card className="w-full max-w-md" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-4">Create Campaign</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-400">{error}</div>}
           <div>
             <label className="block text-sm font-medium mb-1">Name</label>
             <input

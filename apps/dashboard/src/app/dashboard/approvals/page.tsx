@@ -18,6 +18,7 @@ export default function ApprovalsPage() {
   const queryClient = useQueryClient();
   const { canAdmin, isOwner } = useRole();
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [error, setError] = useState<string | null>(null);
 
   const { data: approvals, isLoading } = useQuery({
     queryKey: ['approvals', filter],
@@ -31,17 +32,20 @@ export default function ApprovalsPage() {
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => api.approveItem(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['approvals'] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['approvals'] }); setError(null); },
+    onError: (err: any) => setError(err?.message || 'Failed to approve item'),
   });
 
   const rejectMutation = useMutation({
     mutationFn: (id: string) => api.rejectItem(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['approvals'] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['approvals'] }); setError(null); },
+    onError: (err: any) => setError(err?.message || 'Failed to reject item'),
   });
 
   const autonomyMutation = useMutation({
     mutationFn: (level: string) => api.setAutonomyLevel(level),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['autonomy'] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['autonomy'] }); setError(null); },
+    onError: (err: any) => setError(err?.message || 'Failed to change autonomy level'),
   });
 
   const currentLevel = autonomy?.autonomyLevel ?? 'manual';
@@ -52,6 +56,8 @@ export default function ApprovalsPage() {
         <h1 className="text-2xl font-bold">Approval Queue</h1>
         <p className="text-sm text-muted-foreground mt-1">Review and approve agent-proposed changes before execution.</p>
       </div>
+
+      {error && <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-400">{error}</div>}
 
       {/* Autonomy Level Selector */}
       <Card>
