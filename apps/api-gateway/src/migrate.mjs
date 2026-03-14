@@ -63,6 +63,48 @@ for (const stmt of statements) {
 
 console.log(`Migration complete! ${success} applied, ${skipped} already existed, ${failed} failed.`);
 
+const assistantBootstrapStatements = [
+  `DO $$
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'assistant_role') THEN
+      CREATE TYPE assistant_role AS ENUM ('user', 'assistant');
+    END IF;
+  END
+  $$;`,
+  `CREATE TABLE IF NOT EXISTS assistant_sessions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    message_count integer NOT NULL DEFAULT 0,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    started_at timestamptz NOT NULL DEFAULT now(),
+    last_message_at timestamptz NOT NULL DEFAULT now()
+  );`,
+  `CREATE TABLE IF NOT EXISTS assistant_messages (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id uuid NOT NULL REFERENCES assistant_sessions(id) ON DELETE CASCADE,
+    tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    role assistant_role NOT NULL,
+    content text NOT NULL DEFAULT '',
+    tool_calls jsonb NOT NULL DEFAULT '[]'::jsonb,
+    ui_context jsonb,
+    tokens_used integer DEFAULT 0,
+    latency_ms integer DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now()
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_assistant_sessions_tenant_user ON assistant_sessions (tenant_id, user_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_assistant_messages_session_created ON assistant_messages (session_id, created_at);`,
+  `CREATE INDEX IF NOT EXISTS idx_assistant_messages_tenant_session ON assistant_messages (tenant_id, session_id);`,
+];
+
+for (const stmt of assistantBootstrapStatements) {
+  try {
+    await sql.unsafe(stmt);
+  } catch (err) {
+    console.error('[migrate] FAILED assistant bootstrap:', err.message?.substring(0, 200));
+  }
+}
+
 // Verify tables exist
 try {
   const tables = await sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`;
@@ -72,7 +114,7 @@ try {
     'campaigns','compound_insights','creative_tests','creatives','entity_profiles',
     'forecasts','funnel_analysis','integration_health','integrations','oauth_tokens',
     'schema_snapshots','tenants','users','webhook_deliveries','webhook_endpoints',
-    'aeo_citations','ai_visibility_scores',
+    'aeo_citations','ai_visibility_scores','assistant_sessions','assistant_messages',
   ];
   const missing = expected.filter(t => !names.includes(t));
   if (missing.length > 0) {
