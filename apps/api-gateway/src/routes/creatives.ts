@@ -3,6 +3,7 @@ import { withTenantDb, creatives, creativeTests } from '@nexuszero/db';
 import { generateCreativeSchema, creativeFiltersSchema, AppError, ERROR_CODES } from '@nexuszero/shared';
 import { publishAgentTask } from '@nexuszero/queue';
 import { eq, and, ilike, sql, desc } from 'drizzle-orm';
+import { z } from 'zod';
 
 const app = new Hono();
 
@@ -60,7 +61,11 @@ app.get('/:id', async (c) => {
 app.post('/generate', async (c) => {
   const tenantId = c.get('tenantId');
   const body = await c.req.json();
-  const data = generateCreativeSchema.parse(body);
+  const parsed = generateCreativeSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new AppError(ERROR_CODES.VALIDATION.INVALID_INPUT, parsed.error.issues, 400);
+  }
+  const data = parsed.data;
 
   // Publish task to Creative Agent
   const taskId = crypto.randomUUID();

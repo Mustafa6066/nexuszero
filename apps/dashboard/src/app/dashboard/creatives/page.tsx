@@ -13,6 +13,34 @@ const FORMAT_LABELS: Record<string, string> = {
   email_header: 'Email Header',
 };
 
+const GENERATION_PRESETS = {
+  display_banner: {
+    type: 'image',
+    platform: 'google_display',
+    dimensions: { width: 300, height: 250, label: 'Display Banner' },
+  },
+  social_image: {
+    type: 'image',
+    platform: 'instagram_feed',
+    dimensions: { width: 1080, height: 1080, label: 'Social Image' },
+  },
+  social_video: {
+    type: 'video_script',
+    platform: 'instagram_reels',
+    dimensions: { width: 1080, height: 1920, label: 'Social Video' },
+  },
+  search_responsive: {
+    type: 'ad_copy',
+    platform: 'google_search',
+    dimensions: undefined,
+  },
+  email_header: {
+    type: 'email_template',
+    platform: 'email',
+    dimensions: { width: 1200, height: 600, label: 'Email Header' },
+  },
+} as const;
+
 export default function CreativesPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>('all');
@@ -146,8 +174,22 @@ function GenerateModal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const preset = GENERATION_PRESETS[form.format as keyof typeof GENERATION_PRESETS] ?? GENERATION_PRESETS.display_banner;
     generateMutation.mutate({
-      ...form,
+      campaignId: form.campaign_id || null,
+      type: preset.type,
+      prompt: `${form.prompt.trim()}\n\nTone: ${form.tone}.`,
+      brandGuidelines: {
+        primaryColor: '#16A34A',
+        secondaryColor: '#0F172A',
+        fontFamily: 'Plus Jakarta Sans',
+        tone: form.tone,
+        logoUrl: null,
+        doNotUse: [],
+      },
+      targetAudience: 'General marketing audience',
+      platform: preset.platform,
+      dimensions: preset.dimensions,
       variants: parseInt(form.variants, 10),
     });
   };
@@ -157,6 +199,11 @@ function GenerateModal({ onClose }: { onClose: () => void }) {
       <Card className="w-full max-w-md" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold mb-4">Generate Creative</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {generateMutation.error && (
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {generateMutation.error instanceof Error ? generateMutation.error.message : 'Creative generation failed.'}
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium mb-1">Format</label>
             <select
