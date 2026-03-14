@@ -133,6 +133,14 @@ class ApiClient {
   // Assistant
   getAssistantSessions() { return this.get<any[]>('/assistant/sessions'); }
   getSessionMessages(sessionId: string) { return this.get<any[]>(`/assistant/sessions/${sessionId}/messages`); }
+
+  // Scanner
+  runPreflightScan(websiteUrl: string) { return this.post<any>('/scanner/preflight', { websiteUrl }); }
+
+  // Engines
+  deployEngine(data: { websiteUrl: string; companyName: string; agents: string[]; tier: string; platforms?: string[]; skipPreflight?: boolean }) {
+    return this.post<any>('/engines/deploy', data);
+  }
 }
 
 export const api = new ApiClient();

@@ -9,7 +9,7 @@ import { signOut } from 'next-auth/react';
 import { useAssistant } from '@/hooks/use-assistant';
 import {
   LayoutDashboard, BarChart3, Bot, Megaphone, Palette,
-  Globe, Webhook, Settings, Plug, Sun, Moon, LogOut,
+  Globe, Webhook, Settings, Plug, Sun, Moon, LogOut, ScanSearch,
 } from 'lucide-react';
 import { NexusIconInline } from './assistant/nexus-icon';
 import { NotificationTray } from './notification-tray';
@@ -20,14 +20,15 @@ const navItems = [
   { href: '/dashboard/agents', icon: Bot, label: 'Agents' },
   { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/dashboard/creatives', icon: Palette, label: 'Creatives' },
+  { href: '/dashboard/scanner', icon: ScanSearch, label: 'Scanner' },
   { href: '/dashboard/aeo', icon: Globe, label: 'AEO' },
   { href: '/dashboard/integrations', icon: Plug, label: 'Integrations' },
   { href: '/dashboard/webhooks', icon: Webhook, label: 'Webhooks' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 
-const primaryNav = navItems.slice(0, 5);
-const secondaryNav = navItems.slice(5);
+const primaryNav = navItems.slice(0, 6);
+const secondaryNav = navItems.slice(6);
 
 export function Sidebar() {
   // Legacy export kept to avoid breaking imports — renders nothing.

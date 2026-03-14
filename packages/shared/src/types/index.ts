@@ -8,3 +8,4 @@ export * from './webhook.js';
 export * from './integration.js';
 export * from './assistant.js';
 export * from './tier.js';
+export * from './scanner.js';

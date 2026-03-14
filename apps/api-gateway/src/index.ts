@@ -12,6 +12,8 @@ import { analyticsRoutes } from './routes/analytics.js';
 import { aeoRoutes } from './routes/aeo.js';
 import { integrationRoutes } from './routes/integrations.js';
 import { assistantRoutes } from './routes/assistant.js';
+import { scannerRoutes } from './routes/scanner.js';
+import { engineRoutes } from './routes/engines.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { tenantMiddleware } from './middleware/tenant.js';
@@ -55,6 +57,8 @@ api.route('/analytics', analyticsRoutes);
 api.route('/aeo', aeoRoutes);
 api.route('/integrations', integrationRoutes);
 api.route('/assistant', assistantRoutes);
+api.route('/scanner', scannerRoutes);
+api.route('/engines', engineRoutes);
 
 app.route('/api/v1', api);
 
