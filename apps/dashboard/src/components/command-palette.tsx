@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAssistant } from '@/hooks/use-assistant';
+import { useAssistantActions } from '@/hooks/use-assistant';
 import {
   Search, LayoutDashboard, Megaphone, Bot, BarChart3, Palette,
   Globe, Plug, Webhook, Settings, Zap, Plus, Play, Pause, ScanSearch, FileText,
@@ -26,7 +26,7 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { open, sendMessage } = useAssistant();
+  const { open, sendMessage } = useAssistantActions();
 
   const close = useCallback(() => {
     setIsOpen(false);

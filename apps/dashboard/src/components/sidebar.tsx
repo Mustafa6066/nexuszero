@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/app/providers';
 import { signOut } from 'next-auth/react';
-import { useAssistant } from '@/hooks/use-assistant';
+import { useAssistantVisibility } from '@/hooks/use-assistant';
 import {
   LayoutDashboard, BarChart3, Bot, Megaphone, Palette,
   Globe, Webhook, Settings, Plug, Sun, Moon, LogOut, ScanSearch,
@@ -38,7 +38,7 @@ export function Sidebar() {
 export function FloatingNav() {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
-  const { isOpen, toggle: toggleAssistant } = useAssistant();
+  const { isOpen, toggle: toggleAssistant } = useAssistantVisibility();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

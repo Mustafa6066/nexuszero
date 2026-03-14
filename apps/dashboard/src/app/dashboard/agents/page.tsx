@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 import { BarChartWidget } from '@/components/charts';
-import { useAssistant } from '@/hooks/use-assistant';
+import { useAssistantActions } from '@/hooks/use-assistant';
 import { ChevronDown, ChevronUp, Flame, Bot, Check, X, Clock, Loader2 } from 'lucide-react';
 import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
 
@@ -64,7 +64,7 @@ function StreakBadge({ completed, failed }: { completed: number; failed: number 
 export default function AgentsPage() {
   const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const { open, sendMessage } = useAssistant();
+  const { open, sendMessage } = useAssistantActions();
 
   const { data: agents, isLoading } = useQuery({
     queryKey: ['agents'],

@@ -24,11 +24,13 @@ This document describes the enterprise runtime additions introduced for NexusZer
 
 ## Tenant Isolation
 
-- `packages/db/src/client.ts` now applies `set_config('app.current_tenant_id', tenantId, true)` inside a transaction and uses `SET LOCAL ROLE nexuszero_app` by default.
-- Required runtime variables:
-  - `DATABASE_APP_ROLE=nexuszero_app`
-  - `DB_ENFORCE_RLS=true`
-- If a maintenance environment must bypass role enforcement, set `DB_ENFORCE_RLS=false` explicitly.
+- `packages/db/src/client.ts` now applies `set_config('app.current_tenant_id', tenantId, true)` inside a transaction.
+- `SET LOCAL ROLE ...` is optional and only applied when `DATABASE_APP_ROLE` is configured and the role exists in the target database.
+- To enable database-enforced RLS in production:
+  - run `packages/db/src/rls-policies.sql`
+  - set `DATABASE_APP_ROLE=nexuszero_app`
+  - set `DB_ENFORCE_RLS=true`
+- If the role is not provisioned yet, leave `DATABASE_APP_ROLE` empty. Requests will continue to use tenant-scoped query filters instead of failing every protected route.
 
 ## Terraform
 

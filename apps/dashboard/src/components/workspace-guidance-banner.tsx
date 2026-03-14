@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ArrowRight, Bot, Link2, Rocket, Sparkles, Workflow } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Badge, Button, Card } from '@/components/ui';
-import { useAssistant } from '@/hooks/use-assistant';
+import { useAssistantActions } from '@/hooks/use-assistant';
 
 type Surface = 'campaigns' | 'agents' | 'integrations' | 'analytics' | 'creatives' | 'aeo' | 'webhooks';
 
@@ -40,7 +40,7 @@ function isOnboardingComplete(state: string): boolean {
 export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { open, sendMessage } = useAssistant();
+  const { open, sendMessage } = useAssistantActions();
 
   const { data: tenant } = useQuery({
     queryKey: ['tenant', 'me'],

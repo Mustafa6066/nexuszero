@@ -14,7 +14,7 @@ import { WeeklyReportCard } from '@/components/weekly-report-card';
 import { MilestonesPanel } from '@/components/milestones';
 import { DashboardSectionBoundary } from '@/components/dashboard-section-boundary';
 import { OverviewIntelligencePanel } from '@/components/overview-intelligence-panel';
-import { useAssistant } from '@/hooks/use-assistant';
+import { useAssistantActions } from '@/hooks/use-assistant';
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'outline'> = {
   active: 'success',
@@ -63,7 +63,7 @@ function useTimeOfDay() {
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const { open, sendMessage } = useAssistant();
+  const { open, sendMessage } = useAssistantActions();
   const name = (session?.user?.name ?? '').split(' ')[0] || 'Commander';
   const timeOfDay = useTimeOfDay();
 

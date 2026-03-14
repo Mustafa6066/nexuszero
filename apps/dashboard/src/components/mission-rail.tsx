@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, ArrowRight, Bot, Link2, PlayCircle, Rocket, Sparkles } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui';
-import { useAssistant } from '@/hooks/use-assistant';
+import { useAssistantActions } from '@/hooks/use-assistant';
 
 function getOnboardingState(tenant: any): string {
   return tenant?.onboardingState ?? tenant?.onboarding_state ?? tenant?.status ?? 'created';
@@ -18,7 +18,7 @@ function isOnboardingComplete(state: string): boolean {
 
 export function MissionRail() {
   const router = useRouter();
-  const { open, sendMessage } = useAssistant();
+  const { open, sendMessage } = useAssistantActions();
 
   const { data: tenant } = useQuery({
     queryKey: ['tenant', 'me'],

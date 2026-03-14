@@ -19,6 +19,7 @@ export function AssistantPanel() {
     close, sendMessage, clearMessages,
   } = useAssistant();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [hasRendered, setHasRendered] = useState(isOpen);
   const isArabic = preferredLanguage === 'ar';
   const capabilityCards = isArabic
     ? [
@@ -39,10 +40,46 @@ export function AssistantPanel() {
     }
   }, [messages, isLoading]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (hasRendered || isOpen) {
+      if (isOpen && !hasRendered) {
+        setHasRendered(true);
+      }
+      return;
+    }
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      const handle = idleWindow.requestIdleCallback(() => {
+        setHasRendered(true);
+      }, { timeout: 1500 });
+
+      return () => {
+        idleWindow.cancelIdleCallback?.(handle);
+      };
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setHasRendered(true);
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [hasRendered, isOpen]);
+
+  if (!hasRendered) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex h-[100dvh] flex-col overflow-hidden border border-primary/10 bg-[linear-gradient(180deg,hsl(var(--background)/0.98),hsl(var(--card)/0.96))] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl shadow-black/30 backdrop-blur-2xl animate-in slide-in-from-right lg:inset-auto lg:bottom-6 lg:right-6 lg:top-24 lg:h-auto lg:max-h-[calc(100vh-7.5rem)] lg:w-[460px] lg:rounded-[1.75rem]">
+    <div
+      hidden={!isOpen}
+      aria-hidden={!isOpen}
+      className={`fixed inset-0 z-[60] flex h-[100dvh] flex-col overflow-hidden border border-primary/10 bg-[linear-gradient(180deg,hsl(var(--background)/0.98),hsl(var(--card)/0.96))] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl shadow-black/30 backdrop-blur-2xl lg:inset-auto lg:bottom-6 lg:right-6 lg:top-24 lg:h-auto lg:max-h-[calc(100vh-7.5rem)] lg:w-[460px] lg:rounded-[1.75rem] ${isOpen ? 'animate-in slide-in-from-right' : ''}`}
+    >
       {/* Ambient background */}
       <div className="pointer-events-none absolute inset-0 opacity-90">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_38%)]" />

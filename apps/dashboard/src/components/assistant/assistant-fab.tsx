@@ -1,12 +1,12 @@
 'use client';
 
-import { useAssistant } from '@/hooks/use-assistant';
+import { useAssistantVisibility } from '@/hooks/use-assistant';
 import { X } from 'lucide-react';
 import { NexusIcon } from './nexus-icon';
 
 /** Floating action button that opens the NexusAI assistant panel */
 export function AssistantFab() {
-  const { isOpen, toggle } = useAssistant();
+  const { isOpen, toggle } = useAssistantVisibility();
 
   return (
     <button

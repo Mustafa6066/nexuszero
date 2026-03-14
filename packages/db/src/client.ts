@@ -4,6 +4,8 @@ import * as schema from './schema/index.js';
 
 let client: ReturnType<typeof postgres> | null = null;
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
+const verifiedRoleAvailability = new Map<string, boolean>();
+const warnedMissingRoles = new Set<string>();
 
 export function getPostgresClient() {
   if (!client) {
@@ -36,19 +38,63 @@ function quotePgIdentifier(identifier: string): string {
   return `"${identifier}"`;
 }
 
+async function canApplyLocalRole(transaction: any, appRole: string): Promise<boolean> {
+  const normalizedRole = appRole.trim();
+  if (!normalizedRole) {
+    return false;
+  }
+
+  const cachedAvailability = verifiedRoleAvailability.get(normalizedRole);
+  if (cachedAvailability !== undefined) {
+    return cachedAvailability;
+  }
+
+  try {
+    const result = await transaction<{ roleExists: boolean }[]>`
+      select exists(
+        select 1
+        from pg_roles
+        where rolname = ${normalizedRole}
+      ) as "roleExists"
+    `;
+    const roleExists = Boolean(result[0]?.roleExists);
+    verifiedRoleAvailability.set(normalizedRole, roleExists);
+
+    if (!roleExists && !warnedMissingRoles.has(normalizedRole)) {
+      warnedMissingRoles.add(normalizedRole);
+      console.warn(
+        `[db] DATABASE_APP_ROLE "${normalizedRole}" does not exist in this database; skipping SET LOCAL ROLE and relying on tenant-scoped queries.`,
+      );
+    }
+
+    return roleExists;
+  } catch (error) {
+    if (!warnedMissingRoles.has(normalizedRole)) {
+      warnedMissingRoles.add(normalizedRole);
+      console.warn(
+        `[db] Failed to verify DATABASE_APP_ROLE "${normalizedRole}"; skipping SET LOCAL ROLE.`,
+        error,
+      );
+    }
+
+    verifiedRoleAvailability.set(normalizedRole, false);
+    return false;
+  }
+}
+
 export async function applyTenantSession<T>(
   transaction: any,
   tenantId: string,
   callback: (db: ReturnType<typeof drizzle<typeof schema>>) => Promise<T>,
   options: { appRole?: string; enforceRls?: boolean } = {},
 ): Promise<T> {
-  const appRole = options.appRole ?? process.env.DATABASE_APP_ROLE ?? 'nexuszero_app';
-  const enforceRls = options.enforceRls ?? process.env.DB_ENFORCE_RLS !== 'false';
+  const appRole = (options.appRole ?? process.env.DATABASE_APP_ROLE ?? '').trim();
+  const enforceRls = options.enforceRls ?? (appRole ? process.env.DB_ENFORCE_RLS !== 'false' : false);
 
   await transaction`select set_config('app.current_tenant_id', ${tenantId}, true)`;
 
-  if (enforceRls && appRole.trim()) {
-    await transaction.unsafe(`set local role ${quotePgIdentifier(appRole.trim())}`);
+  if (enforceRls && appRole && await canApplyLocalRole(transaction, appRole)) {
+    await transaction.unsafe(`set local role ${quotePgIdentifier(appRole)}`);
   }
 
   const scopedDb = drizzle(transaction as any, { schema }) as ReturnType<typeof drizzle<typeof schema>>;
