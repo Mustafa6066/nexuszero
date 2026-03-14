@@ -18,8 +18,10 @@ export function AssistantPanel() {
     isOpen, isLoading, messages, error, preferredLanguage, suggestions,
     close, sendMessage, clearMessages,
   } = useAssistant();
+  const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hasRendered, setHasRendered] = useState(isOpen);
+  const [isHidden, setIsHidden] = useState(!isOpen);
   const isArabic = preferredLanguage === 'ar';
   const capabilityCards = isArabic
     ? [
@@ -72,13 +74,33 @@ export function AssistantPanel() {
     };
   }, [hasRendered, isOpen]);
 
+  useEffect(() => {
+    if (isOpen) {
+      setIsHidden(false);
+      return;
+    }
+
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (activeElement && panelRef.current?.contains(activeElement)) {
+      activeElement.blur();
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setIsHidden(true);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isOpen]);
+
   if (!hasRendered) return null;
 
   return (
     <div
-      hidden={!isOpen}
-      aria-hidden={!isOpen}
-      className={`fixed inset-0 z-[60] flex h-[100dvh] flex-col overflow-hidden border border-primary/10 bg-[linear-gradient(180deg,hsl(var(--background)/0.98),hsl(var(--card)/0.96))] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl shadow-black/30 backdrop-blur-2xl lg:inset-auto lg:bottom-6 lg:right-6 lg:top-24 lg:h-auto lg:max-h-[calc(100vh-7.5rem)] lg:w-[460px] lg:rounded-[1.75rem] ${isOpen ? 'animate-in slide-in-from-right' : ''}`}
+      ref={panelRef}
+      hidden={isHidden}
+      className={`fixed inset-0 z-[60] flex h-[100dvh] flex-col overflow-hidden border border-primary/10 bg-[linear-gradient(180deg,hsl(var(--background)/0.98),hsl(var(--card)/0.96))] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl shadow-black/30 backdrop-blur-2xl transition-[opacity,transform] duration-150 lg:inset-auto lg:bottom-6 lg:right-6 lg:top-24 lg:h-auto lg:max-h-[calc(100vh-7.5rem)] lg:w-[460px] lg:rounded-[1.75rem] ${isOpen ? 'animate-in slide-in-from-right opacity-100' : 'pointer-events-none opacity-0 lg:translate-x-3'}`}
     >
       {/* Ambient background */}
       <div className="pointer-events-none absolute inset-0 opacity-90">
@@ -164,7 +186,7 @@ export function AssistantPanel() {
         <SuggestionChips suggestions={suggestions} onSelect={sendMessage} disabled={isLoading} locale={preferredLanguage} />
       )}
 
-      <ChatInput onSend={sendMessage} disabled={isLoading} locale={preferredLanguage} />
+      <ChatInput onSend={sendMessage} disabled={isLoading} locale={preferredLanguage} autoFocus={isOpen} />
     </div>
   );
 }

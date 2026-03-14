@@ -6,7 +6,6 @@ import { useAssistantStore } from '@/lib/assistant-store';
 import { sendAssistantMessage } from '@/lib/assistant-client';
 import { UIActionExecutor } from '@/lib/ui-action-executor';
 import type { UIContext } from '@/lib/assistant-client';
-import { shallow } from 'zustand/shallow';
 
 /** Captures the current UI context (page, filters, etc.) for NexusAI */
 function useUIContext(): UIContext {
@@ -83,19 +82,23 @@ export function useAssistantVisibility() {
 
 /** Main hook for assistant panel state and actions */
 export function useAssistant() {
-  const state = useAssistantStore((store) => ({
-    isOpen: store.isOpen,
-    isLoading: store.isLoading,
-    messages: store.messages,
-    error: store.error,
-    preferredLanguage: store.preferredLanguage,
-    suggestions: store.suggestions,
-    sessionId: store.sessionId,
-  }), shallow);
+  const isOpen = useAssistantStore((state) => state.isOpen);
+  const isLoading = useAssistantStore((state) => state.isLoading);
+  const messages = useAssistantStore((state) => state.messages);
+  const error = useAssistantStore((state) => state.error);
+  const preferredLanguage = useAssistantStore((state) => state.preferredLanguage);
+  const suggestions = useAssistantStore((state) => state.suggestions);
+  const sessionId = useAssistantStore((state) => state.sessionId);
   const actions = useAssistantActions();
 
   return {
-    ...state,
+    isOpen,
+    isLoading,
+    messages,
+    error,
+    preferredLanguage,
+    suggestions,
+    sessionId,
     ...actions,
   };
 }

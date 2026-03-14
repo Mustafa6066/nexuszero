@@ -9,17 +9,18 @@ interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
   locale?: AssistantLocale;
+  autoFocus?: boolean;
 }
 
 /** Chat input with send button */
-export function ChatInput({ onSend, disabled, locale = 'en' }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, locale = 'en', autoFocus = false }: ChatInputProps) {
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isArabic = locale === 'ar';
 
   useEffect(() => {
-    if (!disabled) inputRef.current?.focus();
-  }, [disabled]);
+    if (autoFocus && !disabled) inputRef.current?.focus();
+  }, [autoFocus, disabled]);
 
   const handleSubmit = () => {
     const trimmed = value.trim();
