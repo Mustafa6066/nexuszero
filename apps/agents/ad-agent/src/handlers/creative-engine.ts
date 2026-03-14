@@ -383,14 +383,14 @@ Return JSON: { fatiguedCreatives: [{id, fatigueLevel: "low" | "medium" | "high",
     const { platform = 'google_ads', concept, brandGuidelines, prompt } = input;
     const dimensions = PLATFORM_DIMENSIONS[platform as keyof typeof PLATFORM_DIMENSIONS];
 
-    const prompt = `Generate image creative specifications for ${platform}:
+    const imagePrompt = `Generate image creative specifications for ${platform}:
 Concept: ${concept || prompt || 'product showcase'}
 Dimensions: ${JSON.stringify(dimensions)}
 Brand Guidelines: ${JSON.stringify(brandGuidelines || {})}
 
 Return JSON array of 3 variants: [{description, colorPalette, layout, textOverlay, callToAction, predictedCtr}]`;
 
-    const result = await llmAnalyze(prompt);
+    const result = await llmAnalyze(imagePrompt);
     try {
       return JSON.parse(result.replace(/```json?\n?/g, '').replace(/```/g, ''));
     } catch {
@@ -401,7 +401,7 @@ Return JSON array of 3 variants: [{description, colorPalette, layout, textOverla
   private async generateLandingPage(input: any): Promise<any[]> {
     const { product, prompt, targetAudience, keywords, tone } = input;
 
-    const prompt = `Generate landing page content specifications:
+    const landingPagePrompt = `Generate landing page content specifications:
 Product: ${product || prompt}
 Target Audience: ${targetAudience}
 Keywords: ${(keywords || []).join(', ')}
@@ -409,7 +409,7 @@ Tone: ${tone || 'professional'}
 
 Return JSON array of 2 variants: [{headline, subheadline, heroSection, valuePropositions[], socialProof, callToAction, layout, predictedConversionRate}]`;
 
-    const result = await llmAnalyze(prompt);
+    const result = await llmAnalyze(landingPagePrompt);
     try {
       return JSON.parse(result.replace(/```json?\n?/g, '').replace(/```/g, ''));
     } catch {
