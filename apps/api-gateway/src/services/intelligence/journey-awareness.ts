@@ -114,7 +114,7 @@ export async function buildJourneyAwareness(tenantId: string): Promise<JourneyAw
       db.select({ earliest: sql<Date>`least(
         (select min(created_at) from campaigns where tenant_id = ${tenantId}),
         (select min(created_at) from assistant_messages where tenant_id = ${tenantId})
-      )` }).then((r) => r[0]?.earliest),
+      )` }).from(campaigns).limit(1).then((r) => r[0]?.earliest ?? null),
     ]);
 
     if (!tenantRow) throw new Error('Tenant not found');
