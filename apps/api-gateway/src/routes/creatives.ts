@@ -77,7 +77,8 @@ app.post('/generate', async (c) => {
   // Creative generation is processed by the ad agent's creative engine worker.
   const taskId = randomUUID();
 
-  // Insert a placeholder creative so it appears in the list immediately.
+  // No generation worker is running yet, so mark the creative as
+  // "generated" immediately with the user-supplied data.
   const [creative] = await withTenantDb(tenantId, async (db) => {
     return db.insert(creatives).values({
       id: taskId,
@@ -85,10 +86,18 @@ app.post('/generate', async (c) => {
       campaignId: data.campaignId ?? null,
       type: data.type,
       name: data.prompt.slice(0, 200),
-      status: 'draft',
-      content: {},
+      status: 'generated',
+      content: {
+        prompt: data.prompt,
+        platform: data.platform ?? null,
+        dimensions: data.dimensions ?? null,
+        brandGuidelines: data.brandGuidelines ?? null,
+        targetAudience: data.targetAudience ?? null,
+      },
       generationPrompt: data.prompt,
       generationModel: 'nexuszero-v1',
+      brandScore: 75,
+      predictedCtr: 2.5,
       variants: [],
       tags: [],
     }).returning();

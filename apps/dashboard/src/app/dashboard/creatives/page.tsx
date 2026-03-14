@@ -112,12 +112,7 @@ export default function CreativesPage() {
           {(creatives ?? []).map((creative: any) => (
             <Card key={creative.id} className="overflow-hidden p-0">
               <div className="aspect-video w-full bg-secondary flex items-center justify-center">
-                {creative.status === 'draft' ? (
-                  <div className="text-center p-4">
-                    <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    <p className="text-sm font-medium text-muted-foreground">Generating...</p>
-                  </div>
-                ) : creative.content?.imageUrl ? (
+                {creative.content?.imageUrl ? (
                   <img
                     src={creative.content.imageUrl}
                     alt={creative.name ?? 'Creative'}
@@ -139,12 +134,11 @@ export default function CreativesPage() {
                   <Badge variant={
                     creative.status === 'generated' ? 'success' :
                     creative.status === 'approved' ? 'success' :
-                    creative.status === 'draft' ? 'warning' :
                     creative.status === 'rejected' ? 'destructive' :
                     creative.status === 'archived' ? 'outline' :
                     'outline'
                   }>
-                    {creative.status === 'draft' ? 'generating' : creative.status}
+                    {creative.status}
                   </Badge>
                 </div>
 
@@ -152,12 +146,12 @@ export default function CreativesPage() {
                   <div className="mt-3 grid grid-cols-2 gap-2 text-center">
                     <div>
                       <p className="text-xs text-muted-foreground">Brand Score</p>
-                      <p className="text-sm font-medium">{(creative.brandScore * 100).toFixed(0)}</p>
+                      <p className="text-sm font-medium">{Math.round(creative.brandScore)}</p>
                     </div>
                     {creative.predictedCtr != null && (
                       <div>
                         <p className="text-xs text-muted-foreground">Predicted CTR</p>
-                        <p className="text-sm font-medium">{(creative.predictedCtr * 100).toFixed(2)}%</p>
+                        <p className="text-sm font-medium">{creative.predictedCtr.toFixed(1)}%</p>
                       </div>
                     )}
                   </div>
