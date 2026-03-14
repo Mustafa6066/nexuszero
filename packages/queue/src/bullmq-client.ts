@@ -1,15 +1,37 @@
 import { Queue, Worker, type ConnectionOptions, type QueueOptions, type WorkerOptions } from 'bullmq';
 import Redis from 'ioredis';
 
+const DEFAULT_REDIS_URL = 'redis://localhost:6379';
+
 // Worker connection — maxRetriesPerRequest: null is REQUIRED by BullMQ workers
 let sharedConnection: Redis | null = null;
 // Producer connection — fail fast so queue.add() throws quickly if Redis is down
 let producerConnection: Redis | null = null;
 
+function isProductionLikeEnvironment(): boolean {
+  return process.env['NODE_ENV'] === 'production'
+    || Boolean(process.env['RAILWAY_PROJECT_ID'])
+    || Boolean(process.env['RAILWAY_SERVICE_ID'])
+    || Boolean(process.env['RAILWAY_ENVIRONMENT_NAME']);
+}
+
+function resolveRedisUrl(url?: string): string {
+  const configuredUrl = url ?? process.env['REDIS_PRIVATE_URL'] ?? process.env['REDIS_URL'];
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  if (isProductionLikeEnvironment()) {
+    throw new Error('Redis is not configured. Set REDIS_PRIVATE_URL or REDIS_URL for queue-backed services.');
+  }
+
+  return DEFAULT_REDIS_URL;
+}
+
 /** Get or create the shared Redis connection used by BullMQ Workers */
 export function getRedisConnection(url?: string): Redis {
   if (!sharedConnection) {
-    const redisUrl = url ?? process.env['REDIS_PRIVATE_URL'] ?? process.env['REDIS_URL'] ?? 'redis://localhost:6379';
+    const redisUrl = resolveRedisUrl(url);
     sharedConnection = new Redis(redisUrl, {
       maxRetriesPerRequest: null, // Required by BullMQ workers
       enableReadyCheck: false,
@@ -25,7 +47,7 @@ export function getRedisConnection(url?: string): Redis {
  *  queue.add() throws immediately when Redis is unavailable instead of hanging. */
 export function getProducerRedisConnection(url?: string): Redis {
   if (!producerConnection) {
-    const redisUrl = url ?? process.env['REDIS_PRIVATE_URL'] ?? process.env['REDIS_URL'] ?? 'redis://localhost:6379';
+    const redisUrl = resolveRedisUrl(url);
     producerConnection = new Redis(redisUrl, {
       maxRetriesPerRequest: 0,
       enableOfflineQueue: false,

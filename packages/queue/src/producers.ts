@@ -90,6 +90,14 @@ export async function publishAgentTask(task: PublishAgentTaskInput): Promise<str
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     console.error(JSON.stringify({ level: 'error', msg: 'publishAgentTask failed', error: reason, queue: queueName, taskType: task.type }));
+    if (err instanceof Error && err.message.includes('Redis is not configured')) {
+      throw new AppError(
+        'SERVICE_UNAVAILABLE',
+        { reason: 'Redis queue is not configured. Set REDIS_PRIVATE_URL or REDIS_URL on this service.' },
+        'Task queue is unavailable because Redis is not configured',
+      );
+    }
+
     throw new AppError('SERVICE_UNAVAILABLE', { reason: 'Task queue temporarily unavailable' });
   }
 

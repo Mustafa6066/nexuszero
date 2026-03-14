@@ -6,13 +6,25 @@ import { eq } from 'drizzle-orm';
 
 let redis: Redis | null = null;
 
+function isProductionLikeEnvironment(): boolean {
+  return process.env.NODE_ENV === 'production'
+    || Boolean(process.env.RAILWAY_PROJECT_ID)
+    || Boolean(process.env.RAILWAY_SERVICE_ID)
+    || Boolean(process.env.RAILWAY_ENVIRONMENT_NAME);
+}
+
 function getRedis() {
   if (!redis) {
+    const redisUrl = process.env.REDIS_PRIVATE_URL || process.env.REDIS_URL;
+    if (!redisUrl && isProductionLikeEnvironment()) {
+      return null;
+    }
+
     // enableOfflineQueue:false causes commands to immediately reject (instead of
     // buffering forever) when the connection is unavailable.  This prevents the
     // rate-limit middleware from hanging the entire request pipeline when Redis
     // is not configured or temporarily down.
-    redis = new Redis(process.env.REDIS_PRIVATE_URL || process.env.REDIS_URL || 'redis://localhost:6379', {
+    redis = new Redis(redisUrl || 'redis://localhost:6379', {
       enableOfflineQueue: false,
       maxRetriesPerRequest: 0,
       connectTimeout: 2000,
@@ -64,6 +76,11 @@ export const rateLimitMiddleware = async (c: Context, next: Next) => {
 
   try {
     const r = getRedis();
+    if (!r) {
+      console.warn('Rate limit Redis is not configured; skipping enforcement');
+      return next();
+    }
+
     const key = `ratelimit:${tenantId}`;
     const now = Math.floor(Date.now() / 1000);
     const windowStart = now - 60;

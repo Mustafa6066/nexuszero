@@ -22,7 +22,21 @@ interface TaskGraphState {
   dispatchedTasks: string[];
 }
 
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+let redis: Redis | null = null;
+
+function getRedis(): Redis {
+  if (!redis) {
+    const redisUrl = process.env.REDIS_PRIVATE_URL || process.env.REDIS_URL;
+    if (!redisUrl && (process.env.NODE_ENV === 'production' || process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_SERVICE_ID || process.env.RAILWAY_ENVIRONMENT_NAME)) {
+      throw new Error('Redis is not configured. Set REDIS_PRIVATE_URL or REDIS_URL for the orchestrator service.');
+    }
+
+    redis = new Redis(redisUrl || 'redis://localhost:6379');
+    redis.on('error', () => {});
+  }
+
+  return redis;
+}
 
 export class TaskGraphExecutor {
   /**
@@ -37,7 +51,7 @@ export class TaskGraphExecutor {
     const rootNodes = nodes.filter(n => n.dependsOn.length === 0);
 
     // Store graph state in Redis
-    await redis.set(
+    await getRedis().set(
       `taskgraph:${graphId}`,
       JSON.stringify({
         tenantId,

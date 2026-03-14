@@ -156,7 +156,8 @@ pnpm --filter @nexuszero/db db:studio
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | ✅ | PostgreSQL connection string |
-| `REDIS_URL` | ✅ | Redis connection string |
+| `REDIS_URL` | ✅ | Redis connection string used locally and in non-private deployments |
+| `REDIS_PRIVATE_URL` |  | Preferred internal Redis connection string for Railway service-to-service traffic |
 | `JWT_SECRET` | ✅ | Secret for JWT signing (min 32 chars) |
 | `ENCRYPTION_KEY` | ✅ | AES-256 encryption key (64 hex chars) |
 | `ANTHROPIC_API_KEY` | ✅ | Anthropic Claude API key |
@@ -187,6 +188,8 @@ railway up --service api-gateway
 railway up --service orchestrator
 # ... etc
 ```
+
+For Redis-backed services on Railway, set `REDIS_PRIVATE_URL` or `REDIS_URL` on each service that uses BullMQ or Redis directly. If neither is set, production services now refuse the `localhost:6379` fallback and will report Redis as misconfigured.
 
 Or use the GitHub Actions CI pipeline which auto-deploys on push to `main`.
 
