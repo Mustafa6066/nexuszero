@@ -231,6 +231,27 @@ interface TenantContext {
   recentMetricsSummary: string;
 }
 
+const ARABIC_SCRIPT_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/u;
+
+function prefersArabic(message: string): boolean {
+  return ARABIC_SCRIPT_RE.test(message) || /\b(arabic|العربية|بالعربي|بالعربية)\b/i.test(message);
+}
+
+function buildLanguageGuidance(message: string): string {
+  const wantsArabic = prefersArabic(message);
+
+  if (wantsArabic) {
+    return `## Response Language
+- The user is communicating in Arabic. Respond in clear Modern Standard Arabic unless they ask for another dialect.
+- Use readable RTL-friendly formatting: short paragraphs, explicit headings when useful, and flat bullet lists.
+- Keep product names, URLs, API paths, code, and integration names in their original Latin script.
+- Do not transliterate Arabic into Latin characters.`;
+  }
+
+  return `## Response Language
+- Respond in the same language as the user unless they explicitly request another language.`;
+}
+
 async function buildTenantContext(tenantId: string): Promise<TenantContext> {
   return withTenantDb(tenantId, async (db) => {
     const [tenant] = await db.select({
@@ -275,7 +296,7 @@ async function buildTenantContext(tenantId: string): Promise<TenantContext> {
   });
 }
 
-function buildSystemPrompt(ctx: TenantContext, uiContext: UIContext): string {
+function buildSystemPrompt(ctx: TenantContext, uiContext: UIContext, userMessage: string): string {
   return `You are NexusAI, the intelligent digital assistant for the NexusZero marketing platform.
 
 ## About You
@@ -296,6 +317,8 @@ ${uiContext.visibleDataSummary ? `- **Visible Data**: ${uiContext.visibleDataSum
 
 ## Subscription: ${TIER_DISPLAY_NAMES[ctx.tier]}
 ${ctx.tier !== 'enterprise' ? `Some features are not available on this plan. When the user asks for a gated feature, explain it warmly and suggest upgrading. Use the showUpgradePrompt tool when appropriate.` : 'All features are available.'}
+
+${buildLanguageGuidance(userMessage)}
 
 ## Guidelines
 1. Be concise but thorough. Lead with actionable insights.
@@ -399,6 +422,7 @@ export interface ChatParams {
 export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<AssistantStreamEvent> {
   const { tenantId, userId, message, uiContext } = params;
   const startMs = Date.now();
+  const respondInArabic = prefersArabic(message);
 
   if (!ANTHROPIC_API_KEY) {
     console.error('[NexusAI] ANTHROPIC_API_KEY is empty at runtime — check env vars');
@@ -441,7 +465,7 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
   }
 
   // 2. Build Claude request
-  const systemPrompt = buildSystemPrompt(tenantCtx, uiContext);
+  const systemPrompt = buildSystemPrompt(tenantCtx, uiContext, message);
   const tools = buildToolDefinitions(tenantCtx.tier);
 
   let history: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -597,10 +621,14 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
 
   // If the agentic loop produced tool calls but no text, yield a fallback summary
   if (!fullTextResponse && allToolCalls.length > 0) {
-    fullTextResponse = 'I processed your request using tools. Let me know if you need more details.';
+    fullTextResponse = respondInArabic
+      ? 'تم تنفيذ طلبك باستخدام الأدوات المتاحة. إذا أردت، أستطيع شرح النتيجة أو المتابعة بخطوة تالية.'
+      : 'I processed your request using tools. Let me know if you need more details.';
     yield { type: 'text', content: fullTextResponse };
   } else if (!fullTextResponse) {
-    fullTextResponse = "I wasn't able to generate a response. Please try rephrasing your question.";
+    fullTextResponse = respondInArabic
+      ? 'لم أتمكن من صياغة رد واضح هذه المرة. حاول إعادة كتابة سؤالك بشكل أقصر أو أكثر تحديدًا.'
+      : "I wasn't able to generate a response. Please try rephrasing your question.";
     yield { type: 'text', content: fullTextResponse };
   }
 

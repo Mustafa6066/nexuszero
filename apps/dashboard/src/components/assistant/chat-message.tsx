@@ -12,9 +12,16 @@ interface ChatMessageBubbleProps {
   message: ChatMessage;
 }
 
+const ARABIC_SCRIPT_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/u;
+
+function containsArabicScript(text: string): boolean {
+  return ARABIC_SCRIPT_RE.test(text);
+}
+
 /** Single message bubble with markdown text + inline tool-call widgets */
 export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
+  const isRtl = containsArabicScript(message.content);
 
   return (
     <div className={`flex gap-2 px-3 py-2.5 msg-enter sm:gap-3 sm:px-4 ${isUser ? 'justify-end' : ''}`}>
@@ -31,7 +38,7 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
             isUser
               ? 'bg-primary/90 text-primary-foreground rounded-br-md ml-auto'
               : 'bg-secondary/40 text-foreground/90 rounded-bl-md border border-border/20'
-          }`}>
+          } ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
             <MarkdownContent text={message.content} />
           </div>
         )}
@@ -103,22 +110,27 @@ function ToolCallWidget({ toolCall }: { toolCall: ToolCallData }) {
 
 /** Simple markdown-ish renderer (bold, italic, code, lists) */
 function MarkdownContent({ text }: { text: string }) {
+  const isRtl = containsArabicScript(text);
   const lines = text.split('\n');
 
   return (
-    <div className="space-y-1.5">
+    <div
+      dir={isRtl ? 'rtl' : 'ltr'}
+      className={`space-y-2 break-words ${isRtl ? 'text-right' : 'text-left'}`}
+      style={{ unicodeBidi: 'plaintext' }}
+    >
       {lines.map((line, i) => {
         if (!line.trim()) return <div key={i} className="h-1" />;
 
         // Headings
-        if (line.startsWith('### ')) return <p key={i} className="font-semibold text-sm mt-2">{processInline(line.slice(4))}</p>;
-        if (line.startsWith('## ')) return <p key={i} className="font-bold text-sm mt-2">{processInline(line.slice(3))}</p>;
+        if (line.startsWith('### ')) return <p key={i} className="mt-2 text-sm font-semibold">{processInline(line.slice(4))}</p>;
+        if (line.startsWith('## ')) return <p key={i} className="mt-2 text-sm font-bold">{processInline(line.slice(3))}</p>;
 
         // Numbered list
-        const numMatch = line.match(/^(\d+)\.\s+(.+)/);
+        const numMatch = line.match(/^([0-9\u0660-\u0669]+)[\.)]\s+(.+)/);
         if (numMatch) {
           return (
-            <div key={i} className="flex gap-2 pl-1">
+            <div key={i} className={`flex gap-2 ${isRtl ? 'flex-row-reverse pr-1 text-right' : 'pl-1'}`}>
               <span className="text-muted-foreground shrink-0">{numMatch[1]}.</span>
               <span>{processInline(numMatch[2])}</span>
             </div>
@@ -126,16 +138,17 @@ function MarkdownContent({ text }: { text: string }) {
         }
 
         // Bullet list
-        if (line.startsWith('- ') || line.startsWith('• ')) {
+        const bulletMatch = line.match(/^([-•*])\s+(.+)/);
+        if (bulletMatch) {
           return (
-            <div key={i} className="flex gap-2 pl-1">
+            <div key={i} className={`flex gap-2 ${isRtl ? 'flex-row-reverse pr-1 text-right' : 'pl-1'}`}>
               <span className="text-muted-foreground shrink-0">•</span>
-              <span>{processInline(line.slice(2))}</span>
+              <span>{processInline(bulletMatch[2])}</span>
             </div>
           );
         }
 
-        return <p key={i}>{processInline(line)}</p>;
+        return <p key={i} className="leading-7">{processInline(line)}</p>;
       })}
     </div>
   );

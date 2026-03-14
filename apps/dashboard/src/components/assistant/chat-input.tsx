@@ -52,11 +52,13 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           value={value}
           onChange={(e) => { setValue(e.target.value); handleInput(); }}
           onKeyDown={handleKeyDown}
+          dir="auto"
           placeholder="Ask NexusAI anything..."
           disabled={disabled}
           rows={1}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50
             resize-none outline-none max-h-[120px] leading-relaxed disabled:opacity-50"
+          style={{ unicodeBidi: 'plaintext' }}
         />
         <button
           onClick={handleSubmit}

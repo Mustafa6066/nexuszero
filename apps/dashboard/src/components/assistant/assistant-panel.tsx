@@ -29,7 +29,7 @@ export function AssistantPanel() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col border border-border/30 bg-card/95 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl shadow-black/20 backdrop-blur-2xl animate-in slide-in-from-right lg:inset-auto lg:bottom-6 lg:right-6 lg:top-24 lg:w-[420px] lg:rounded-2xl">
+    <div className="fixed inset-0 z-[60] flex h-[100dvh] flex-col overflow-hidden border border-border/30 bg-card/95 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl shadow-black/20 backdrop-blur-2xl animate-in slide-in-from-right lg:inset-auto lg:bottom-6 lg:right-6 lg:top-24 lg:h-auto lg:max-h-[calc(100vh-7.5rem)] lg:w-[420px] lg:rounded-2xl">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border/30 bg-secondary/10 px-3 py-3 sm:px-4 lg:rounded-t-2xl">
         <div className="flex items-center gap-2.5">

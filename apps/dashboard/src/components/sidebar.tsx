@@ -47,7 +47,12 @@ export function FloatingNav() {
 
   return (
     <>
-      <header className="fixed inset-x-3 top-3 z-50 lg:hidden">
+      <header
+        className={cn(
+          'fixed inset-x-3 top-3 z-50 transition-all duration-200 lg:hidden',
+          isOpen && 'pointer-events-none -translate-y-3 opacity-0',
+        )}
+      >
         <div className="glass-nav rounded-[1.35rem] px-3 py-3 shadow-xl shadow-black/20">
           <div className="flex items-center justify-between gap-2">
             <Link href="/dashboard" className="shrink-0 px-1 text-sm font-bold gradient-text whitespace-nowrap">
