@@ -5,6 +5,8 @@ import { getDb, tenants } from '@nexuszero/db';
 import { eq } from 'drizzle-orm';
 
 let redis: Redis | null = null;
+let hasWarnedRedisMissing = false;
+let hasWarnedRedisUnavailable = false;
 
 function isProductionLikeEnvironment(): boolean {
   return process.env.NODE_ENV === 'production'
@@ -77,7 +79,10 @@ export const rateLimitMiddleware = async (c: Context, next: Next) => {
   try {
     const r = getRedis();
     if (!r) {
-      console.warn('Rate limit Redis is not configured; skipping enforcement');
+      if (!hasWarnedRedisMissing) {
+        console.warn('Rate limit Redis is not configured; skipping enforcement');
+        hasWarnedRedisMissing = true;
+      }
       return next();
     }
 
@@ -114,7 +119,10 @@ export const rateLimitMiddleware = async (c: Context, next: Next) => {
   } catch (err) {
     // Re-throw rate limit errors; for Redis connectivity issues, fail open
     if (err instanceof AppError) throw err;
-    console.warn('Rate limit Redis unavailable, skipping enforcement:', err instanceof Error ? err.message : String(err));
+    if (!hasWarnedRedisUnavailable) {
+      console.warn('Rate limit Redis unavailable, skipping enforcement:', err instanceof Error ? err.message : String(err));
+      hasWarnedRedisUnavailable = true;
+    }
   }
 
   return next();
