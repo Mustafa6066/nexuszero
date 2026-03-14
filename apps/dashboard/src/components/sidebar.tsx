@@ -11,6 +11,7 @@ import {
   LayoutDashboard, BarChart3, Bot, Megaphone, Palette,
   Globe, Webhook, Settings, Plug, Sun, Moon, LogOut,
 } from 'lucide-react';
+import { NexusIconInline } from './assistant/nexus-icon';
 import { NotificationTray } from './notification-tray';
 
 const navItems = [
@@ -104,13 +105,13 @@ export function FloatingNav() {
           onClick={toggleAssistant}
           title={isOpen ? 'Close NexusAI' : 'Open NexusAI'}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium transition-all',
+            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium transition-all duration-200',
             isOpen
-              ? 'bg-primary text-primary-foreground shadow-sm'
+              ? 'bg-primary/90 text-primary-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80',
           )}
         >
-          <Bot size={13} />
+          <NexusIconInline size={13} />
           <span className="hidden lg:inline">NexusAI</span>
         </button>
         <NotificationTray />

@@ -44,9 +44,9 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t border-border/40 p-3">
-      <div className="flex items-end gap-2 rounded-xl border border-border/60 bg-secondary/30 px-3 py-2
-        focus-within:border-indigo-500/40 transition-colors">
+    <div className="border-t border-border/30 p-3">
+      <div className="flex items-end gap-2 rounded-xl border border-border/40 bg-secondary/20 px-3 py-2
+        focus-within:border-primary/30 focus-within:bg-secondary/30 transition-all duration-200">
         <textarea
           ref={inputRef}
           value={value}
@@ -55,20 +55,20 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           placeholder="Ask NexusAI anything..."
           disabled={disabled}
           rows={1}
-          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground
+          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50
             resize-none outline-none max-h-[120px] leading-relaxed disabled:opacity-50"
         />
         <button
           onClick={handleSubmit}
           disabled={disabled || !value.trim()}
           className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg
-            bg-indigo-500 text-white hover:bg-indigo-600 transition-colors
-            disabled:opacity-40 disabled:cursor-not-allowed"
+            bg-primary/90 text-primary-foreground hover:bg-primary transition-all duration-200
+            disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {disabled ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>
       </div>
-      <p className="text-[10px] text-muted-foreground/60 text-center mt-1.5">
+      <p className="text-[10px] text-muted-foreground/40 text-center mt-1.5">
         NexusAI can make mistakes. Verify important data.
       </p>
     </div>

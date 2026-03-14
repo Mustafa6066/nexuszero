@@ -11,15 +11,15 @@ export function SuggestionChips({ suggestions, onSelect, disabled }: SuggestionC
   if (suggestions.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2 px-4 pb-2">
+    <div className="flex flex-wrap gap-1.5 px-4 pb-2">
       {suggestions.map((chip) => (
         <button
           key={chip.label}
           onClick={() => onSelect(chip.message)}
           disabled={disabled}
-          className="text-xs px-3 py-1.5 rounded-full border border-border/60 bg-secondary/50
-            text-muted-foreground hover:text-foreground hover:bg-secondary hover:border-indigo-500/30
-            transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-xs px-3 py-1.5 rounded-full border border-border/30 bg-secondary/30
+            text-muted-foreground/70 hover:text-foreground/80 hover:bg-secondary/50 hover:border-primary/20
+            transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {chip.label}
         </button>

@@ -14,7 +14,7 @@ interface InlineChartProps {
   colors?: string[];
 }
 
-const DEFAULT_COLORS = ['#818cf8', '#38bdf8', '#34d399', '#fbbf24', '#f472b6', '#a78bfa'];
+const DEFAULT_COLORS = ['#a78bfa', '#7c9ceb', '#6ee7b7', '#fbbf24', '#f0abfc', '#93c5fd'];
 
 /** Renders a chart inline within an assistant message */
 export function InlineChart({ chartType, title, data, xKey, yKeys, colors }: InlineChartProps) {

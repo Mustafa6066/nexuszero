@@ -1,7 +1,8 @@
 'use client';
 
-import { Bot, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import type { ChatMessage, ToolCallData } from '@/lib/assistant-store';
+import { NexusIcon } from './nexus-icon';
 import { InlineChart } from './inline-chart';
 import { InlineTable } from './inline-table';
 import { UpgradePrompt } from './upgrade-prompt';
@@ -16,11 +17,11 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex gap-3 px-4 py-3 ${isUser ? 'justify-end' : ''}`}>
+    <div className={`flex gap-3 px-4 py-2.5 msg-enter ${isUser ? 'justify-end' : ''}`}>
       {!isUser && (
-        <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600
-          flex items-center justify-center mt-0.5">
-          <Bot className="w-4 h-4 text-white" />
+        <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-violet-500/15 to-blue-500/15
+          border border-primary/15 flex items-center justify-center mt-0.5">
+          <NexusIcon size={14} className="text-primary" />
         </div>
       )}
       <div className={`max-w-[85%] space-y-1 ${isUser ? 'order-first' : ''}`}>
@@ -28,8 +29,8 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
         {message.content && (
           <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
             isUser
-              ? 'bg-indigo-500 text-white rounded-br-md ml-auto'
-              : 'bg-secondary/60 text-foreground rounded-bl-md'
+              ? 'bg-primary/90 text-primary-foreground rounded-br-md ml-auto'
+              : 'bg-secondary/40 text-foreground/90 rounded-bl-md border border-border/20'
           }`}>
             <MarkdownContent text={message.content} />
           </div>
@@ -41,8 +42,8 @@ export function ChatMessageBubble({ message }: ChatMessageBubbleProps) {
         ))}
       </div>
       {isUser && (
-        <div className="shrink-0 w-7 h-7 rounded-full bg-secondary flex items-center justify-center mt-0.5">
-          <User className="w-4 h-4 text-muted-foreground" />
+        <div className="shrink-0 w-7 h-7 rounded-full bg-secondary/60 border border-border/20 flex items-center justify-center mt-0.5">
+          <User className="w-3.5 h-3.5 text-muted-foreground" />
         </div>
       )}
     </div>

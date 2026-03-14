@@ -1,13 +1,14 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { Bot, Sparkles, X, RotateCcw, Sun, Moon, Sunrise } from 'lucide-react';
+import { Sparkles, X, RotateCcw, Sun, Moon, Sunrise } from 'lucide-react';
 import { useAssistant } from '@/hooks/use-assistant';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { NexusIcon } from './nexus-icon';
 import { ChatMessageBubble } from './chat-message';
 import { ChatInput } from './chat-input';
-import { TypingIndicator } from './typing-indicator';
+import { ThinkingIndicator } from './thinking-indicator';
 import { SuggestionChips } from './suggestion-chips';
 
 /** Slide-out chat panel for the NexusAI assistant */
@@ -29,37 +30,37 @@ export function AssistantPanel() {
 
   return (
     <div className="fixed inset-0 z-40 md:inset-auto md:right-6 md:top-24 md:bottom-6 md:w-[420px] flex flex-col
-      bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl shadow-black/30 md:rounded-2xl animate-in slide-in-from-right duration-200">
+      bg-card/95 backdrop-blur-2xl border border-border/30 shadow-2xl shadow-black/20 md:rounded-2xl animate-in slide-in-from-right">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 md:rounded-t-2xl bg-secondary/20">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 md:rounded-t-2xl bg-secondary/10">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-sky-500
-            flex items-center justify-center">
-            <Bot className="w-4.5 h-4.5 text-white" />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500/15 to-blue-500/15
+            border border-primary/15 flex items-center justify-center">
+            <NexusIcon size={18} active className="text-primary" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-semibold text-foreground">NexusAI</span>
-              <Sparkles className="w-3 h-3 text-yellow-400" />
+              <Sparkles className="w-3 h-3 text-violet-400/60" />
             </div>
-            <span className="text-[10px] text-muted-foreground">AI Strategy Assistant</span>
+            <span className="text-[10px] text-muted-foreground/70">Strategy Assistant</span>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={clearMessages}
-            className="w-8 h-8 flex items-center justify-center rounded-lg
-              hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+            className="w-7 h-7 flex items-center justify-center rounded-lg
+              hover:bg-secondary/60 transition-colors text-muted-foreground hover:text-foreground"
             title="New conversation"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={close}
-            className="w-8 h-8 flex items-center justify-center rounded-lg
-              hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+            className="w-7 h-7 flex items-center justify-center rounded-lg
+              hover:bg-secondary/60 transition-colors text-muted-foreground hover:text-foreground"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -73,12 +74,12 @@ export function AssistantPanel() {
             {messages.map((msg) => (
               <ChatMessageBubble key={msg.id} message={msg} />
             ))}
-            {isLoading && <TypingIndicator />}
+            {isLoading && <ThinkingIndicator />}
           </div>
         )}
 
         {error && (
-          <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+          <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-red-500/8 border border-red-500/15 text-xs text-red-400/80">
             {error}
           </div>
         )}
@@ -137,28 +138,30 @@ function EmptyState({ onSuggestionClick, suggestions }: {
 
   return (
     <div className="flex flex-col items-center justify-center h-full px-6 py-12 text-center">
-      <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
-        <Bot className="w-7 h-7 text-primary" />
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/10 to-blue-500/10
+        border border-primary/10 flex items-center justify-center mb-5">
+        <NexusIcon size={28} active className="text-primary" />
       </div>
       <div className="flex items-center gap-1.5 mb-1">
-        <TimeIcon className="w-4 h-4 text-muted-foreground" />
+        <TimeIcon className="w-4 h-4 text-muted-foreground/60" />
         <h3 className="text-lg font-semibold text-foreground">{greeting}</h3>
       </div>
       {insightLine && (
-        <p className="text-xs text-muted-foreground mb-1 font-medium">{insightLine}</p>
+        <p className="text-xs text-muted-foreground/80 mb-1 font-medium">{insightLine}</p>
       )}
-      <p className="text-sm text-muted-foreground mb-6 max-w-[300px]">
-        NexusAI can summarize performance, diagnose issues, and recommend next actions across campaigns and agents.
+      <p className="text-sm text-muted-foreground/60 mb-6 max-w-[280px] leading-relaxed">
+        Ask me to analyze performance, diagnose issues, or suggest next steps.
       </p>
       <div className="w-full space-y-2">
         {suggestions.map((chip) => (
           <button
             key={chip.label}
             onClick={() => onSuggestionClick(chip.message)}
-            className="w-full text-left px-4 py-3 rounded-xl border border-border/40 bg-background/40
-              hover:bg-secondary/50 hover:border-border transition-all text-sm text-foreground group"
+            className="w-full text-left px-4 py-3 rounded-xl border border-border/30 bg-background/30
+              hover:bg-secondary/40 hover:border-border/50 transition-all duration-200 text-sm text-foreground/80
+              hover:text-foreground group"
           >
-            <span className="text-muted-foreground transition-colors mr-2">→</span>
+            <span className="text-primary/40 group-hover:text-primary/60 transition-colors mr-2">→</span>
             {chip.label}
           </button>
         ))}
