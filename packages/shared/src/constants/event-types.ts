@@ -56,8 +56,8 @@ export const QUEUE_NAMES = {
   COMPATIBILITY_HEALTH: 'compatibility-health',
   COMPATIBILITY_ONBOARDING: 'compatibility-onboarding',
 
-  /** Get tenant-scoped queue name */
-  forTenant: (baseQueue: string, tenantId: string) => `${baseQueue}:${tenantId}`,
+  /** Get tenant-scoped queue name (use '.' — BullMQ forbids ':' in names) */
+  forTenant: (baseQueue: string, tenantId: string) => `${baseQueue}.${tenantId}`,
 } as const;
 
 /** Standardized event type strings */

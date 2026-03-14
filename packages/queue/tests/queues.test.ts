@@ -6,14 +6,14 @@ const TENANT_ID = 'aaaabbbb-cccc-dddd-eeee-ffffffffffff';
 describe('getTenantQueue', () => {
   it('builds a tenant-scoped queue name', () => {
     const name = getTenantQueue('seo-tasks', TENANT_ID);
-    expect(name).toBe(`seo-tasks:${TENANT_ID}`);
+    expect(name).toBe(`seo-tasks.${TENANT_ID}`);
   });
 });
 
 describe('getAllTenantQueues', () => {
-  it('returns all 5 agent queues for a tenant', () => {
+  it('returns all 6 agent queues for a tenant', () => {
     const queues = getAllTenantQueues(TENANT_ID);
-    expect(Object.keys(queues)).toHaveLength(5);
+    expect(Object.keys(queues)).toHaveLength(6);
     expect(queues.seo).toContain('seo-tasks');
     expect(queues.ad).toContain('ad-tasks');
     expect(queues.creative).toContain('creative-tasks');
@@ -27,18 +27,18 @@ describe('getAllTenantQueues', () => {
 
 describe('parseTenantFromQueue', () => {
   it('extracts tenant ID from scoped queue name', () => {
-    const result = parseTenantFromQueue(`seo-tasks:${TENANT_ID}`);
+    const result = parseTenantFromQueue(`seo-tasks.${TENANT_ID}`);
     expect(result).toBe(TENANT_ID);
   });
 
   it('returns null for unscoped queue name', () => {
     const result = parseTenantFromQueue('orchestrator');
-    expect(result).toBe('orchestrator'); // single segment returns last part
+    expect(result).toBeNull();
   });
 });
 
 describe('getQueuePattern', () => {
   it('returns wildcard pattern', () => {
-    expect(getQueuePattern('ad-tasks')).toBe('ad-tasks:*');
+    expect(getQueuePattern('ad-tasks')).toBe('ad-tasks.*');
   });
 });

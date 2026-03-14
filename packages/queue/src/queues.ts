@@ -21,11 +21,11 @@ export function getAllTenantQueues(tenantId: string): Record<string, string> {
 
 /** Parse tenant ID from a tenant-scoped queue name */
 export function parseTenantFromQueue(queueName: string): string | null {
-  const parts = queueName.split(':');
+  const parts = queueName.split('.');
   return parts.length >= 2 ? parts[parts.length - 1]! : null;
 }
 
 /** Get the wildcard pattern for a base queue (matches all tenants) */
 export function getQueuePattern(baseQueue: string): string {
-  return `${baseQueue}:*`;
+  return `${baseQueue}.*`;
 }
