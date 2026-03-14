@@ -41,14 +41,35 @@ const GENERATION_PRESETS = {
   },
 } as const;
 
+const TYPE_LABELS: Record<string, string> = {
+  image: 'Image',
+  video_script: 'Video Script',
+  ad_copy: 'Ad Copy',
+  landing_page: 'Landing Page',
+  email_template: 'Email Template',
+};
+
 export default function CreativesPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>('all');
   const [showGenerate, setShowGenerate] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const FORMAT_TO_TYPE: Record<string, string> = {
+    display_banner: 'image',
+    social_image: 'image',
+    social_video: 'video_script',
+    search_responsive: 'ad_copy',
+    email_header: 'email_template',
+  };
 
   const { data: creatives, isLoading } = useQuery({
     queryKey: ['creatives', filter],
-    queryFn: () => api.getCreatives(filter !== 'all' ? { format: filter } : undefined),
+    queryFn: () => {
+      if (filter === 'all') return api.getCreatives();
+      const type = FORMAT_TO_TYPE[filter];
+      return type ? api.getCreatives({ type }) : api.getCreatives();
+    },
   });
 
   const formats = ['all', 'display_banner', 'social_image', 'social_video', 'search_responsive'];
@@ -91,50 +112,54 @@ export default function CreativesPage() {
           {(creatives ?? []).map((creative: any) => (
             <Card key={creative.id} className="overflow-hidden p-0">
               <div className="aspect-video w-full bg-secondary flex items-center justify-center">
-                {creative.image_url ? (
+                {creative.status === 'draft' ? (
+                  <div className="text-center p-4">
+                    <div className="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    <p className="text-sm font-medium text-muted-foreground">Generating...</p>
+                  </div>
+                ) : creative.content?.imageUrl ? (
                   <img
-                    src={creative.image_url}
-                    alt={creative.headline ?? 'Creative'}
+                    src={creative.content.imageUrl}
+                    alt={creative.name ?? 'Creative'}
                     className="h-full w-full object-cover"
                   />
                 ) : (
                   <div className="text-center p-4">
-                    <p className="text-sm font-medium">{creative.headline ?? 'No preview'}</p>
-                    {creative.body_text && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{creative.body_text}</p>}
+                    <p className="text-sm font-medium">{creative.name ?? 'No preview'}</p>
+                    {creative.generationPrompt && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{creative.generationPrompt}</p>}
                   </div>
                 )}
               </div>
               <div className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{creative.headline ?? 'Untitled Creative'}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{FORMAT_LABELS[creative.format] ?? creative.format}</p>
+                    <p className="truncate text-sm font-semibold">{creative.name ?? 'Untitled Creative'}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{TYPE_LABELS[creative.type] ?? creative.type}</p>
                   </div>
                   <Badge variant={
-                    creative.status === 'active' ? 'success' :
-                    creative.status === 'testing' ? 'warning' :
-                    creative.status === 'winner' ? 'success' :
-                    creative.status === 'fatigued' ? 'destructive' :
+                    creative.status === 'generated' ? 'success' :
+                    creative.status === 'approved' ? 'success' :
+                    creative.status === 'draft' ? 'warning' :
+                    creative.status === 'rejected' ? 'destructive' :
+                    creative.status === 'archived' ? 'outline' :
                     'outline'
                   }>
-                    {creative.status ?? 'draft'}
+                    {creative.status === 'draft' ? 'generating' : creative.status}
                   </Badge>
                 </div>
 
-                {creative.performance_score != null && (
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                {creative.brandScore > 0 && (
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-center">
                     <div>
-                      <p className="text-xs text-muted-foreground">Score</p>
-                      <p className="text-sm font-medium">{(creative.performance_score * 100).toFixed(0)}</p>
+                      <p className="text-xs text-muted-foreground">Brand Score</p>
+                      <p className="text-sm font-medium">{(creative.brandScore * 100).toFixed(0)}</p>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">CTR</p>
-                      <p className="text-sm font-medium">{((creative.ctr ?? 0) * 100).toFixed(2)}%</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Conv Rate</p>
-                      <p className="text-sm font-medium">{((creative.conversion_rate ?? 0) * 100).toFixed(2)}%</p>
-                    </div>
+                    {creative.predictedCtr != null && (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Predicted CTR</p>
+                        <p className="text-sm font-medium">{(creative.predictedCtr * 100).toFixed(2)}%</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -149,12 +174,26 @@ export default function CreativesPage() {
         </div>
       )}
 
-      {showGenerate && <GenerateModal onClose={() => setShowGenerate(false)} />}
+      {successMsg && (
+        <div className="fixed bottom-6 right-6 z-50 rounded-lg border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-700 shadow-lg">
+          {successMsg}
+        </div>
+      )}
+
+      {showGenerate && (
+        <GenerateModal
+          onClose={() => setShowGenerate(false)}
+          onCreated={() => {
+            setSuccessMsg('Creative generation started! It will appear below shortly.');
+            setTimeout(() => setSuccessMsg(null), 5000);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function GenerateModal({ onClose }: { onClose: () => void }) {
+function GenerateModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     campaign_id: '',
@@ -168,6 +207,7 @@ function GenerateModal({ onClose }: { onClose: () => void }) {
     mutationFn: (data: any) => api.generateCreative(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creatives'] });
+      onCreated();
       onClose();
     },
   });

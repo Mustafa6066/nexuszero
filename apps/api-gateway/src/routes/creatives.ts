@@ -76,8 +76,25 @@ app.post('/generate', async (c) => {
 
   // Creative generation is processed by the ad agent's creative engine worker.
   const taskId = randomUUID();
-  let status: 'queued' | 'pending' = 'queued';
 
+  // Insert a placeholder creative so it appears in the list immediately.
+  const [creative] = await withTenantDb(tenantId, async (db) => {
+    return db.insert(creatives).values({
+      id: taskId,
+      tenantId,
+      campaignId: data.campaignId ?? null,
+      type: data.type,
+      name: data.prompt.slice(0, 200),
+      status: 'draft',
+      content: {},
+      generationPrompt: data.prompt,
+      generationModel: 'nexuszero-v1',
+      variants: [],
+      tags: [],
+    }).returning();
+  });
+
+  // Queue the generation task asynchronously.
   try {
     await publishAgentTask({
       id: taskId,
@@ -88,21 +105,20 @@ app.post('/generate', async (c) => {
       input: data,
     });
   } catch {
-    // Redis/queue unavailable — persist directly to DB so the task is not lost.
+    // Redis/queue unavailable — persist task directly so it can be picked up later.
     await withTenantDb(tenantId, async (db) => {
       await db.insert(agentTasks).values({
-        id: taskId,
+        id: randomUUID(),
         tenantId,
         type: 'generate_creative',
         priority: 'high',
         status: 'pending',
-        input: data,
+        input: { ...data, creativeId: taskId },
       });
     });
-    status = 'pending';
   }
 
-  return c.json({ taskId, status, message: `Creative generation task ${status}` }, 202);
+  return c.json(creative, 202);
 });
 
 // GET /creatives/:id/tests
