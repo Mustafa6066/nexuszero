@@ -1,6 +1,7 @@
 const _rawBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 // Handle case where NEXT_PUBLIC_API_URL already includes the /api/v1 suffix
 const API_BASE = _rawBase.endsWith('/api/v1') ? _rawBase : `${_rawBase}/api/v1`;
+const REQUEST_TIMEOUT_MS = 15_000;
 
 class ApiClient {
   private token: string | null = null;
@@ -21,30 +22,82 @@ class ApiClient {
     return this.token;
   }
 
+  private async parseResponse(response: Response): Promise<unknown> {
+    if (response.status === 204) {
+      return undefined;
+    }
+
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      return response.json().catch(() => undefined);
+    }
+
+    const text = await response.text().catch(() => '');
+    if (!text) {
+      return undefined;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     if (!this.token) {
       throw new Error('Not authenticated');
     }
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
-      'Authorization': `Bearer ${this.token}`,
-    };
+    const headers = new Headers(options.headers);
+    headers.set('Authorization', `Bearer ${this.token}`);
 
-    const response = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-    });
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({ message: response.statusText }));
-      // Gateway returns { error: { message } }, but handle flat { message } too
-      const message = body?.error?.message ?? body?.message ?? `API error: ${response.status}`;
-      throw new Error(message);
+    if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
     }
 
-    return response.json();
+    const timeoutController = new AbortController();
+    const timeout = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+        signal: options.signal ? AbortSignal.any([options.signal, timeoutController.signal]) : timeoutController.signal,
+      });
+
+      const body = await this.parseResponse(response);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          this.clearToken();
+        }
+
+        const message = typeof body === 'object' && body !== null
+          ? (body as { error?: { message?: string }; message?: string }).error?.message
+            ?? (body as { message?: string }).message
+            ?? response.statusText
+          : typeof body === 'string'
+            ? body
+            : response.statusText;
+
+        throw new Error(message || `API error: ${response.status}`);
+      }
+
+      return body as T;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error('Request timed out. Please try again.');
+      }
+
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error('Request failed');
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async get<T>(path: string): Promise<T> {

@@ -46,12 +46,16 @@ export class TaskGraphExecutor {
    */
   async executeGraph(tenantId: string, nodes: TaskGraphNode[], priority: TaskPriority = 'medium') {
     const graphId = randomUUID();
+    const redisClient = getRedis();
 
     // Find root nodes (no dependencies) and start them
     const rootNodes = nodes.filter(n => n.dependsOn.length === 0);
+    if (nodes.length > 0 && rootNodes.length === 0) {
+      throw new Error('Task graph has no root nodes. Verify that dependencies form a valid DAG.');
+    }
 
     // Store graph state in Redis
-    await getRedis().set(
+    await redisClient.set(
       `taskgraph:${graphId}`,
       JSON.stringify({
         tenantId,
@@ -63,9 +67,6 @@ export class TaskGraphExecutor {
       'EX',
       86400, // 24h TTL
     );
-
-    // Map task IDs to nodes for quick lookup
-    const taskMap = new Map(nodes.map(n => [n.taskId, n]));
 
     const db = getDb();
     for (const node of rootNodes) {
@@ -85,14 +86,24 @@ export class TaskGraphExecutor {
         dependsOn: node.dependsOn,
       });
 
-      await publishAgentTask({
-        id: node.taskId,
-        tenantId,
-        agentType,
-        type: node.type,
-        priority,
-        input: { ...node.input, graphId },
-      });
+      try {
+        await publishAgentTask({
+          id: node.taskId,
+          tenantId,
+          agentType,
+          type: node.type,
+          priority,
+          input: { ...node.input, graphId },
+        });
+      } catch (error) {
+        await db.update(agentTasks)
+          .set({
+            status: 'pending',
+            error: error instanceof Error ? error.message : String(error),
+            updatedAt: new Date(),
+          })
+          .where(eq(agentTasks.id, node.taskId));
+      }
     }
 
     console.log(`Task graph ${graphId} started with ${rootNodes.length} root tasks out of ${nodes.length} total`);
@@ -144,21 +155,31 @@ export class TaskGraphExecutor {
         dependsOn: node.dependsOn,
       }).onConflictDoNothing();
 
-      await publishAgentTask({
-        id: node.taskId,
-        tenantId: graph.tenantId,
-        agentType,
-        type: node.type,
-        priority: 'medium',
-        input: { ...node.input, graphId },
-      });
+      try {
+        await publishAgentTask({
+          id: node.taskId,
+          tenantId: graph.tenantId,
+          agentType,
+          type: node.type,
+          priority: 'medium',
+          input: { ...node.input, graphId },
+        });
+      } catch (error) {
+        await db.update(agentTasks)
+          .set({
+            status: 'pending',
+            error: error instanceof Error ? error.message : String(error),
+            updatedAt: new Date(),
+          })
+          .where(eq(agentTasks.id, node.taskId));
+      }
 
       console.log(`Graph ${graphId}: started dependent task ${node.taskId} (${node.type})`);
     }
 
     if (isComplete) {
       console.log(`Task graph ${graphId} completed. Success: ${graph.completedTasks.length}, Failed: ${graph.failedTasks.length}`);
-      await redis.del(`taskgraph:${graphId}`);
+      await getRedis().del(`taskgraph:${graphId}`);
     }
 
     await dispatchQueuedTasksForTenant(graph.tenantId);
@@ -169,38 +190,54 @@ export class TaskGraphExecutor {
     taskId: string,
   ): Promise<{ graph: TaskGraphState; readyNodes: TaskGraphNode[]; isComplete: boolean } | null> {
     const key = `taskgraph:${graphId}`;
+    const redisClient = getRedis();
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      await redis.watch(key);
-      const raw = await redis.get(key);
+      let isWatching = false;
 
-      if (!raw) {
-        await redis.unwatch();
-        return null;
-      }
+      try {
+        await redisClient.watch(key);
+        isWatching = true;
+        const raw = await redisClient.get(key);
 
-      const graph = JSON.parse(raw) as TaskGraphState;
-      if (!graph.completedTasks.includes(taskId)) {
-        graph.completedTasks.push(taskId);
-      }
+        if (!raw) {
+          return null;
+        }
 
-      const readyNodes = graph.nodes.filter((node) => {
-        if (graph.completedTasks.includes(node.taskId)) return false;
-        if (graph.failedTasks.includes(node.taskId)) return false;
-        if (graph.dispatchedTasks.includes(node.taskId)) return false;
-        return node.dependsOn.every((dep) => graph.completedTasks.includes(dep));
-      });
+        let graph: TaskGraphState;
+        try {
+          graph = JSON.parse(raw) as TaskGraphState;
+        } catch {
+          await redisClient.del(key);
+          throw new Error(`Task graph ${graphId} is corrupted and could not be parsed`);
+        }
 
-      if (readyNodes.length > 0) {
-        graph.dispatchedTasks.push(...readyNodes.map((node) => node.taskId));
-      }
+        if (!graph.completedTasks.includes(taskId)) {
+          graph.completedTasks.push(taskId);
+        }
 
-      const multi = redis.multi();
-      multi.set(key, JSON.stringify(graph), 'EX', 86400);
-      const execResult = await multi.exec();
-      if (execResult) {
-        const isComplete = graph.completedTasks.length + graph.failedTasks.length === graph.nodes.length;
-        return { graph, readyNodes, isComplete };
+        const readyNodes = graph.nodes.filter((node) => {
+          if (graph.completedTasks.includes(node.taskId)) return false;
+          if (graph.failedTasks.includes(node.taskId)) return false;
+          if (graph.dispatchedTasks.includes(node.taskId)) return false;
+          return node.dependsOn.every((dep) => graph.completedTasks.includes(dep));
+        });
+
+        if (readyNodes.length > 0) {
+          graph.dispatchedTasks = [...new Set([...graph.dispatchedTasks, ...readyNodes.map((node) => node.taskId)])];
+        }
+
+        const multi = redisClient.multi();
+        multi.set(key, JSON.stringify(graph), 'EX', 86400);
+        const execResult = await multi.exec();
+        if (execResult) {
+          const isComplete = graph.completedTasks.length + graph.failedTasks.length === graph.nodes.length;
+          return { graph, readyNodes, isComplete };
+        }
+      } finally {
+        if (isWatching) {
+          await redisClient.unwatch().catch(() => undefined);
+        }
       }
     }
 

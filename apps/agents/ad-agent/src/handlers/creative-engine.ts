@@ -1,118 +1,110 @@
+import { randomUUID } from 'node:crypto';
 import type { Job } from 'bullmq';
 import { withTenantDb, creatives, creativeTests } from '@nexuszero/db';
 import { getCurrentTenantId, PLATFORM_DIMENSIONS, CREATIVE_TYPE_CONFIG, bayesianABTest } from '@nexuszero/shared';
 import { publishAgentSignal } from '@nexuszero/queue';
 import { llmGenerateAdCopy, llmAnalyze } from '../llm.js';
-import { eq, and } from 'drizzle-orm';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { eq, and, inArray } from 'drizzle-orm';
 
-// R2-compatible S3 client
-function getStorageClient() {
-  return new S3Client({
-    region: 'auto',
-    endpoint: process.env.R2_ENDPOINT || process.env.CLOUDFLARE_R2_ENDPOINT,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
-    },
-  });
-}
+type CreativeEngineInput = {
+  creativeId?: string;
+  type?: string;
+  campaignId?: string | null;
+  prompt?: string;
+  product?: string;
+  targetAudience?: string;
+  platform?: string;
+  keywords?: string[];
+  tone?: string;
+  brandGuidelines?: { tone?: string; logoUrl?: string | null; doNotUse?: string[] };
+  count?: number;
+  variants?: number;
+  dimensions?: { width: number; height: number; label: string };
+};
 
 export class CreativeEngine {
   async generate(input: any, job: Job): Promise<any> {
     const tenantId = getCurrentTenantId();
+    const normalized = this.normalizeInput(input as CreativeEngineInput);
     await job.updateProgress(10);
-
-    const {
-      type = 'ad_copy',
-      campaignId,
-      product,
-      targetAudience,
-      platform = 'google_ads',
-      keywords = [],
-      tone = 'professional',
-      brandGuidelines,
-      count = 3,
-    } = input;
 
     await job.updateProgress(20);
 
-    let variants: any[] = [];
-
-    switch (type) {
-      case 'ad_copy':
-        variants = await this.generateAdCopy({
-          product,
-          targetAudience,
-          platform,
-          keywords,
-          tone,
-          brandGuidelines,
-        });
-        break;
-
-      case 'image':
-        variants = await this.generateImageCreative(input);
-        break;
-
-      case 'landing_page':
-        variants = await this.generateLandingPage(input);
-        break;
-
-      default:
-        variants = await this.generateAdCopy({
-          product,
-          targetAudience,
-          platform,
-          keywords,
-          tone,
-          brandGuidelines,
-        });
-    }
+    const generatedVariants = await this.generateVariants(normalized);
+    const limitedVariants = generatedVariants.slice(0, normalized.variantCount);
+    const primaryVariant = limitedVariants[0] ?? this.buildFallbackVariant(normalized, 0);
+    const brandScore = this.estimateBrandScore(normalized);
+    const predictedCtr = this.estimatePredictedCtr(primaryVariant, normalized.type);
+    const storedVariants = limitedVariants.map((variant, index) => ({
+      id: randomUUID(),
+      variantLabel: String.fromCharCode(65 + index),
+      content: variant,
+      impressions: 0,
+      clicks: 0,
+      conversions: 0,
+      ctr: 0,
+      conversionRate: 0,
+    }));
 
     await job.updateProgress(70);
 
-    // Store creatives in database
-    const storedCreatives = [];
-    for (const variant of variants.slice(0, count)) {
-      const stored = await withTenantDb(tenantId, async (db) => {
-        const [c] = await db.insert(creatives).values({
-          tenantId,
-          campaignId,
-          type: type as any,
-          name: `${type}-${platform}-${Date.now()}`,
-          status: 'draft',
-          content: variant,
-          predictedCtr: variant.predictedCtr || null,
-          generationPrompt: JSON.stringify(input),
-          generationModel: 'claude-sonnet-4-20250514',
-          variants: [],
-          tags: [platform, type, tone],
-        }).returning();
-        return c;
-      });
-      storedCreatives.push(stored);
-    }
+    const storedCreative = await withTenantDb(tenantId, async (db) => {
+      const values = {
+        tenantId,
+        campaignId: normalized.campaignId,
+        type: normalized.type as any,
+        name: this.buildCreativeName(normalized),
+        status: 'generated' as const,
+        content: primaryVariant,
+        brandScore,
+        predictedCtr,
+        generationPrompt: normalized.prompt,
+        generationModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
+        variants: storedVariants,
+        tags: this.buildTags(normalized),
+        updatedAt: new Date(),
+      };
+
+      if (normalized.creativeId) {
+        const [updated] = await db.update(creatives)
+          .set(values)
+          .where(and(eq(creatives.id, normalized.creativeId), eq(creatives.tenantId, tenantId)))
+          .returning();
+
+        if (updated) {
+          return updated;
+        }
+      }
+
+      const [created] = await db.insert(creatives).values({
+        id: normalized.creativeId,
+        ...values,
+      }).returning();
+
+      return created;
+    });
 
     await job.updateProgress(90);
 
-    // Signal that creatives were generated
     await publishAgentSignal({
       tenantId,
-      agentId: job.data.agentId || 'ad-worker',
+      agentId: 'ad-worker',
       type: 'creative_generated',
       data: {
-        creativeIds: storedCreatives.map(c => c.id),
-        type,
-        campaignId,
+        creativeIds: [storedCreative.id],
+        type: normalized.type,
+        campaignId: normalized.campaignId,
+        variantCount: storedVariants.length,
       },
+    }).catch((error) => {
+      console.warn('Failed to publish creative_generated signal:', error instanceof Error ? error.message : String(error));
     });
 
     await job.updateProgress(100);
 
     return {
-      creatives: storedCreatives,
-      variantCount: storedCreatives.length,
+      creative: storedCreative,
+      variantCount: storedVariants.length,
       completedAt: new Date().toISOString(),
     };
   }
@@ -177,7 +169,7 @@ export class CreativeEngine {
     // Get active creatives
     const activeCreatives = await withTenantDb(tenantId, async (db) => {
       return db.select().from(creatives)
-        .where(and(eq(creatives.tenantId, tenantId), eq(creatives.status, 'active')));
+        .where(and(eq(creatives.tenantId, tenantId), inArray(creatives.status, ['generated', 'approved'])));
     });
 
     await job.updateProgress(30);
@@ -213,12 +205,186 @@ Return JSON: { fatiguedCreatives: [{id, fatigueLevel: "low" | "medium" | "high",
     return llmGenerateAdCopy(context);
   }
 
+  private async generateVariants(input: ReturnType<CreativeEngine['normalizeInput']>): Promise<any[]> {
+    let variants: any[] = [];
+
+    switch (input.type) {
+      case 'image':
+        variants = await this.generateImageCreative(input);
+        break;
+      case 'landing_page':
+        variants = await this.generateLandingPage(input);
+        break;
+      case 'video_script':
+        variants = await this.generateVideoScript(input);
+        break;
+      case 'email_template':
+        variants = await this.generateEmailTemplate(input);
+        break;
+      case 'ad_copy':
+      default:
+        variants = await this.generateAdCopy({
+          product: input.product,
+          targetAudience: input.targetAudience,
+          platform: input.platform,
+          keywords: input.keywords,
+          tone: input.tone,
+          brandGuidelines: input.brandGuidelines,
+        });
+        break;
+    }
+
+    const sanitized = Array.isArray(variants)
+      ? variants.filter((variant) => variant && typeof variant === 'object')
+      : [];
+
+    if (sanitized.length > 0) {
+      return sanitized.map((variant, index) => ({
+        ...this.buildFallbackVariant(input, index),
+        ...variant,
+      }));
+    }
+
+    return Array.from({ length: input.variantCount }, (_, index) => this.buildFallbackVariant(input, index));
+  }
+
+  private normalizeInput(input: CreativeEngineInput) {
+    const type = (input.type && input.type in CREATIVE_TYPE_CONFIG ? input.type : 'ad_copy') as keyof typeof CREATIVE_TYPE_CONFIG;
+    const requestedCount = Number(input.variants ?? input.count ?? 3);
+    const variantCount = Math.max(1, Math.min(CREATIVE_TYPE_CONFIG[type].maxVariants, Number.isFinite(requestedCount) ? requestedCount : 3));
+    const prompt = typeof input.prompt === 'string' && input.prompt.trim().length > 0
+      ? input.prompt.trim()
+      : String(input.product ?? 'New creative concept').trim();
+
+    return {
+      creativeId: typeof input.creativeId === 'string' ? input.creativeId : undefined,
+      type,
+      campaignId: input.campaignId ?? null,
+      prompt,
+      product: String(input.product ?? prompt),
+      targetAudience: String(input.targetAudience ?? 'General marketing audience'),
+      platform: String(input.platform ?? 'google_search'),
+      keywords: Array.isArray(input.keywords) ? input.keywords.filter((keyword): keyword is string => typeof keyword === 'string' && keyword.trim().length > 0) : [],
+      tone: String(input.brandGuidelines?.tone ?? input.tone ?? 'professional'),
+      brandGuidelines: input.brandGuidelines ?? {},
+      dimensions: input.dimensions,
+      variantCount,
+    };
+  }
+
+  private buildCreativeName(input: ReturnType<CreativeEngine['normalizeInput']>): string {
+    return input.prompt.replace(/\s+/g, ' ').trim().slice(0, 200) || `${input.type}-${input.platform}`;
+  }
+
+  private buildTags(input: ReturnType<CreativeEngine['normalizeInput']>): string[] {
+    return [input.platform, input.type, input.tone].filter(Boolean);
+  }
+
+  private estimateBrandScore(input: ReturnType<CreativeEngine['normalizeInput']>): number {
+    let score = 70;
+    if (input.brandGuidelines.logoUrl) score += 8;
+    if (Array.isArray(input.brandGuidelines.doNotUse) && input.brandGuidelines.doNotUse.length > 0) score += 5;
+    return Math.min(score, 95);
+  }
+
+  private estimatePredictedCtr(variant: Record<string, unknown>, type: string): number {
+    const rawCtr = variant.predictedCtr;
+    if (typeof rawCtr === 'number' && Number.isFinite(rawCtr)) {
+      return Number(rawCtr.toFixed(2));
+    }
+
+    const fallbackByType: Record<string, number> = {
+      image: 2.1,
+      video_script: 1.9,
+      ad_copy: 3.1,
+      landing_page: 2.6,
+      email_template: 4.0,
+    };
+
+    return fallbackByType[type] ?? 2.0;
+  }
+
+  private buildFallbackVariant(input: ReturnType<CreativeEngine['normalizeInput']>, index: number): Record<string, unknown> {
+    const variantLabel = String.fromCharCode(65 + index);
+    const shortPrompt = input.prompt.slice(0, 120);
+
+    switch (input.type) {
+      case 'image':
+        return {
+          type: 'image',
+          imageUrl: null,
+          thumbnailUrl: null,
+          dimensions: input.dimensions ?? PLATFORM_DIMENSIONS[input.platform]?.[0] ?? { width: 1200, height: 628, label: input.platform },
+          altText: shortPrompt,
+          overlayText: `${variantLabel}: ${shortPrompt.slice(0, 40)}`,
+          provider: 'dall_e_3',
+          description: input.prompt,
+          predictedCtr: 2.1,
+        };
+      case 'video_script':
+        return {
+          type: 'video_script',
+          script: input.prompt,
+          scenes: [
+            {
+              sceneNumber: 1,
+              description: `${variantLabel} opening hook`,
+              durationSeconds: 5,
+              visualDirection: 'Strong opening visual',
+              dialogue: shortPrompt,
+            },
+          ],
+          estimatedDurationSeconds: 15,
+          voiceoverText: input.prompt,
+          musicSuggestion: input.tone,
+          predictedCtr: 1.9,
+        };
+      case 'landing_page':
+        return {
+          type: 'landing_page',
+          html: '',
+          css: '',
+          headline: shortPrompt,
+          subheadline: input.targetAudience,
+          ctaText: 'Get Started',
+          ctaUrl: '#',
+          sections: [
+            { type: 'hero', content: input.prompt, order: 1 },
+            { type: 'cta', content: 'Get Started', order: 2 },
+          ],
+          predictedCtr: 2.6,
+        };
+      case 'email_template':
+        return {
+          type: 'email_template',
+          subjectLine: shortPrompt,
+          previewText: input.targetAudience,
+          body: input.prompt,
+          callToAction: 'Learn more',
+          predictedCtr: 4.0,
+        };
+      case 'ad_copy':
+      default:
+        return {
+          type: 'ad_copy',
+          headline: `${variantLabel}: ${shortPrompt.slice(0, 50)}`,
+          description: input.prompt,
+          callToAction: 'Learn more',
+          displayUrl: null,
+          emotionalAppeal: input.tone,
+          emotionalArc: 'problem_solution',
+          platform: input.platform,
+          predictedCtr: 3.1,
+        };
+    }
+  }
+
   private async generateImageCreative(input: any): Promise<any[]> {
-    const { platform = 'google_ads', concept, brandGuidelines } = input;
+    const { platform = 'google_ads', concept, brandGuidelines, prompt } = input;
     const dimensions = PLATFORM_DIMENSIONS[platform as keyof typeof PLATFORM_DIMENSIONS];
 
     const prompt = `Generate image creative specifications for ${platform}:
-Concept: ${concept || 'product showcase'}
+Concept: ${concept || prompt || 'product showcase'}
 Dimensions: ${JSON.stringify(dimensions)}
 Brand Guidelines: ${JSON.stringify(brandGuidelines || {})}
 
@@ -233,15 +399,48 @@ Return JSON array of 3 variants: [{description, colorPalette, layout, textOverla
   }
 
   private async generateLandingPage(input: any): Promise<any[]> {
-    const { product, targetAudience, keywords, tone } = input;
+    const { product, prompt, targetAudience, keywords, tone } = input;
 
     const prompt = `Generate landing page content specifications:
-Product: ${product}
+Product: ${product || prompt}
 Target Audience: ${targetAudience}
 Keywords: ${(keywords || []).join(', ')}
 Tone: ${tone || 'professional'}
 
 Return JSON array of 2 variants: [{headline, subheadline, heroSection, valuePropositions[], socialProof, callToAction, layout, predictedConversionRate}]`;
+
+    const result = await llmAnalyze(prompt);
+    try {
+      return JSON.parse(result.replace(/```json?\n?/g, '').replace(/```/g, ''));
+    } catch {
+      return [];
+    }
+  }
+
+  private async generateVideoScript(input: any): Promise<any[]> {
+    const prompt = `Generate short-form video ad scripts:
+Prompt: ${input.prompt}
+Audience: ${input.targetAudience}
+Platform: ${input.platform}
+Tone: ${input.tone}
+
+Return JSON array of variants: [{script, scenes, estimatedDurationSeconds, voiceoverText, musicSuggestion, predictedCtr}]`;
+
+    const result = await llmAnalyze(prompt);
+    try {
+      return JSON.parse(result.replace(/```json?\n?/g, '').replace(/```/g, ''));
+    } catch {
+      return [];
+    }
+  }
+
+  private async generateEmailTemplate(input: any): Promise<any[]> {
+    const prompt = `Generate email creative variants:
+Prompt: ${input.prompt}
+Audience: ${input.targetAudience}
+Tone: ${input.tone}
+
+Return JSON array of variants: [{subjectLine, previewText, body, callToAction, predictedCtr}]`;
 
     const result = await llmAnalyze(prompt);
     try {
