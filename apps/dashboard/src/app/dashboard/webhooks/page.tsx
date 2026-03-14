@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
+import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
 
 export default function WebhooksPage() {
   const queryClient = useQueryClient();
@@ -21,6 +22,8 @@ export default function WebhooksPage() {
 
   return (
     <div className="space-y-6">
+      <WorkspaceGuidanceBanner surface="webhooks" />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Webhooks</h1>

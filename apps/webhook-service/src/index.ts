@@ -1,20 +1,26 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
+import { pathToFileURL } from 'node:url';
 import { WebhookWorker } from './worker.js';
 import { WebhookDispatcher } from './dispatcher.js';
 import { consumeFromKafka } from '@nexuszero/queue';
-import { KAFKA_TOPICS } from '@nexuszero/shared';
+import { extractTraceContext, initializeOpenTelemetry, KAFKA_TOPICS, spanKindForMessagingConsumer, withSpan } from '@nexuszero/shared';
 
-const app = new Hono();
+export function createApp() {
+  const app = new Hono();
+
+  app.get('/health', (c) => c.json({ status: 'ok', service: 'webhook-service' }));
+
+  return app;
+}
+
+const app = createApp();
 const worker = new WebhookWorker();
 const dispatcher = new WebhookDispatcher();
 let stopEventConsumer: (() => void) | null = null;
 
-// Health check
-app.get('/health', (c) => c.json({ status: 'ok', service: 'webhook-service' }));
-
 // Start Kafka consumer for webhook events
-function startEventConsumer() {
+export function startEventConsumer(eventDispatcher: Pick<WebhookDispatcher, 'dispatchEvent'> = dispatcher) {
   const instanceId = process.env.WEBHOOK_SERVICE_INSTANCE_ID || `webhook-${Date.now()}`;
   let stopped = false;
   let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -35,11 +41,21 @@ function startEventConsumer() {
 
       for (const message of messages) {
         const event = message.value;
-        await dispatcher.dispatchEvent(
+        await withSpan('kafka.consume.webhook_event', {
+          tracerName: 'nexuszero.webhook-service',
+          kind: spanKindForMessagingConsumer(),
+          parentContext: extractTraceContext(message.traceContext),
+          attributes: {
+            'messaging.system': 'kafka',
+            'messaging.destination.name': KAFKA_TOPICS.EVENTS_WEBHOOK,
+            'messaging.kafka.offset': message.offset,
+            'nexuszero.tenant.id': String(event.tenantId ?? message.key ?? ''),
+          },
+        }, async () => eventDispatcher.dispatchEvent(
           String(event.tenantId),
           String(event.type ?? event.eventType),
           (event.data as Record<string, unknown>) || {},
-        );
+        ));
       }
     } catch (error) {
       failureCount += 1;
@@ -61,7 +77,8 @@ function startEventConsumer() {
   };
 }
 
-async function start() {
+export async function start() {
+  await initializeOpenTelemetry({ serviceName: 'webhook-service' });
   // Start BullMQ worker for webhook delivery jobs
   worker.start();
 
@@ -74,22 +91,32 @@ async function start() {
   });
 }
 
-start().catch((err) => {
-  console.error('Webhook service failed to start:', err);
-  process.exit(1);
-});
+export async function run() {
+  try {
+    await start();
+  } catch (err) {
+    console.error('Webhook service failed to start:', err);
+    process.exit(1);
+  }
+}
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('Webhook service shutting down...');
-  stopEventConsumer?.();
-  await worker.stop();
-  process.exit(0);
-});
+const isMainModule = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false;
 
-process.on('SIGINT', async () => {
-  console.log('Webhook service shutting down...');
-  stopEventConsumer?.();
-  await worker.stop();
-  process.exit(0);
-});
+if (isMainModule) {
+  void run();
+
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    console.log('Webhook service shutting down...');
+    stopEventConsumer?.();
+    await worker.stop();
+    process.exit(0);
+  });
+
+  process.on('SIGINT', async () => {
+    console.log('Webhook service shutting down...');
+    stopEventConsumer?.();
+    await worker.stop();
+    process.exit(0);
+  });
+}

@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { Card, MetricCard } from '@/components/ui';
 import { AreaChartWidget, BarChartWidget, DonutChartWidget } from '@/components/charts';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils';
+import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
 
 const PERIODS = ['7d', '30d', '90d'] as const;
 
@@ -55,6 +56,8 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      <WorkspaceGuidanceBanner surface="analytics" />
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Analytics</h1>

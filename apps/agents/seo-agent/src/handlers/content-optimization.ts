@@ -21,6 +21,7 @@ export class ContentOptimizationHandler {
       body,
       targetKeywords,
       url,
+      market: input.market,
     });
 
     await job.updateProgress(100);

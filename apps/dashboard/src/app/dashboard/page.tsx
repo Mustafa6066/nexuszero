@@ -2,16 +2,19 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Badge } from '@/components/ui';
+import { Badge, Button } from '@/components/ui';
 import { AreaChartWidget, BarChartWidget, DonutChartWidget } from '@/components/charts';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils';
 import { useState, useEffect } from 'react';
-import { Bot, TrendingUp, DollarSign, Zap, Users, ArrowUpRight, Search, Megaphone, BarChart2, Cpu } from 'lucide-react';
+import { Bot, TrendingUp, DollarSign, Zap, Users, ArrowUpRight, Search, Megaphone, BarChart2, Cpu, AlertTriangle, Sparkles, ShieldCheck, Plug } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { WeeklyReportCard } from '@/components/weekly-report-card';
 import { MilestonesPanel } from '@/components/milestones';
 import { DashboardSectionBoundary } from '@/components/dashboard-section-boundary';
+import { OverviewIntelligencePanel } from '@/components/overview-intelligence-panel';
+import { useAssistant } from '@/hooks/use-assistant';
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'outline'> = {
   active: 'success',
@@ -27,6 +30,14 @@ const AGENT_ICONS: Record<string, LucideIcon> = {
   data: BarChart2,
   creative: Cpu,
 };
+
+function getOnboardingState(tenant: any): string {
+  return tenant?.onboardingState ?? tenant?.onboarding_state ?? 'created';
+}
+
+function isOnboardingComplete(state: string): boolean {
+  return ['active', 'completed', 'live'].includes(state);
+}
 
 function AgentPulse({ status }: { status: string }) {
   const color = status === 'active' ? 'bg-green-400' : status === 'processing' ? 'bg-yellow-400' : status === 'error' ? 'bg-red-400' : 'bg-muted-foreground';
@@ -50,9 +61,29 @@ function useTimeOfDay() {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { data: session, status } = useSession();
+  const { open, sendMessage } = useAssistant();
   const name = (session?.user?.name ?? '').split(' ')[0] || 'Commander';
   const timeOfDay = useTimeOfDay();
+
+  const { data: tenant } = useQuery({
+    queryKey: ['tenant', 'me'],
+    queryFn: () => api.getMe(),
+    enabled: status === 'authenticated',
+  });
+
+  const { data: integrations } = useQuery({
+    queryKey: ['integrations', 'overview'],
+    queryFn: () => api.getIntegrations(),
+    enabled: status === 'authenticated',
+  });
+
+  const { data: intelligence } = useQuery({
+    queryKey: ['intelligence', 'summary', 'overview'],
+    queryFn: () => api.getIntelligenceSummary(),
+    enabled: status === 'authenticated',
+  });
 
   const { data: summary, error: summaryError } = useQuery({
     queryKey: ['analytics', 'summary'],
@@ -84,6 +115,16 @@ export default function DashboardPage() {
 
   const spendData = analytics?.map((d: any) => ({ date: d.date, spend: d.spend, revenue: d.revenue })) ?? [];
   const activeAgents = agents?.filter((a: any) => a.status === 'processing') ?? [];
+  const onboardingState = getOnboardingState(tenant);
+  const degradedIntegrations = (integrations ?? []).filter((integration: any) => ['error', 'degraded'].includes(integration.status));
+  const disconnectedIntegrations = (integrations ?? []).filter((integration: any) => integration.status === 'disconnected');
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !tenant) return;
+    if (!isOnboardingComplete(onboardingState)) {
+      router.replace('/dashboard/onboarding');
+    }
+  }, [onboardingState, router, status, tenant]);
 
   const agentDistribution = agents
     ? Object.entries(
@@ -135,6 +176,104 @@ export default function DashboardPage() {
 
   const hasDataError = Boolean(summaryError || agentsError || campaignsError || analyticsError);
 
+  const dailyBrief = [
+    intelligence?.dashboard?.nextActions?.[0]
+      ? `Next recommended move: ${intelligence.dashboard.nextActions[0]}`
+      : summary?.revenueChange != null
+      ? `Revenue ${summary.revenueChange >= 0 ? 'is up' : 'is down'} ${formatPercent(Math.abs(summary.revenueChange))} versus the last period.`
+      : 'Revenue trend is still being established.',
+    activeAgents.length > 0
+      ? `${activeAgents.length} agent${activeAgents.length > 1 ? 's are' : ' is'} actively processing work right now.`
+      : 'No agents are actively processing right now.',
+    intelligence?.dashboard?.healthWarnings?.[0]
+      ? intelligence.dashboard.healthWarnings[0]
+      : degradedIntegrations.length > 0
+      ? `${degradedIntegrations.length} integration${degradedIntegrations.length > 1 ? 's need' : ' needs'} attention before the automation layer can operate at full confidence.`
+      : 'Integration health looks stable across the connected stack.',
+  ];
+
+  const attentionItems = [
+    degradedIntegrations.length > 0
+      ? {
+          title: 'Reconnect degraded integrations',
+          detail: `${degradedIntegrations.length} platform${degradedIntegrations.length > 1 ? 's are' : ' is'} reporting degraded or error state.`,
+          action: 'Review integrations',
+          onClick: () => router.push('/dashboard/integrations'),
+        }
+      : null,
+    (!campaigns || campaigns.length === 0)
+      ? {
+          title: 'No campaigns are live yet',
+          detail: 'Launch a first campaign to give the optimization loop real performance signal.',
+          action: 'Open campaigns',
+          onClick: () => router.push('/dashboard/campaigns?create=true'),
+        }
+      : null,
+    disconnectedIntegrations.length > 0
+      ? {
+          title: 'High-value connections are still missing',
+          detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? `${disconnectedIntegrations.length} recommended platform${disconnectedIntegrations.length > 1 ? 's remain' : ' remains'} disconnected.`,
+          action: 'Connect stack',
+          onClick: () => router.push('/dashboard/integrations'),
+        }
+      : null,
+  ].filter(Boolean) as Array<{ title: string; detail: string; action: string; onClick: () => void }>;
+
+  const nextBestMove = (() => {
+    if (degradedIntegrations.length > 0) {
+      return {
+        eyebrow: 'Attention Required',
+        title: 'Restore integration health before the agents optimize against stale data.',
+        detail: intelligence?.dashboard?.healthWarnings?.[0] ?? 'The platform is seeing degraded connections. Fix these first so recommendations and automations stay trustworthy.',
+        cta: 'Review integrations',
+        onClick: () => router.push('/dashboard/integrations'),
+        icon: Plug,
+      };
+    }
+
+    if (!agents || agents.length === 0) {
+      return {
+        eyebrow: 'Next Best Move',
+        title: 'Deploy or activate your first agent fleet.',
+        detail: intelligence?.dashboard?.surfaceGuidance?.agents ?? 'The workspace is live, but no agents are deployed yet. Open the fleet and move into guided automation.',
+        cta: 'Open agents',
+        onClick: () => router.push('/dashboard/agents'),
+        icon: Zap,
+      };
+    }
+
+    if (!campaigns || campaigns.length === 0) {
+      return {
+        eyebrow: 'Next Best Move',
+        title: 'Create the first campaign so NexusZero has signal to optimize.',
+        detail: intelligence?.dashboard?.surfaceGuidance?.campaigns ?? 'Campaign data unlocks better reporting, creative guidance, and agent recommendations.',
+        cta: 'Create campaign',
+        onClick: () => router.push('/dashboard/campaigns?create=true'),
+        icon: Sparkles,
+      };
+    }
+
+    return {
+      eyebrow: 'Recommended Action',
+      title: 'Ask NexusAI to summarize the highest-impact optimization available today.',
+      detail: intelligence?.dashboard?.surfaceGuidance?.overview ?? 'The workspace has enough live context to produce a targeted next action across campaigns, agents, and analytics.',
+      cta: 'Ask NexusAI',
+      onClick: () => {
+        open();
+        void sendMessage('Summarize the single highest-impact action I should take today based on my current campaigns, integrations, and agent activity.');
+      },
+      icon: ShieldCheck,
+    };
+  })();
+
+  if (status === 'authenticated' && tenant && !isOnboardingComplete(onboardingState)) {
+    return (
+      <div className="rounded-[1.75rem] border border-primary/15 bg-card/70 p-6 text-sm text-muted-foreground">
+        Preparing your onboarding workspace…
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in sm:space-y-8">
       {/* Greeting */}
@@ -161,6 +300,117 @@ export default function DashboardPage() {
           Live dashboard data is temporarily unavailable. Navigation remains active while data reconnects.
         </div>
       )}
+
+      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="rounded-[1.75rem] border border-primary/15 bg-[linear-gradient(135deg,hsl(var(--card)/0.92),hsl(var(--background)/0.84))] p-5 sm:p-6">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/80">Daily Brief</p>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
+            {timeOfDay ? `Good ${timeOfDay}. Here is what changed.` : 'Here is what changed since your last visit.'}
+          </h2>
+          <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+            {dailyBrief.map((item) => (
+              <div key={item} className="flex items-start gap-2">
+                <span className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <Button onClick={() => {
+              open();
+              void sendMessage('Summarize what changed in my workspace since my last visit and tell me what to do next.');
+            }}>
+              Open brief with NexusAI
+            </Button>
+            <Button variant="outline" onClick={() => router.push('/dashboard/analytics')}>
+              Review analytics
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-[1.75rem] border border-border bg-card/70 p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/15 bg-primary/10 text-primary">
+              <nextBestMove.icon size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/80">{nextBestMove.eyebrow}</p>
+              <h2 className="mt-2 text-lg font-semibold tracking-tight">{nextBestMove.title}</h2>
+              <p className="mt-2 text-sm leading-7 text-muted-foreground">{nextBestMove.detail}</p>
+            </div>
+          </div>
+          <Button className="mt-5 w-full" onClick={nextBestMove.onClick}>{nextBestMove.cta}</Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold">Watchlist</h3>
+              <p className="text-xs text-muted-foreground">Items that need a decision before the next automation cycle.</p>
+            </div>
+            <Badge variant={attentionItems.length > 0 ? 'warning' : 'success'}>
+              {attentionItems.length > 0 ? `${attentionItems.length} pending` : 'All clear'}
+            </Badge>
+          </div>
+          <div className="space-y-3">
+            {attentionItems.length > 0 ? attentionItems.map((item) => (
+              <div key={item.title} className="rounded-xl border border-border/60 bg-secondary/30 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <AlertTriangle size={14} className="text-yellow-400" />
+                      {item.title}
+                    </div>
+                    <p className="mt-2 text-xs leading-6 text-muted-foreground">{item.detail}</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={item.onClick}>{item.action}</Button>
+                </div>
+              </div>
+            )) : (
+              <div className="rounded-xl border border-green-500/20 bg-green-500/8 p-4 text-sm text-muted-foreground">
+                No urgent blockers surfaced. The workspace is clear for the next round of optimization.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6">
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold">Ready To Act</h3>
+              <p className="text-xs text-muted-foreground">Fast actions that move the workspace forward without a full audit.</p>
+            </div>
+            <Badge variant="outline">Action queue</Badge>
+          </div>
+
+          <div className="space-y-3">
+            <ActionCard
+              title="Review agent fleet"
+              detail="Inspect current task flow, stale heartbeats, and any paused execution paths."
+              onClick={() => router.push('/dashboard/agents')}
+            />
+            <ActionCard
+              title="Inspect top campaigns"
+              detail="Check whether current spend is tracking toward revenue and conversion goals."
+              onClick={() => router.push('/dashboard/campaigns')}
+            />
+            <ActionCard
+              title="Ask for a recommended move"
+              detail="Let NexusAI synthesize campaigns, analytics, and agent activity into one next action."
+              onClick={() => {
+                open();
+                void sendMessage('Based on my live workspace data, give me the next best move with reasoning and expected impact.');
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <DashboardSectionBoundary title="Strategic Pulse">
+        <OverviewIntelligencePanel intelligence={intelligence?.dashboard} />
+      </DashboardSectionBoundary>
 
       {/* Weekly Report Card */}
       <DashboardSectionBoundary title="Weekly Report Card">
@@ -304,6 +554,23 @@ export default function DashboardPage() {
         <MilestonesPanel />
       </DashboardSectionBoundary>
     </div>
+  );
+}
+
+function ActionCard({ title, detail, onClick }: { title: string; detail: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full rounded-xl border border-border/60 bg-secondary/25 px-4 py-4 text-left transition-colors hover:border-primary/25 hover:bg-secondary/40"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium text-foreground">{title}</div>
+          <p className="mt-1 text-xs leading-6 text-muted-foreground">{detail}</p>
+        </div>
+        <ArrowUpRight size={14} className="shrink-0 text-primary" />
+      </div>
+    </button>
   );
 }
 

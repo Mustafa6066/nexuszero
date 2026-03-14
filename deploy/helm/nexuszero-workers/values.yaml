@@ -1,0 +1,52 @@
+global:
+  imagePullSecrets: []
+  otelEndpoint: ""
+  redisUrlSecretName: nexuszero-runtime
+  kafkaSecretName: nexuszero-runtime
+  databaseSecretName: nexuszero-runtime
+
+workers:
+  deployments:
+    - name: seo-agent
+      replicaCount: 2
+      image: ghcr.io/nexuszero/seo-agent:latest
+      command: ["node", "dist/index.js"]
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+    - name: data-nexus
+      replicaCount: 2
+      image: ghcr.io/nexuszero/data-nexus:latest
+      command: ["node", "dist/index.js"]
+      resources:
+        requests:
+          cpu: "750m"
+          memory: "2Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+  statefulsets:
+    - name: creative-engine
+      replicas: 2
+      image: ghcr.io/nexuszero/ad-agent:latest
+      command: ["node", "dist/index.js"]
+      storage:
+        size: 20Gi
+        storageClassName: gp3
+      resources:
+        requests:
+          cpu: "1"
+          memory: "2Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  cpuUtilization: 70

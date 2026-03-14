@@ -8,7 +8,7 @@ function createTestApp() {
 
   app.onError((err, c) => {
     if (err instanceof AppError) {
-      return c.json({ error: { code: err.code, message: err.message } }, err.statusCode as any);
+      return c.json({ error: { code: err.code, message: err.message } }, err.status as any);
     }
     return c.json({ error: { code: 'INTERNAL_ERROR', message: err.message } }, 500);
   });
@@ -20,7 +20,7 @@ function createTestApp() {
   app.get('/api/v1/protected', (c) => {
     const authHeader = c.req.header('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      throw new AppError(ERROR_CODES.AUTH.MISSING_TOKEN, 'Missing authentication', 401);
+      throw new AppError('AUTH_REQUIRED', undefined, 'Missing authentication');
     }
     return c.json({ ok: true });
   });
@@ -61,7 +61,7 @@ describe('API Gateway — error handling', () => {
     const res = await app.request('/api/v1/protected');
     expect(res.status).toBe(401);
     const data = await res.json();
-    expect(data.error.code).toBe(ERROR_CODES.AUTH.MISSING_TOKEN);
+    expect(data.error.code).toBe(ERROR_CODES.AUTH_REQUIRED.code);
   });
 
   it('returns 200 with valid Bearer header', async () => {

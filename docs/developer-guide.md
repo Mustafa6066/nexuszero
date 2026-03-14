@@ -81,6 +81,8 @@ nexuszero/
 
 ## Common Tasks
 
+For the enterprise validation and release gate commands, see [release-readiness.md](release-readiness.md).
+
 ### Running Tests
 
 ```bash
@@ -114,6 +116,15 @@ pnpm turbo build
 
 # Build a specific app
 pnpm --filter @nexuszero/api-gateway build
+```
+
+### Enterprise Validation
+
+Use the targeted release gate when you need to validate tenant isolation, observability propagation, MENA prompt behavior, and service bootstrap/runtime paths before a deploy:
+
+```bash
+corepack pnpm --filter @nexuszero/shared build
+corepack pnpm exec vitest run packages/db/src/client.test.ts packages/queue/src/kafka-client.test.ts packages/queue/src/producers.test.ts packages/shared/src/utils/mena.test.ts apps/api-gateway/tests/tenant-isolation.test.ts apps/api-gateway/tests/intelligence-summary.test.ts apps/api-gateway/tests/gateway.test.ts apps/api-gateway/tests/assistant-language.test.ts apps/api-gateway/tests/assistant-chat.test.ts apps/onboarding-service/src/worker.test.ts apps/orchestrator/src/task-router.test.ts apps/orchestrator/tests/index.test.ts apps/webhook-service/tests/index.test.ts apps/compatibility-agent/tests/index.test.ts apps/agents/seo-agent/src/llm.test.ts
 ```
 
 ### Database Operations

@@ -3,6 +3,7 @@ import { serve } from '@hono/node-server';
 import { OnboardingWorker } from './worker.js';
 import { OnboardingStateMachine } from './state-machine.js';
 import { getDb, tenants } from '@nexuszero/db';
+import { initializeOpenTelemetry } from '@nexuszero/shared';
 import { eq } from 'drizzle-orm';
 
 const app = new Hono();
@@ -61,6 +62,7 @@ app.post('/start/:tenantId', async (c) => {
 });
 
 async function start() {
+  await initializeOpenTelemetry({ serviceName: 'onboarding-service' });
   worker.start();
 
   const port = parseInt(process.env.ONBOARDING_SERVICE_PORT || '4004', 10);

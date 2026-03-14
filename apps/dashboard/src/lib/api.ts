@@ -276,6 +276,9 @@ class ApiClient {
   getAssistantSessions() { return this.get<any[]>('/assistant/sessions'); }
   getSessionMessages(sessionId: string) { return this.get<any[]>(`/assistant/sessions/${sessionId}/messages`); }
 
+  // Intelligence
+  getIntelligenceSummary() { return this.get<any>('/intelligence/summary'); }
+
   // Scanner
   runPreflightScan(websiteUrl: string) { return this.post<any>('/scanner/preflight', { websiteUrl }); }
 

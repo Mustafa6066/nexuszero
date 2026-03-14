@@ -1,8 +1,10 @@
 import { DataNexusWorker } from './worker.js';
 import { getDb, tenants, agents } from '@nexuszero/db';
+import { initializeOpenTelemetry } from '@nexuszero/shared';
 import { eq, and } from 'drizzle-orm';
 
 async function start() {
+  await initializeOpenTelemetry({ serviceName: 'data-nexus-agent' });
   const worker = new DataNexusWorker();
 
   const db = getDb();

@@ -1,8 +1,10 @@
 import { SeoWorker } from './worker.js';
 import { getDb, tenants, agents } from '@nexuszero/db';
+import { initializeOpenTelemetry } from '@nexuszero/shared';
 import { eq, and } from 'drizzle-orm';
 
 async function start() {
+  await initializeOpenTelemetry({ serviceName: 'seo-agent' });
   const worker = new SeoWorker();
 
   // Discover all active tenants and start workers for each

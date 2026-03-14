@@ -1,18 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 import { formatCurrency } from '@/lib/utils';
+import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
 
 const PLATFORMS = ['google_ads', 'meta_ads', 'tiktok_ads', 'linkedin_ads'] as const;
 const STATUSES = ['active', 'paused', 'draft', 'completed'] as const;
 
 export default function CampaignsPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const [filter, setFilter] = useState<string>('all');
   const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('create') === 'true') {
+      setShowCreate(true);
+    }
+  }, [searchParams]);
 
   const { data: campaigns, isLoading } = useQuery({
     queryKey: ['campaigns', filter],
@@ -26,6 +35,8 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
+      <WorkspaceGuidanceBanner surface="campaigns" />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Campaigns</h1>

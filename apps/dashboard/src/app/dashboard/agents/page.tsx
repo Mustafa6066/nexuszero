@@ -7,6 +7,7 @@ import { Card, Badge, Button } from '@/components/ui';
 import { BarChartWidget } from '@/components/charts';
 import { useAssistant } from '@/hooks/use-assistant';
 import { ChevronDown, ChevronUp, Flame, Bot, Check, X, Clock, Loader2 } from 'lucide-react';
+import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
 
 const AGENT_TYPES = ['seo', 'ad', 'data_nexus', 'aeo', 'creative'] as const;
 
@@ -100,6 +101,8 @@ export default function AgentsPage() {
 
   return (
     <div className="space-y-6">
+      <WorkspaceGuidanceBanner surface="agents" />
+
       <div>
         <h1 className="text-2xl font-bold">AI Agents</h1>
         <p className="text-sm text-muted-foreground mt-1">Monitor and manage your autonomous agent swarm.</p>

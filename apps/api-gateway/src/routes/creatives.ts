@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import { withTenantDb, creatives, creativeTests, agentTasks } from '@nexuszero/db';
-import { generateCreativeSchema, creativeFiltersSchema, AppError } from '@nexuszero/shared';
+import { enforceRtlHtmlDocument, generateCreativeSchema, creativeFiltersSchema, resolveMarketContext, AppError } from '@nexuszero/shared';
 import { publishAgentTask } from '@nexuszero/queue';
 import { eq, and, ilike, sql, desc } from 'drizzle-orm';
 
@@ -42,8 +42,10 @@ function buildFallbackCreativeContent(data: {
   dimensions?: { width: number; height: number; label: string };
   targetAudience: string;
   brandGuidelines: { tone: string; logoUrl: string | null };
+  market?: { language?: string; dialect?: 'auto' | 'msa' | 'egyptian' | 'gulf' | 'levantine' | 'maghrebi'; countryCode?: string; region?: string; city?: string; direction?: 'rtl' | 'ltr' };
 }) {
   const shortTitle = truncateName(data.prompt).slice(0, 80);
+  const market = resolveMarketContext({ ...(data.market ?? {}), prompt: data.prompt, audience: data.targetAudience });
 
   switch (data.type) {
     case 'image':
@@ -55,6 +57,7 @@ function buildFallbackCreativeContent(data: {
         altText: data.prompt.slice(0, 160),
         overlayText: shortTitle,
         provider: 'dall_e_3',
+        direction: market.direction,
       };
     case 'video_script':
       return {
@@ -90,16 +93,18 @@ function buildFallbackCreativeContent(data: {
     case 'landing_page':
       return {
         type: 'landing_page',
-        html: '',
-        css: '',
+        html: market.direction === 'rtl'
+          ? enforceRtlHtmlDocument(`<!DOCTYPE html><html><head><title>${shortTitle}</title></head><body><main><section><h1>${shortTitle}</h1><p>${data.prompt}</p><a href="#">ابدأ الآن</a></section></main></body></html>`)
+          : '',
+        css: market.direction === 'rtl' ? 'body{direction:rtl;text-align:right;}' : '',
         headline: shortTitle,
         subheadline: data.prompt.slice(0, 240),
-        ctaText: 'Get Started',
+        ctaText: market.direction === 'rtl' ? 'ابدأ الآن' : 'Get Started',
         ctaUrl: '#',
         sections: [
           { type: 'hero', content: shortTitle, order: 1 },
           { type: 'features', content: data.prompt, order: 2 },
-          { type: 'cta', content: 'Get Started', order: 3 },
+          { type: 'cta', content: market.direction === 'rtl' ? 'ابدأ الآن' : 'Get Started', order: 3 },
         ],
       };
     case 'email_template':

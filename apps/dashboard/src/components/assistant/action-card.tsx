@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckCircle, ArrowRight } from 'lucide-react';
 
 interface ActionCardProps {
   tool: string;
@@ -25,16 +25,19 @@ const TOOL_LABELS: Record<string, string> = {
 };
 
 /** Card showing an action the assistant took */
-export function ActionCard({ tool, args, result }: ActionCardProps) {
+export function ActionCard({ tool, args }: ActionCardProps) {
   const label = TOOL_LABELS[tool] ?? tool;
   const detail = getDetailString(tool, args);
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border/25 bg-secondary/25 px-3 py-2 my-1 text-xs msg-enter">
-      <CheckCircle className="w-3.5 h-3.5 text-emerald-400/70 shrink-0" />
-      <span className="text-foreground/80 font-medium">{label}</span>
-      {detail && <span className="text-muted-foreground/60 truncate">{detail}</span>}
-      <ArrowRight className="w-3 h-3 text-muted-foreground/40 ml-auto shrink-0" />
+    <div className="my-1 rounded-2xl border border-primary/10 bg-background/35 px-3 py-2.5 text-xs msg-enter shadow-[0_10px_24px_hsl(var(--background)/0.14)]">
+      <div className="flex items-center gap-2">
+        <CheckCircle className="h-3.5 w-3.5 shrink-0 text-emerald-400/75" />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">Operation</span>
+        <ArrowRight className="ml-auto h-3 w-3 shrink-0 text-muted-foreground/40" />
+      </div>
+      <div className="mt-1.5 text-sm font-medium text-foreground/85">{label}</div>
+      {detail && <div className="mt-1 truncate text-xs text-muted-foreground/65">{detail}</div>}
     </div>
   );
 }

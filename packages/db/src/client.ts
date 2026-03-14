@@ -28,22 +28,50 @@ export function getDb() {
   return db;
 }
 
+function quotePgIdentifier(identifier: string): string {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(identifier)) {
+    throw new Error(`Invalid PostgreSQL identifier: ${identifier}`);
+  }
+
+  return `"${identifier}"`;
+}
+
+export async function applyTenantSession<T>(
+  transaction: any,
+  tenantId: string,
+  callback: (db: ReturnType<typeof drizzle<typeof schema>>) => Promise<T>,
+  options: { appRole?: string; enforceRls?: boolean } = {},
+): Promise<T> {
+  const appRole = options.appRole ?? process.env.DATABASE_APP_ROLE ?? 'nexuszero_app';
+  const enforceRls = options.enforceRls ?? process.env.DB_ENFORCE_RLS !== 'false';
+
+  await transaction`select set_config('app.current_tenant_id', ${tenantId}, true)`;
+
+  if (enforceRls && appRole.trim()) {
+    await transaction.unsafe(`set local role ${quotePgIdentifier(appRole.trim())}`);
+  }
+
+  const scopedDb = drizzle(transaction as any, { schema }) as ReturnType<typeof drizzle<typeof schema>>;
+  return callback(scopedDb);
+}
+
+export async function executeWithTenantSession<T>(
+  tenantId: string,
+  callback: (db: ReturnType<typeof drizzle<typeof schema>>) => Promise<T>,
+): Promise<T> {
+  const sql = getPostgresClient();
+
+  return await sql.begin(async (transaction) => applyTenantSession(transaction as any, tenantId, callback)) as T;
+}
+
 /**
  * Execute a callback with a tenant-scoped DB instance.
- *
- * All route handlers already filter by `tenant_id` in their WHERE clauses,
- * so tenant isolation is enforced at the application level.  The previous
- * implementation wrapped every request in a BEGIN/COMMIT transaction just to
- * call `set_config('app.current_tenant_id', …)` for RLS, but the Railway
- * connection role bypasses RLS anyway.  The transactional approach also
- * caused connection-pool exhaustion under load.
  */
 export async function withTenantDb<T>(
   tenantId: string,
   callback: (db: ReturnType<typeof drizzle<typeof schema>>) => Promise<T>,
 ): Promise<T> {
-  const db = getDb();
-  return callback(db);
+  return executeWithTenantSession(tenantId, callback);
 }
 
 /**

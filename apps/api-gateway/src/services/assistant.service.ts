@@ -22,6 +22,8 @@ import type {
   AssistantStreamEvent,
 } from '@nexuszero/shared';
 import {
+  buildCreativeLanguageInstruction,
+  resolveMarketContext,
   TIER_CAPABILITIES,
   TIER_DISPLAY_NAMES,
   getRequiredTier,
@@ -227,26 +229,35 @@ interface TenantContext {
   tenantName: string;
   tier: SubscriptionTier;
   domain: string | null;
+  marketPreferences?: Record<string, unknown> | null;
   agentsSummary: string;
   integrationsSummary: string;
   recentMetricsSummary: string;
 }
 
-const ARABIC_SCRIPT_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/u;
+export function prefersArabic(message: string, marketPreferences?: Record<string, unknown> | null): boolean {
+  const market = resolveMarketContext({
+    ...(marketPreferences ?? {}),
+    prompt: message,
+  });
 
-function prefersArabic(message: string): boolean {
-  return ARABIC_SCRIPT_RE.test(message) || /\b(arabic|العربية|بالعربي|بالعربية)\b/i.test(message);
+  return market.isArabic;
 }
 
-function buildLanguageGuidance(message: string): string {
-  const wantsArabic = prefersArabic(message);
+export function buildLanguageGuidance(message: string, marketPreferences?: Record<string, unknown> | null): string {
+  const market = resolveMarketContext({
+    ...(marketPreferences ?? {}),
+    prompt: message,
+  });
+  const wantsArabic = market.isArabic;
 
   if (wantsArabic) {
     return `## Response Language
-- The user is communicating in Arabic. Respond in clear Modern Standard Arabic unless they ask for another dialect.
+- The user context is Arabic-first. Respond in ${market.dialect === 'msa' || market.dialect === 'auto' ? 'clear Modern Standard Arabic' : `${market.dialect} Arabic when it improves naturalness, while keeping product and technical explanations stable`}.
 - Use readable RTL-friendly formatting: short paragraphs, explicit headings when useful, and flat bullet lists.
 - Keep product names, URLs, API paths, code, and integration names in their original Latin script.
-- Do not transliterate Arabic into Latin characters.`;
+- Do not transliterate Arabic into Latin characters.
+- Respect regional intent for ${market.countryCode ?? 'the target market'} instead of direct English-to-Arabic translation.`;
   }
 
   return `## Response Language
@@ -256,7 +267,7 @@ function buildLanguageGuidance(message: string): string {
 async function buildTenantContext(tenantId: string): Promise<TenantContext> {
   return withTenantDb(tenantId, async (db) => {
     const [tenant] = await db.select({
-      id: tenants.id, name: tenants.name, plan: tenants.plan, domain: tenants.domain,
+      id: tenants.id, name: tenants.name, plan: tenants.plan, domain: tenants.domain, settings: tenants.settings,
     }).from(tenants).where(eq(tenants.id, tenantId)).limit(1);
 
     if (!tenant) throw new Error('Tenant not found');
@@ -290,6 +301,7 @@ async function buildTenantContext(tenantId: string): Promise<TenantContext> {
       tenantName: tenant.name,
       tier: tenant.plan as SubscriptionTier,
       domain: tenant.domain,
+      marketPreferences: ((tenant.settings as Record<string, unknown> | null)?.marketPreferences as Record<string, unknown> | undefined) ?? null,
       agentsSummary,
       integrationsSummary,
       recentMetricsSummary,
@@ -321,7 +333,7 @@ ${ctx.tier !== 'enterprise' ? `Some features are not available on this plan. Whe
 
 ${intelligenceBlock ?? ''}
 
-${buildLanguageGuidance(userMessage)}
+${buildLanguageGuidance(userMessage, ctx.marketPreferences)}
 
 ## Guidelines
 1. Be concise but thorough. Lead with actionable insights.
@@ -428,7 +440,7 @@ export interface ChatParams {
 export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<AssistantStreamEvent> {
   const { tenantId, userId, message, uiContext } = params;
   const startMs = Date.now();
-  const respondInArabic = prefersArabic(message);
+  let respondInArabic = prefersArabic(message);
 
   if (!ANTHROPIC_API_KEY) {
     console.error('[NexusAI] ANTHROPIC_API_KEY is empty at runtime — check env vars');
@@ -449,6 +461,7 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
       }),
     ]);
     tenantCtx = ctx;
+    respondInArabic = prefersArabic(message, tenantCtx.marketPreferences);
     if (intel) {
       intelligenceBlock = renderIntelligencePrompt(intel);
     }

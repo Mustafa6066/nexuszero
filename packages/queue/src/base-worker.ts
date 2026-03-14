@@ -1,8 +1,12 @@
 import { Worker, type Job, type WorkerOptions } from 'bullmq';
 import {
+  extractTraceContext,
   runWithTenantContextAsync,
+  spanKindForMessagingConsumer,
   type TenantContext,
   QUEUE_NAMES,
+  withSpan,
+  injectTraceContext,
 } from '@nexuszero/shared';
 import { getDb, agents, agentTasks } from '@nexuszero/db';
 import { and, eq } from 'drizzle-orm';
@@ -159,7 +163,19 @@ export abstract class BaseAgentWorker {
     };
 
     try {
-      const result = await runWithTenantContextAsync(tenantContext, () => this.processTask(task, job));
+      const result = await withSpan('bullmq.task.process', {
+        tracerName: `nexuszero.${this.config.agentLabel}`,
+        kind: spanKindForMessagingConsumer(),
+        parentContext: extractTraceContext(task.traceContext),
+        attributes: {
+          'messaging.system': 'bullmq',
+          'messaging.destination.name': job.queueName,
+          'messaging.operation': 'process',
+          'nexuszero.task.id': task.taskId,
+          'nexuszero.task.type': task.taskType,
+          'nexuszero.tenant.id': task.tenantId,
+        },
+      }, async () => runWithTenantContextAsync(tenantContext, () => this.processTask(task, job)));
 
       const taskResult: TaskResult = {
         taskId: task.taskId,
@@ -170,6 +186,7 @@ export abstract class BaseAgentWorker {
         result,
         durationMs: Date.now() - startTime,
         correlationId: task.correlationId,
+        traceContext: injectTraceContext(),
       };
 
       // Publish result to Kafka for downstream consumers
@@ -201,6 +218,7 @@ export abstract class BaseAgentWorker {
         error: err.message,
         durationMs: Date.now() - startTime,
         correlationId: task.correlationId,
+        traceContext: injectTraceContext(),
       };
 
       await publishTaskResult(taskResult).catch(pubErr => {

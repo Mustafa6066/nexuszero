@@ -16,6 +16,7 @@ export class TechnicalSeoHandler {
       pageSpeed,
       mobileFriendly,
       issues,
+      market: input.market,
     });
 
     await job.updateProgress(100);

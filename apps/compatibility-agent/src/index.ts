@@ -3,9 +3,11 @@ import { serve } from '@hono/node-server';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 import { timingSafeEqual } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import cron from 'node-cron';
 import { getDb, tenants, agents, integrations } from '@nexuszero/db';
 import { eq, and } from 'drizzle-orm';
+import { initializeOpenTelemetry } from '@nexuszero/shared';
 
 import { CompatibilityWorker } from './agent.js';
 import { env } from './config/env.js';
@@ -48,7 +50,7 @@ import { SendGridConnector } from './connectors/messaging/sendgrid.connector.js'
 import { StripeConnector } from './connectors/payments/stripe.connector.js';
 import type { Platform } from '@nexuszero/shared';
 
-function bootstrapConnectors(): void {
+export function bootstrapConnectors(): void {
   registerConnector('google_analytics', new GoogleAnalyticsConnector());
   registerConnector('mixpanel', new MixpanelConnector());
   registerConnector('amplitude', new AmplitudeConnector());
@@ -70,7 +72,7 @@ function bootstrapConnectors(): void {
 // ────────────────── HTTP API ──────────────────
 
 /** Timing-safe comparison for the internal API key. */
-function isValidInternalKey(provided: string): boolean {
+export function isValidInternalKey(provided: string): boolean {
   try {
     const expected = Buffer.from(env.internalApiKey, 'utf8');
     const actual = Buffer.from(provided, 'utf8');
@@ -81,7 +83,7 @@ function isValidInternalKey(provided: string): boolean {
   }
 }
 
-function createApp(): Hono {
+export function createApp(): Hono {
   const app = new Hono();
 
   app.use('*', logger());
@@ -196,7 +198,7 @@ function createApp(): Hono {
 
 // ────────────────── Cron Jobs ──────────────────
 
-function startCronJobs(): void {
+export function startCronJobs(): void {
   // Token refresh: every minute — runs globally (all tenants) in a single sweep
   cron.schedule('* * * * *', async () => {
     try {
@@ -247,7 +249,8 @@ function startCronJobs(): void {
 
 // ────────────────── Main ──────────────────
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
+  await initializeOpenTelemetry({ serviceName: 'compatibility-agent' });
   // 1. Register all connectors
   bootstrapConnectors();
   console.log('[boot] Connectors registered');
@@ -294,7 +297,11 @@ async function main(): Promise<void> {
   });
 }
 
-main().catch((err) => {
-  console.error('Compatibility Agent failed to start:', err);
-  process.exit(1);
-});
+const isMainModule = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false;
+
+if (isMainModule) {
+  main().catch((err) => {
+    console.error('Compatibility Agent failed to start:', err);
+    process.exit(1);
+  });
+}

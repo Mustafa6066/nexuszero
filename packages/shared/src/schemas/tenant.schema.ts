@@ -7,8 +7,25 @@ export const tenantBrandingSchema = z.object({
   companyName: z.string().min(1).max(200),
 });
 
+export const marketPreferencesSchema = z.object({
+  language: z.string().min(2).max(16).default('en'),
+  dialect: z.enum(['auto', 'msa', 'egyptian', 'gulf', 'levantine', 'maghrebi']).default('auto'),
+  countryCode: z.string().length(2).nullable().default(null),
+  region: z.string().min(2).max(80).nullable().default(null),
+  city: z.string().min(1).max(80).nullable().default(null),
+  direction: z.enum(['rtl', 'ltr']).default('ltr'),
+});
+
 export const tenantSettingsSchema = z.object({
   branding: tenantBrandingSchema,
+  marketPreferences: marketPreferencesSchema.default({
+    language: 'en',
+    dialect: 'auto',
+    countryCode: null,
+    region: null,
+    city: null,
+    direction: 'ltr',
+  }),
   timezone: z.string().min(1).max(64).default('UTC'),
   weeklyReportEnabled: z.boolean().default(true),
   slackWebhookUrl: z.string().url().refine(isValidWebhookUrl, { message: 'Slack webhook URL must be a valid public HTTPS URL' }).nullable().default(null),

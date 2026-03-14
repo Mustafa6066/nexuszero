@@ -1,37 +1,44 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
+import { pathToFileURL } from 'node:url';
+import { extractTraceContext, initializeOpenTelemetry, spanKindForMessagingConsumer, withSpan } from '@nexuszero/shared';
 import { TaskRouter } from './task-router.js';
 import { TaskGraphExecutor } from './task-graph.js';
 import { Scheduler } from './scheduler.js';
 import { HealthMonitor } from './health-monitor.js';
 import { consumeFromKafka } from '@nexuszero/queue';
 
-const app = new Hono();
+export function createApp() {
+  const app = new Hono();
+
+  app.get('/health', (c) => c.json({
+    status: 'ok',
+    service: 'orchestrator',
+    timestamp: new Date().toISOString(),
+  }));
+
+  app.get('/agents/health', async (c) => {
+    const status = await healthMonitor.getAllAgentStatus();
+    return c.json(status);
+  });
+
+  return app;
+}
+
+const app = createApp();
 const taskRouter = new TaskRouter();
 const taskGraphExecutor = new TaskGraphExecutor();
 const scheduler = new Scheduler();
 const healthMonitor = new HealthMonitor();
 let stopConsumers: (() => void) | null = null;
 
-/** Upstash Kafka is pull-based (HTTP REST). Poll each topic on a fixed interval. */
 const POLL_INTERVAL_MS = parseInt(process.env.KAFKA_POLL_INTERVAL_MS || '3000', 10);
-
-app.get('/health', (c) => c.json({
-  status: 'ok',
-  service: 'orchestrator',
-  timestamp: new Date().toISOString(),
-}));
-
-app.get('/agents/health', async (c) => {
-  const status = await healthMonitor.getAllAgentStatus();
-  return c.json(status);
-});
 
 /**
  * Start polling Kafka topics. Upstash Kafka uses HTTP REST — it is pull-based.
  * consumeFromKafka returns an array of messages; we poll on a fixed interval.
  */
-function startConsumers() {
+export function startConsumers() {
   const instanceId = process.env.ORCHESTRATOR_INSTANCE_ID || `orchestrator-${Date.now()}`;
 
   const startPollingLoop = <T>(
@@ -55,7 +62,17 @@ function startConsumers() {
 
         for (const msg of messages) {
           try {
-            await handler(msg.value);
+            await withSpan(`kafka.consume.${label.replace(/\s+/g, '_')}`, {
+              tracerName: 'nexuszero.orchestrator',
+              kind: spanKindForMessagingConsumer(),
+              parentContext: extractTraceContext(msg.traceContext),
+              attributes: {
+                'messaging.system': 'kafka',
+                'messaging.destination.name': topic,
+                'messaging.kafka.offset': msg.offset,
+                'nexuszero.tenant.id': String((msg.value as { tenantId?: string })?.tenantId ?? msg.key ?? ''),
+              },
+            }, async () => handler(msg.value));
           } catch (err) {
             console.error(JSON.stringify({ level: 'error', msg: `Failed to process ${label}`, error: (err as Error).message }));
           }
@@ -106,7 +123,8 @@ function startConsumers() {
   };
 }
 
-async function start() {
+export async function start() {
+  await initializeOpenTelemetry({ serviceName: 'orchestrator' });
   stopConsumers = startConsumers();
   scheduler.start();
   healthMonitor.start();
@@ -117,25 +135,35 @@ async function start() {
   });
 }
 
-async function shutdown() {
+export async function shutdown() {
   stopConsumers?.();
   scheduler.stop();
   healthMonitor.stop();
 }
 
-start().catch((err) => {
-  console.error('Orchestrator failed to start:', err);
-  process.exit(1);
-});
+export async function run() {
+  try {
+    await start();
+  } catch (err) {
+    console.error('Orchestrator failed to start:', err);
+    process.exit(1);
+  }
+}
 
-process.on('SIGTERM', async () => {
-  await shutdown();
-  process.exit(0);
-});
+const isMainModule = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false;
 
-process.on('SIGINT', async () => {
-  await shutdown();
-  process.exit(0);
-});
+if (isMainModule) {
+  void run();
+
+  process.on('SIGTERM', async () => {
+    await shutdown();
+    process.exit(0);
+  });
+
+  process.on('SIGINT', async () => {
+    await shutdown();
+    process.exit(0);
+  });
+}
 
 export default app;

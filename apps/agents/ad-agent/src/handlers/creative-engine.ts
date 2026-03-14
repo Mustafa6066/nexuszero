@@ -1,7 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import type { Job } from 'bullmq';
 import { withTenantDb, creatives, creativeTests } from '@nexuszero/db';
-import { getCurrentTenantId, PLATFORM_DIMENSIONS, CREATIVE_TYPE_CONFIG, bayesianABTest } from '@nexuszero/shared';
+import {
+  buildCreativeLanguageInstruction,
+  enforceRtlHtmlDocument,
+  getCurrentTenantId,
+  PLATFORM_DIMENSIONS,
+  CREATIVE_TYPE_CONFIG,
+  bayesianABTest,
+  resolveMarketContext,
+  type MarketContextInput,
+} from '@nexuszero/shared';
 import { publishAgentSignal } from '@nexuszero/queue';
 import { llmGenerateAdCopy, llmAnalyze } from '../llm.js';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -16,7 +25,8 @@ type CreativeEngineInput = {
   platform?: string;
   keywords?: string[];
   tone?: string;
-  brandGuidelines?: { tone?: string; logoUrl?: string | null; doNotUse?: string[] };
+  brandGuidelines?: { tone?: string; fontFamily?: string; logoUrl?: string | null; doNotUse?: string[] };
+  market?: MarketContextInput;
   count?: number;
   variants?: number;
   dimensions?: { width: number; height: number; label: string };
@@ -201,6 +211,7 @@ Return JSON: { fatiguedCreatives: [{id, fatigueLevel: "low" | "medium" | "high",
     keywords: string[];
     tone: string;
     brandGuidelines?: any;
+    market?: MarketContextInput;
   }): Promise<any[]> {
     return llmGenerateAdCopy(context);
   }
@@ -230,6 +241,7 @@ Return JSON: { fatiguedCreatives: [{id, fatigueLevel: "low" | "medium" | "high",
           keywords: input.keywords,
           tone: input.tone,
           brandGuidelines: input.brandGuidelines,
+          market: input.market,
         });
         break;
     }
@@ -239,10 +251,16 @@ Return JSON: { fatiguedCreatives: [{id, fatigueLevel: "low" | "medium" | "high",
       : [];
 
     if (sanitized.length > 0) {
-      return sanitized.map((variant, index) => ({
-        ...this.buildFallbackVariant(input, index),
-        ...variant,
-      }));
+      return sanitized.map((variant, index) => {
+        const mergedVariant = {
+          ...this.buildFallbackVariant(input, index),
+          ...variant,
+        };
+
+        return input.type === 'landing_page'
+          ? this.normalizeLandingPageVariant(input, mergedVariant)
+          : mergedVariant;
+      });
     }
 
     return Array.from({ length: input.variantCount }, (_, index) => this.buildFallbackVariant(input, index));
@@ -275,9 +293,39 @@ Return JSON: { fatiguedCreatives: [{id, fatigueLevel: "low" | "medium" | "high",
       platform: String(input.platform ?? 'google_search'),
       keywords: Array.isArray(input.keywords) ? input.keywords.filter((keyword): keyword is string => typeof keyword === 'string' && keyword.trim().length > 0) : [],
       tone: String(input.brandGuidelines?.tone ?? input.tone ?? 'professional'),
-      brandGuidelines: input.brandGuidelines ?? {},
+      brandGuidelines: {
+        fontFamily: input.brandGuidelines?.fontFamily ?? 'Inter, sans-serif',
+        ...(input.brandGuidelines ?? {}),
+      },
+      market: resolveMarketContext({
+        ...(input.market ?? {}),
+        keywords: Array.isArray(input.keywords) ? input.keywords : [],
+        prompt,
+        audience: String(input.targetAudience ?? ''),
+      }),
       dimensions: input.dimensions,
       variantCount,
+    };
+  }
+
+  private buildLandingPageHtml(input: ReturnType<CreativeEngine['normalizeInput']>, headline: string): string {
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${headline}</title></head><body><main><section><h1>${headline}</h1><p>${input.prompt}</p><a href="#">${input.market.direction === 'rtl' ? 'ابدأ الآن' : 'Get Started'}</a></section></main></body></html>`;
+
+    return input.market.direction === 'rtl' ? enforceRtlHtmlDocument(html) : html;
+  }
+
+  private normalizeLandingPageVariant(input: ReturnType<CreativeEngine['normalizeInput']>, variant: Record<string, unknown>): Record<string, unknown> {
+    const html = typeof variant.html === 'string' && variant.html.trim().length > 0
+      ? variant.html
+      : this.buildLandingPageHtml(input, String(variant.headline ?? input.prompt));
+
+    return {
+      ...variant,
+      html: input.market.direction === 'rtl' ? enforceRtlHtmlDocument(html) : html,
+      direction: input.market.direction,
+      fontFamily: input.market.direction === 'rtl'
+        ? 'Tajawal, "IBM Plex Sans Arabic", "Noto Kufi Arabic", sans-serif'
+        : input.brandGuidelines.fontFamily,
     };
   }
 
@@ -325,9 +373,13 @@ Return JSON: { fatiguedCreatives: [{id, fatigueLevel: "low" | "medium" | "high",
           thumbnailUrl: null,
           dimensions: input.dimensions ?? PLATFORM_DIMENSIONS[input.platform]?.[0] ?? { width: 1200, height: 628, label: input.platform },
           altText: shortPrompt,
-          overlayText: `${variantLabel}: ${shortPrompt.slice(0, 40)}`,
+          overlayText: input.market.direction === 'rtl' ? shortPrompt.slice(0, 40) : `${variantLabel}: ${shortPrompt.slice(0, 40)}`,
           provider: 'dall_e_3',
           description: input.prompt,
+          direction: input.market.direction,
+          fontFamily: input.market.direction === 'rtl'
+            ? 'Tajawal, "IBM Plex Sans Arabic", "Noto Kufi Arabic", sans-serif'
+            : input.brandGuidelines.fontFamily,
           predictedCtr: 2.1,
         };
       case 'video_script':
@@ -351,15 +403,15 @@ Return JSON: { fatiguedCreatives: [{id, fatigueLevel: "low" | "medium" | "high",
       case 'landing_page':
         return {
           type: 'landing_page',
-          html: '',
-          css: '',
+          html: this.buildLandingPageHtml(input, shortPrompt),
+          css: input.market.direction === 'rtl' ? 'body{direction:rtl;text-align:right;}' : '',
           headline: shortPrompt,
           subheadline: input.targetAudience,
-          ctaText: 'Get Started',
+          ctaText: input.market.direction === 'rtl' ? 'ابدأ الآن' : 'Get Started',
           ctaUrl: '#',
           sections: [
             { type: 'hero', content: input.prompt, order: 1 },
-            { type: 'cta', content: 'Get Started', order: 2 },
+            { type: 'cta', content: input.market.direction === 'rtl' ? 'ابدأ الآن' : 'Get Started', order: 2 },
           ],
           predictedCtr: 2.6,
         };
@@ -397,9 +449,15 @@ Concept: ${concept || prompt || 'product showcase'}
 Dimensions: ${JSON.stringify(dimensions)}
 Brand Guidelines: ${JSON.stringify(brandGuidelines || {})}
 
+${buildCreativeLanguageInstruction(input.market, 'image')}
+
+Requirements:
+- If Arabic overlay text is used, specify RTL-safe layout, alignment, and Arabic-first font choices.
+- Keep overlay text concise enough for a high-contrast hero frame.
+
 Return JSON array of 3 variants: [{description, colorPalette, layout, textOverlay, callToAction, predictedCtr}]`;
 
-    const result = await llmAnalyze(imagePrompt);
+    const result = await llmAnalyze(imagePrompt, buildCreativeLanguageInstruction(input.market, 'image'));
     try {
       return JSON.parse(result.replace(/```json?\n?/g, '').replace(/```/g, ''));
     } catch {
@@ -416,9 +474,16 @@ Target Audience: ${targetAudience}
 Keywords: ${(keywords || []).join(', ')}
 Tone: ${tone || 'professional'}
 
-Return JSON array of 2 variants: [{headline, subheadline, heroSection, valuePropositions[], socialProof, callToAction, layout, predictedConversionRate}]`;
+${buildCreativeLanguageInstruction(input.market, 'landing_page')}
 
-    const result = await llmAnalyze(landingPagePrompt);
+Requirements:
+- Output production-ready semantic HTML and CSS.
+- If the market is Arabic, the HTML must set dir="rtl" and lang="ar".
+- Use Arabic-friendly fonts and right-aligned hierarchy for headings, copy blocks, CTA, and trust sections.
+
+Return JSON array of 2 variants: [{headline, subheadline, heroSection, valuePropositions[], socialProof, callToAction, layout, html, css, predictedConversionRate}]`;
+
+    const result = await llmAnalyze(landingPagePrompt, buildCreativeLanguageInstruction(input.market, 'landing_page'));
     try {
       return JSON.parse(result.replace(/```json?\n?/g, '').replace(/```/g, ''));
     } catch {
@@ -433,9 +498,11 @@ Audience: ${input.targetAudience}
 Platform: ${input.platform}
 Tone: ${input.tone}
 
+  ${buildCreativeLanguageInstruction(input.market, 'video_script')}
+
 Return JSON array of variants: [{script, scenes, estimatedDurationSeconds, voiceoverText, musicSuggestion, predictedCtr}]`;
 
-    const result = await llmAnalyze(prompt);
+    const result = await llmAnalyze(prompt, buildCreativeLanguageInstruction(input.market, 'video_script'));
     try {
       return JSON.parse(result.replace(/```json?\n?/g, '').replace(/```/g, ''));
     } catch {
@@ -449,9 +516,11 @@ Prompt: ${input.prompt}
 Audience: ${input.targetAudience}
 Tone: ${input.tone}
 
+${buildCreativeLanguageInstruction(input.market, 'email_template')}
+
 Return JSON array of variants: [{subjectLine, previewText, body, callToAction, predictedCtr}]`;
 
-    const result = await llmAnalyze(prompt);
+    const result = await llmAnalyze(prompt, buildCreativeLanguageInstruction(input.market, 'email_template'));
     try {
       return JSON.parse(result.replace(/```json?\n?/g, '').replace(/```/g, ''));
     } catch {

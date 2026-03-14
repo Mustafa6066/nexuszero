@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+const marketContextSchema = z.object({
+  language: z.string().min(2).max(16).default('en'),
+  dialect: z.enum(['auto', 'msa', 'egyptian', 'gulf', 'levantine', 'maghrebi']).default('auto'),
+  countryCode: z.string().length(2).optional(),
+  region: z.string().min(2).max(80).optional(),
+  city: z.string().min(1).max(80).optional(),
+  direction: z.enum(['rtl', 'ltr']).optional(),
+});
+
 export const brandGuidelinesSchema = z.object({
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   secondaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
@@ -22,6 +31,7 @@ export const generateCreativeSchema = z.object({
   brandGuidelines: brandGuidelinesSchema,
   targetAudience: z.string().min(1).max(500),
   platform: z.string().min(1).max(50),
+  market: marketContextSchema.optional(),
   dimensions: creativeDimensionsSchema.optional(),
   variants: z.number().int().min(1).max(10).default(3),
   referenceCreativeIds: z.array(z.string().uuid()).optional(),

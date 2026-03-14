@@ -1,4 +1,5 @@
 import type { AgentType, TaskPriority } from '@nexuszero/shared';
+import type { TraceCarrier } from '@nexuszero/shared';
 
 /** All event types that can be passed between agents via Kafka */
 export type InterAgentEventType =
@@ -42,6 +43,7 @@ export interface InterAgentEvent<T = Record<string, unknown>> {
   confidence: number;
   timestamp: string;
   correlationId: string;
+  traceContext?: TraceCarrier;
 }
 
 /** Task payload for BullMQ jobs */
@@ -56,6 +58,7 @@ export interface TaskPayload {
   maxRetries: number;
   scheduledAt?: string;
   dependsOn?: string[];
+  traceContext?: TraceCarrier;
 }
 
 /** Task result payload */
@@ -69,6 +72,7 @@ export interface TaskResult {
   error?: string;
   durationMs: number;
   correlationId: string;
+  traceContext?: TraceCarrier;
 }
 
 /** Webhook delivery payload */
@@ -89,4 +93,5 @@ export interface OnboardingPayload {
   tenantId: string;
   step: 'oauth_connect' | 'instant_audit' | 'provision' | 'strategy_generate' | 'go_live';
   config: Record<string, unknown>;
+  traceContext?: TraceCarrier;
 }

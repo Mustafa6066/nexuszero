@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
+import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
 
 const FORMAT_LABELS: Record<string, string> = {
   display_banner: 'Display Banner',
@@ -76,6 +77,8 @@ export default function CreativesPage() {
 
   return (
     <div className="space-y-6">
+      <WorkspaceGuidanceBanner surface="creatives" />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Creatives</h1>

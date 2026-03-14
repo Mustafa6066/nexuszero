@@ -1,8 +1,10 @@
 import { AdWorker } from './worker.js';
 import { getDb, tenants, agents } from '@nexuszero/db';
+import { initializeOpenTelemetry } from '@nexuszero/shared';
 import { eq, and } from 'drizzle-orm';
 
 async function start() {
+  await initializeOpenTelemetry({ serviceName: 'ad-agent' });
   const worker = new AdWorker();
 
   const db = getDb();

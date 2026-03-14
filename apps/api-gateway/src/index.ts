@@ -3,6 +3,7 @@ import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
+import { initializeOpenTelemetry } from '@nexuszero/shared';
 import { tenantRoutes } from './routes/tenants.js';
 import { campaignRoutes } from './routes/campaigns.js';
 import { agentRoutes } from './routes/agents.js';
@@ -14,15 +15,18 @@ import { integrationRoutes } from './routes/integrations.js';
 import { assistantRoutes } from './routes/assistant.js';
 import { scannerRoutes } from './routes/scanner.js';
 import { engineRoutes } from './routes/engines.js';
+import { intelligenceRoutes } from './routes/intelligence.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { tracingMiddleware } from './middleware/tracing.js';
 import { yogaHandler } from './graphql/index.js';
 
 const app = new Hono();
 
 // Global middleware
+app.use('*', tracingMiddleware);
 app.use('*', logger());
 app.use('*', secureHeaders());
 app.use('*', cors({
@@ -59,6 +63,7 @@ api.route('/integrations', integrationRoutes);
 api.route('/assistant', assistantRoutes);
 api.route('/scanner', scannerRoutes);
 api.route('/engines', engineRoutes);
+api.route('/intelligence', intelligenceRoutes);
 
 app.route('/api/v1', api);
 
@@ -73,8 +78,17 @@ app.all('/graphql', async (c) => {
 
 const port = parseInt(process.env.PORT || '4000', 10);
 
-serve({ fetch: app.fetch, port }, () => {
-  console.log(`API Gateway running on port ${port}`);
+async function start() {
+  await initializeOpenTelemetry({ serviceName: 'api-gateway' });
+
+  serve({ fetch: app.fetch, port }, () => {
+    console.log(`API Gateway running on port ${port}`);
+  });
+}
+
+start().catch((error) => {
+  console.error('API Gateway failed to start:', error);
+  process.exit(1);
 });
 
 export default app;

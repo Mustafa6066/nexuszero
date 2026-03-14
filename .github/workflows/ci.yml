@@ -82,10 +82,66 @@ jobs:
       - run: pnpm turbo build --filter='./packages/*'
       - run: pnpm turbo test
 
+  enterprise-readiness:
+    name: Enterprise Readiness
+    runs-on: ubuntu-latest
+    needs: test
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: nexuszero
+          POSTGRES_PASSWORD: nexuszero_test
+          POSTGRES_DB: nexuszero_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nexuszero"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://nexuszero:nexuszero_test@localhost:5432/nexuszero_test
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: corepack pnpm --filter @nexuszero/shared build
+      - run: corepack pnpm exec vitest run packages/db/src/client.test.ts packages/queue/src/kafka-client.test.ts packages/queue/src/producers.test.ts packages/shared/src/utils/mena.test.ts apps/api-gateway/tests/tenant-isolation.test.ts apps/api-gateway/tests/intelligence-summary.test.ts apps/api-gateway/tests/gateway.test.ts apps/api-gateway/tests/assistant-language.test.ts apps/api-gateway/tests/assistant-chat.test.ts apps/onboarding-service/src/worker.test.ts apps/orchestrator/src/task-router.test.ts apps/orchestrator/tests/index.test.ts apps/webhook-service/tests/index.test.ts apps/compatibility-agent/tests/index.test.ts apps/agents/seo-agent/src/llm.test.ts
+      - run: corepack pnpm --filter @nexuszero/db build
+      - run: corepack pnpm --filter @nexuszero/queue build
+      - run: corepack pnpm --filter @nexuszero/api-gateway build
+      - run: corepack pnpm --filter @nexuszero/onboarding-service build
+      - run: corepack pnpm --filter @nexuszero/orchestrator build
+      - run: corepack pnpm --filter @nexuszero/webhook-service build
+      - run: corepack pnpm --filter @nexuszero/compatibility-agent build
+      - run: corepack pnpm --filter @nexuszero/seo-agent build
+      - run: corepack pnpm --filter @nexuszero/ad-agent build
+
   deploy-railway:
     name: Deploy to Railway
     runs-on: ubuntu-latest
-    needs: test
+    needs: enterprise-readiness
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4

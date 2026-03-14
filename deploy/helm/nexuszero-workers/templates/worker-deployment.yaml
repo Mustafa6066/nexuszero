@@ -1,0 +1,57 @@
+{{- range .Values.workers.deployments }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-{{ .name }}
+  labels:
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/name: {{ .name }}
+spec:
+  replicas: {{ .replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .name }}
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: {{ include "nexuszero-workers.fullname" $ }}
+      containers:
+        - name: {{ .name }}
+          image: {{ .image }}
+          imagePullPolicy: IfNotPresent
+          command: {{ toJson .command }}
+          env:
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ $.Values.global.otelEndpoint | quote }}
+            - name: REDIS_PRIVATE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.global.redisUrlSecretName }}
+                  key: REDIS_PRIVATE_URL
+            - name: DATABASE_PRIVATE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.global.databaseSecretName }}
+                  key: DATABASE_PRIVATE_URL
+            - name: CONFLUENT_BOOTSTRAP_SERVERS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.global.kafkaSecretName }}
+                  key: CONFLUENT_BOOTSTRAP_SERVERS
+            - name: CONFLUENT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.global.kafkaSecretName }}
+                  key: CONFLUENT_API_KEY
+            - name: CONFLUENT_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.global.kafkaSecretName }}
+                  key: CONFLUENT_API_SECRET
+          resources:
+{{ toYaml .resources | indent 12 }}
+---
+{{- end }}

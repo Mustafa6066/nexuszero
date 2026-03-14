@@ -1,5 +1,14 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { retry, CircuitBreaker } from '@nexuszero/shared';
+import {
+  buildCreativeLanguageInstruction,
+  CircuitBreaker,
+  resolveMarketContext,
+  retry,
+  withSpan,
+  type MarketContextInput,
+} from '@nexuszero/shared';
+
+export interface CreativeMarketInput extends MarketContextInput {}
 
 const anthropicBreaker = new CircuitBreaker({
   failureThreshold: 5,
@@ -17,8 +26,12 @@ function getClient(): Anthropic {
 }
 
 export async function llmAnalyze(prompt: string, systemPrompt?: string): Promise<string> {
-  return anthropicBreaker.execute(async () => {
-    return retry(async () => {
+  return withSpan('ad.llm.request', {
+    tracerName: 'nexuszero.ad-agent',
+    attributes: {
+      'nexuszero.llm.operation': 'analysis',
+    },
+  }, async () => anthropicBreaker.execute(async () => retry(async () => {
       const anthropic = getClient();
       const response = await anthropic.messages.create({
         model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
@@ -29,8 +42,7 @@ export async function llmAnalyze(prompt: string, systemPrompt?: string): Promise
 
       const textBlock = response.content.find(b => b.type === 'text');
       return textBlock?.text || '';
-    }, { maxRetries: 3, baseDelayMs: 1000 });
-  });
+    }, { maxRetries: 3, baseDelayMs: 1000, maxDelayMs: 8_000 })));
 }
 
 export async function llmOptimizeBids(campaignData: {
@@ -62,7 +74,14 @@ export async function llmGenerateAdCopy(context: {
   keywords: string[];
   tone: string;
   brandGuidelines?: any;
+  market?: CreativeMarketInput;
 }): Promise<any> {
+  const market = resolveMarketContext({
+    ...(context.market ?? {}),
+    keywords: context.keywords,
+    prompt: `${context.product} ${context.targetAudience}`,
+  });
+
   const prompt = `Generate ad copy variants:
 Product: ${context.product}
 Audience: ${context.targetAudience}
@@ -71,9 +90,14 @@ Keywords: ${context.keywords.join(', ')}
 Tone: ${context.tone}
 ${context.brandGuidelines ? `Brand Guidelines: ${JSON.stringify(context.brandGuidelines)}` : ''}
 
+Requirements:
+- Reflect local buying intent for ${market.countryCode ?? 'the target market'}.
+- If Arabic is required, preserve Arabic script and the requested dialect without sounding machine-translated.
+- Keep line lengths natural for ${market.direction.toUpperCase()} layouts.
+
 Return JSON array of 5 variants: [{headline, description, callToAction, predictedCtr, emotionalAppeal}]`;
 
-  const result = await llmAnalyze(prompt);
+  const result = await llmAnalyze(prompt, buildCreativeLanguageInstruction(market, 'ad_copy'));
   try {
     return JSON.parse(result.replace(/```json?\n?/g, '').replace(/```/g, ''));
   } catch {

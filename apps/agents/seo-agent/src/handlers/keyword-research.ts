@@ -24,6 +24,11 @@ export class KeywordResearchHandler {
       domain: tenant?.domain || input.domain || '',
       existingKeywords: input.existingKeywords || [],
       competitors: input.competitors || [],
+      market: {
+        ...(settings.marketPreferences || {}),
+        ...(input.market || {}),
+        prompt: input.industry || settings.industry || tenant?.name || '',
+      },
     });
 
     await job.updateProgress(80);

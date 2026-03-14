@@ -1,5 +1,5 @@
 import { Worker, type Job } from 'bullmq';
-import { QUEUE_NAMES } from '@nexuszero/shared';
+import { extractTraceContext, QUEUE_NAMES, spanKindForMessagingConsumer, withSpan } from '@nexuszero/shared';
 import { getRedisConnection } from '@nexuszero/queue';
 import type { OnboardingPayload } from '@nexuszero/queue';
 import { OnboardingStateMachine } from './state-machine.js';
@@ -51,27 +51,32 @@ export class OnboardingWorker {
     const sm = new OnboardingStateMachine(tenantId);
 
     try {
-      let result: Record<string, unknown>;
-
-      switch (step) {
-        case 'oauth_connect':
-          result = await this.oauthConnect.execute(tenantId, config);
-          break;
-        case 'instant_audit':
-          result = await this.instantAudit.execute(tenantId, config);
-          break;
-        case 'provision':
-          result = await this.provision.execute(tenantId, config);
-          break;
-        case 'strategy_generate':
-          result = await this.strategyGenerate.execute(tenantId, config);
-          break;
-        case 'go_live':
-          result = await this.goLive.execute(tenantId, config);
-          break;
-        default:
-          throw new Error(`Unknown onboarding step: ${step}`);
-      }
+      const result = await withSpan('onboarding.step.process', {
+        tracerName: 'nexuszero.onboarding-service',
+        kind: spanKindForMessagingConsumer(),
+        parentContext: extractTraceContext(job.data.traceContext),
+        attributes: {
+          'messaging.system': 'bullmq',
+          'messaging.destination.name': QUEUE_NAMES.ONBOARDING,
+          'nexuszero.tenant.id': tenantId,
+          'nexuszero.onboarding.step': step,
+        },
+      }, async () => {
+        switch (step) {
+          case 'oauth_connect':
+            return this.oauthConnect.execute(tenantId, config);
+          case 'instant_audit':
+            return this.instantAudit.execute(tenantId, config);
+          case 'provision':
+            return this.provision.execute(tenantId, config);
+          case 'strategy_generate':
+            return this.strategyGenerate.execute(tenantId, config);
+          case 'go_live':
+            return this.goLive.execute(tenantId, config);
+          default:
+            throw new Error(`Unknown onboarding step: ${step}`);
+        }
+      });
 
       await sm.onStepComplete(step, result);
     } catch (err: any) {

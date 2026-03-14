@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { Card, Badge, Button, MetricCard } from '@/components/ui';
 import { BarChartWidget } from '@/components/charts';
 import { TierGateOverlay } from '@/components/tier-gate-overlay';
+import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
 
 const PLATFORM_COLORS: Record<string, string> = {
   chatgpt: '#10a37f',
@@ -58,6 +59,8 @@ export default function AEOPage() {
       requiredTier="growth"
     >
     <div className="space-y-6">
+      <WorkspaceGuidanceBanner surface="aeo" />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">AI Engine Optimization</h1>

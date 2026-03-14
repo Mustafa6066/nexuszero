@@ -174,6 +174,8 @@ See [docs/developer-guide.md](docs/developer-guide.md) for detailed deployment i
 - [Architecture](docs/architecture.md) — System design, data flow, multi-tenancy
 - [API Reference](docs/api-reference.md) — REST + GraphQL endpoint documentation
 - [Developer Guide](docs/developer-guide.md) — Setup, workflows, adding new agents
+- [Enterprise Ops](docs/enterprise-ops.md) — Observability, Terraform, Helm, and tenant-isolation runtime guidance
+- [Release Readiness](docs/release-readiness.md) — CI validation matrix for enterprise tracing, MENA behavior, and service runtime coverage
 
 ## License
 

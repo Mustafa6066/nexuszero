@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { QUEUE_NAMES, KAFKA_TOPICS, AppError } from '@nexuszero/shared';
+import { QUEUE_NAMES, KAFKA_TOPICS, AppError, injectTraceContext } from '@nexuszero/shared';
 import type { AgentType, TaskPriority } from '@nexuszero/shared';
 import { publishToKafka } from './kafka-client.js';
 import { getTenantQueue } from './queues.js';
@@ -71,6 +71,7 @@ export async function publishAgentTask(task: PublishAgentTaskInput): Promise<str
     maxRetries: task.maxRetries ?? 3,
     scheduledAt: task.scheduledAt,
     dependsOn: task.dependsOn,
+    traceContext: injectTraceContext(),
   };
 
   try {
@@ -112,7 +113,14 @@ export async function publishAgentTask(task: PublishAgentTaskInput): Promise<str
 /** Publish task result to Kafka for downstream consumers */
 export async function publishTaskResult(result: TaskResult): Promise<void> {
   const topic = result.status === 'completed' ? KAFKA_TOPICS.TASKS_COMPLETED : KAFKA_TOPICS.TASKS_FAILED;
-  await publishToKafka(topic, result as unknown as Record<string, unknown>, result.tenantId);
+  const enrichedResult: TaskResult = {
+    ...result,
+    traceContext: result.traceContext ?? injectTraceContext(),
+  };
+
+  await publishToKafka(topic, enrichedResult as unknown as Record<string, unknown>, result.tenantId, {
+    headers: enrichedResult.traceContext,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -150,10 +158,13 @@ export async function publishAgentSignal(signal: PublishAgentSignalInput): Promi
     confidence: signal.confidence,
     correlationId: signal.correlationId,
     timestamp: new Date().toISOString(),
+    traceContext: injectTraceContext(),
   };
 
   // Publish to global signals topic for the orchestrator
-  await publishToKafka(KAFKA_TOPICS.AGENTS_SIGNALS, event, signal.tenantId);
+  await publishToKafka(KAFKA_TOPICS.AGENTS_SIGNALS, event, signal.tenantId, {
+    headers: event.traceContext,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -176,7 +187,10 @@ export async function publishWebhookDelivery(delivery: WebhookDeliveryPayload): 
 /** Publish an onboarding step job */
 export async function publishOnboardingStep(step: OnboardingPayload): Promise<void> {
   const queue = getOrCreateQueue<OnboardingPayload>(QUEUE_NAMES.ONBOARDING);
-  await queue.add(step.step, step, {
+  await queue.add(step.step, {
+    ...step,
+    traceContext: step.traceContext ?? injectTraceContext(),
+  }, {
     priority: 1, // Onboarding is always high priority
   });
 }
@@ -199,8 +213,11 @@ export async function publishWebhookEvent(
     eventType,
     data,
     timestamp: new Date().toISOString(),
+    traceContext: injectTraceContext(),
   };
-  await publishToKafka(KAFKA_TOPICS.EVENTS_WEBHOOK, event, tenantId);
+  await publishToKafka(KAFKA_TOPICS.EVENTS_WEBHOOK, event, tenantId, {
+    headers: event.traceContext,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -219,8 +236,11 @@ export async function publishAuditEvent(
     action,
     details,
     timestamp: new Date().toISOString(),
+    traceContext: injectTraceContext(),
   };
-  await publishToKafka(KAFKA_TOPICS.EVENTS_AUDIT, event, tenantId);
+  await publishToKafka(KAFKA_TOPICS.EVENTS_AUDIT, event, tenantId, {
+    headers: event.traceContext,
+  });
 }
 
 // ---------------------------------------------------------------------------
