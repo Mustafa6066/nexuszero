@@ -399,7 +399,11 @@ app.post('/onboarding/start', async (c) => {
     detections,
     platforms,
     status: 'completed',
-    ...(detections.length === 0 && !html ? { message: 'Could not fetch website. The site may be blocking automated requests.' } : {}),
+    ...(detections.length === 0 && !html
+      ? { message: 'Could not fetch website HTML. The site may be blocking automated requests or require authentication.' }
+      : detections.length === 0 && html
+      ? { message: 'No tracking tags detected in page HTML. The site may be a single-page app (SPA) that loads scripts dynamically. You can still connect integrations manually.' }
+      : {}),
   });
 });
 

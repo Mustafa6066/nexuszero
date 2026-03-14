@@ -105,6 +105,8 @@ export async function sendAssistantMessage(
                 if (sessionMatch) {
                   store.setSessionId(sessionMatch[1]);
                   text = text.replace(/\n?<!-- session:[a-f0-9-]+ -->/, '');
+                  // Session comment arriving means server round-trip worked
+                  receivedText = true;
                 }
                 if (text) {
                   store.appendToLastAssistant(text);

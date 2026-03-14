@@ -159,7 +159,8 @@ async function executeDataTool(
       return withTenantDb(tenantId, async (db) => {
         const result = await db.select({
           id: integrations.id, platform: integrations.platform,
-          status: integrations.status, lastSyncAt: integrations.lastSyncAt,
+          status: integrations.status, healthScore: integrations.healthScore,
+          lastChecked: integrations.updatedAt,
         }).from(integrations)
           .where(eq(integrations.tenantId, tenantId));
         return result;
@@ -260,7 +261,7 @@ async function buildTenantContext(tenantId: string): Promise<TenantContext> {
     }).from(analyticsDataPoints)
       .where(and(eq(analyticsDataPoints.tenantId, tenantId), gte(analyticsDataPoints.date, since30d)));
 
-    const recentMetricsSummary = `Last 30 days: ${metrics.impressions} impressions, ${metrics.clicks} clicks, ${metrics.conversions} conversions, $${metrics.spend.toFixed(0)} spent, $${metrics.revenue.toFixed(0)} revenue`;
+    const recentMetricsSummary = `Last 30 days: ${metrics.impressions} impressions, ${metrics.clicks} clicks, ${metrics.conversions} conversions, $${Number(metrics.spend || 0).toFixed(0)} spent, $${Number(metrics.revenue || 0).toFixed(0)} revenue`;
 
     return {
       tenantId,
@@ -569,7 +570,18 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
     console.error('[NexusAI] Agentic loop error:', err);
     if (!fullTextResponse) {
       yield { type: 'error', message: 'Something went wrong generating a response. Please try again.' };
+      yield { type: 'done' };
+      return;
     }
+  }
+
+  // If the agentic loop produced tool calls but no text, yield a fallback summary
+  if (!fullTextResponse && allToolCalls.length > 0) {
+    fullTextResponse = 'I processed your request using tools. Let me know if you need more details.';
+    yield { type: 'text', content: fullTextResponse };
+  } else if (!fullTextResponse) {
+    fullTextResponse = "I wasn't able to generate a response. Please try rephrasing your question.";
+    yield { type: 'text', content: fullTextResponse };
   }
 
   // 4. Save response

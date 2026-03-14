@@ -2,8 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Card, Badge } from '@/components/ui';
+import { Card, Badge, Button } from '@/components/ui';
 
 const STATUS_BADGE: Record<string, 'success' | 'warning' | 'destructive' | 'outline'> = {
   active: 'success',
@@ -134,6 +135,7 @@ export function IntegrationGrid() {
 
 export function OnboardingWizard() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const detectMutation = useMutation({
     mutationFn: (websiteUrl: string) => api.startOnboarding(websiteUrl),
@@ -144,6 +146,9 @@ export function OnboardingWizard() {
     mutationFn: () => api.completeOnboarding(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations'] }),
   });
+
+  const detections = (detectMutation.data as any)?.detections ?? [];
+  const hasDetections = detections.length > 0;
 
   return (
     <Card className="space-y-4">
@@ -177,22 +182,61 @@ export function OnboardingWizard() {
         </button>
       </form>
 
-      {detectMutation.isSuccess && (
+      {detectMutation.isSuccess && hasDetections && (
         <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-400">
-          {(detectMutation.data as any)?.detections?.length > 0 ? (
-            <>
-              Detected {(detectMutation.data as any).detections.length} integration{(detectMutation.data as any).detections.length > 1 ? 's' : ''}!
-              <button
-                onClick={() => completeMutation.mutate()}
-                disabled={completeMutation.isPending}
-                className="ml-4 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
-              >
-                Complete Onboarding
-              </button>
-            </>
-          ) : (
-            (detectMutation.data as any)?.message || 'Detection complete — no integrations detected for this site.'
-          )}
+          Detected {detections.length} integration{detections.length > 1 ? 's' : ''}!
+          <button
+            onClick={() => completeMutation.mutate()}
+            disabled={completeMutation.isPending}
+            className="ml-4 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+          >
+            Complete Onboarding
+          </button>
+        </div>
+      )}
+
+      {detectMutation.isSuccess && !hasDetections && (
+        <div className="space-y-3">
+          <div className="rounded-md bg-yellow-500/10 border border-yellow-500/20 p-4 text-sm">
+            <p className="font-medium text-yellow-300">No integrations auto-detected</p>
+            <p className="text-muted-foreground mt-1">
+              {(detectMutation.data as any)?.message ||
+                "This site may be a single-page app (SPA), use server-side rendering, or block automated scanning. That's completely fine — you can connect integrations manually or run a deep scan for more details."}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              onClick={() => router.push('/dashboard/scanner')}
+              className="rounded-lg border border-border bg-secondary/30 p-3 text-left hover:bg-secondary/60 transition-colors"
+            >
+              <p className="text-sm font-medium">Run Deep Scan</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Full pre-flight analysis with SEO, security, and performance checks
+              </p>
+            </button>
+            <button
+              onClick={() => completeMutation.mutate()}
+              disabled={completeMutation.isPending}
+              className="rounded-lg border border-border bg-secondary/30 p-3 text-left hover:bg-secondary/60 transition-colors"
+            >
+              <p className="text-sm font-medium">Skip &amp; Connect Manually</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Add integrations one by one via OAuth or API keys
+              </p>
+            </button>
+          </div>
+
+          <div className="pt-2">
+            <p className="text-xs text-muted-foreground mb-2">Popular integrations to connect:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {['Google Analytics', 'Google Ads', 'Meta Ads', 'HubSpot', 'Google Search Console', 'WordPress'].map((name) => (
+                <span key={name} className="rounded-full border border-border/50 bg-background px-2.5 py-1 text-xs text-muted-foreground">
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
