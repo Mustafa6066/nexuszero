@@ -1,5 +1,5 @@
 import { api } from './api';
-import { useAssistantStore, type ToolCallData } from './assistant-store';
+import { detectAssistantLocale, useAssistantStore, type ToolCallData } from './assistant-store';
 
 export interface UIContext {
   currentPage: string;
@@ -19,9 +19,12 @@ export async function sendAssistantMessage(
 ): Promise<void> {
   const store = useAssistantStore.getState();
   const token = api.getToken();
+  const locale = detectAssistantLocale(message);
+
+  store.setPreferredLanguage(locale);
 
   if (!token) {
-    store.setError('Not authenticated');
+    store.setError(locale === 'ar' ? 'يجب تسجيل الدخول أولاً.' : 'Not authenticated');
     return;
   }
 
@@ -71,7 +74,7 @@ export async function sendAssistantMessage(
     }
 
     if (!response.body) {
-      store.setError('No response stream');
+      store.setError(locale === 'ar' ? 'لم يصل أي تدفق استجابة من الخادم.' : 'No response stream');
       store.setLoading(false);
       return;
     }
@@ -114,6 +117,7 @@ export async function sendAssistantMessage(
                 receivedText = true;
               }
               if (text) {
+                store.setPreferredLanguage(detectAssistantLocale(text));
                 store.appendToLastAssistant(text);
                 receivedText = true;
               }
@@ -143,10 +147,12 @@ export async function sendAssistantMessage(
     }
     // If stream ended without any content or error events, show fallback
     if (!receivedText && !store.error) {
-      store.setError('No response received. Please check your connection and try again.');
+      store.setError(locale === 'ar'
+        ? 'لم يتم استلام أي رد. تحقّق من الاتصال ثم حاول مرة أخرى.'
+        : 'No response received. Please check your connection and try again.');
     }
   } catch (err) {
-    store.setError(err instanceof Error ? err.message : 'Connection failed');
+    store.setError(err instanceof Error ? err.message : (locale === 'ar' ? 'فشل الاتصال.' : 'Connection failed'));
   } finally {
     store.setLoading(false);
   }

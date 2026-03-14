@@ -39,6 +39,7 @@ export function useAssistant() {
     isLoading: store.isLoading,
     messages: store.messages,
     error: store.error,
+    preferredLanguage: store.preferredLanguage,
     suggestions: store.suggestions,
     sessionId: store.sessionId,
     open: store.open,

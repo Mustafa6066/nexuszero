@@ -1,17 +1,22 @@
 'use client';
 
+import type { AssistantLocale, AssistantSuggestion } from '@/lib/assistant-store';
+
 interface SuggestionChipsProps {
-  suggestions: Array<{ label: string; message: string }>;
+  suggestions: AssistantSuggestion[];
   onSelect: (message: string) => void;
   disabled?: boolean;
+  locale?: AssistantLocale;
 }
 
 /** Quick-action suggestion buttons below the chat input */
-export function SuggestionChips({ suggestions, onSelect, disabled }: SuggestionChipsProps) {
+export function SuggestionChips({ suggestions, onSelect, disabled, locale = 'en' }: SuggestionChipsProps) {
   if (suggestions.length === 0) return null;
 
+  const isArabic = locale === 'ar';
+
   return (
-    <div className="flex flex-wrap gap-1.5 px-4 pb-2">
+    <div className="flex flex-wrap gap-1.5 px-4 pb-2" dir={isArabic ? 'rtl' : 'ltr'}>
       {suggestions.map((chip) => (
         <button
           key={chip.label}

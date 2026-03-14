@@ -1,17 +1,20 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Send, Loader2 } from 'lucide-react';
+import type { AssistantLocale } from '@/lib/assistant-store';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
+  locale?: AssistantLocale;
 }
 
 /** Chat input with send button */
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, locale = 'en' }: ChatInputProps) {
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const isArabic = locale === 'ar';
 
   useEffect(() => {
     if (!disabled) inputRef.current?.focus();
@@ -28,7 +31,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -50,10 +53,10 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         <textarea
           ref={inputRef}
           value={value}
-          onChange={(e) => { setValue(e.target.value); handleInput(); }}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => { setValue(e.target.value); handleInput(); }}
           onKeyDown={handleKeyDown}
           dir="auto"
-          placeholder="Ask NexusAI anything..."
+          placeholder={isArabic ? 'اسأل NexusAI أي شيء...' : 'Ask NexusAI anything...'}
           disabled={disabled}
           rows={1}
           className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50
@@ -70,8 +73,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           {disabled ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>
       </div>
-      <p className="text-[10px] text-muted-foreground/40 text-center mt-1.5">
-        NexusAI can make mistakes. Verify important data.
+      <p className="mt-1.5 text-center text-[10px] text-muted-foreground/40" dir={isArabic ? 'rtl' : 'ltr'}>
+        {isArabic ? 'قد يخطئ NexusAI أحيانًا. تحقّق من البيانات المهمة.' : 'NexusAI can make mistakes. Verify important data.'}
       </p>
     </div>
   );
