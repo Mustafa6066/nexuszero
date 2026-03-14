@@ -12,7 +12,7 @@ function getRedis() {
     // buffering forever) when the connection is unavailable.  This prevents the
     // rate-limit middleware from hanging the entire request pipeline when Redis
     // is not configured or temporarily down.
-    redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+    redis = new Redis(process.env.REDIS_PRIVATE_URL || process.env.REDIS_URL || 'redis://localhost:6379', {
       enableOfflineQueue: false,
       maxRetriesPerRequest: 0,
       connectTimeout: 2000,
