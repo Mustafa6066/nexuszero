@@ -193,6 +193,7 @@ export class TaskGraphExecutor {
     const redisClient = getRedis();
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
+      await this.clearWatch(redisClient);
       let isWatching = false;
 
       try {
@@ -208,6 +209,8 @@ export class TaskGraphExecutor {
         try {
           graph = JSON.parse(raw) as TaskGraphState;
         } catch {
+          isWatching = false;
+          await this.clearWatch(redisClient);
           await redisClient.del(key);
           throw new Error(`Task graph ${graphId} is corrupted and could not be parsed`);
         }
@@ -231,16 +234,30 @@ export class TaskGraphExecutor {
         multi.set(key, JSON.stringify(graph), 'EX', 86400);
         const execResult = await multi.exec();
         if (execResult) {
+          isWatching = false;
           const isComplete = graph.completedTasks.length + graph.failedTasks.length === graph.nodes.length;
           return { graph, readyNodes, isComplete };
         }
       } finally {
         if (isWatching) {
-          await redisClient.unwatch().catch(() => undefined);
+          await this.clearWatch(redisClient);
         }
+      }
+
+      if (attempt < 4) {
+        await this.waitForRetrySlot(attempt);
       }
     }
 
     throw new Error(`Failed to update task graph ${graphId} after multiple retries`);
+  }
+
+  private async clearWatch(redisClient: Redis): Promise<void> {
+    await redisClient.unwatch().catch(() => undefined);
+  }
+
+  private async waitForRetrySlot(attempt: number): Promise<void> {
+    const delayMs = Math.min(25 * (attempt + 1), 125);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 }

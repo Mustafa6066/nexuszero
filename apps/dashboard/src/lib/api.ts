@@ -23,18 +23,22 @@ class ApiClient {
   }
 
   private async parseResponse(response: Response): Promise<unknown> {
-    if (response.status === 204) {
+    if (response.status === 204 || response.status === 205) {
+      return undefined;
+    }
+
+    const text = await response.text().catch(() => '');
+    if (!text.trim()) {
       return undefined;
     }
 
     const contentType = response.headers.get('content-type') ?? '';
     if (contentType.includes('application/json')) {
-      return response.json().catch(() => undefined);
-    }
-
-    const text = await response.text().catch(() => '');
-    if (!text) {
-      return undefined;
+      try {
+        return JSON.parse(text);
+      } catch {
+        return text;
+      }
     }
 
     try {
@@ -44,13 +48,87 @@ class ApiClient {
     }
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    if (!this.token) {
+  private extractErrorMessage(body: unknown, response: Response): string {
+    const messages: string[] = [];
+
+    const visit = (value: unknown, depth = 0): void => {
+      if (depth > 3 || value == null) {
+        return;
+      }
+
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed) {
+          messages.push(trimmed);
+        }
+        return;
+      }
+
+      if (Array.isArray(value)) {
+        for (const item of value.slice(0, 3)) {
+          visit(item, depth + 1);
+        }
+        return;
+      }
+
+      if (typeof value === 'object') {
+        const record = value as Record<string, unknown>;
+        for (const key of ['message', 'error', 'detail', 'details', 'title', 'reason']) {
+          visit(record[key], depth + 1);
+        }
+        visit(record.errors, depth + 1);
+        visit(record.data, depth + 1);
+      }
+    };
+
+    visit(body);
+
+    const uniqueMessages = [...new Set(messages)].filter(Boolean);
+    if (uniqueMessages.length > 0) {
+      return uniqueMessages.slice(0, 3).join('; ').slice(0, 500);
+    }
+
+    return response.statusText || `API error: ${response.status}`;
+  }
+
+  private mergeAbortSignals(signals: AbortSignal[]): { signal: AbortSignal; cleanup: () => void } {
+    if (typeof AbortSignal.any === 'function') {
+      return { signal: AbortSignal.any(signals), cleanup: () => {} };
+    }
+
+    const controller = new AbortController();
+    const onAbort = () => controller.abort();
+
+    for (const signal of signals) {
+      if (signal.aborted) {
+        controller.abort();
+        return { signal: controller.signal, cleanup: () => {} };
+      }
+
+      signal.addEventListener('abort', onAbort);
+    }
+
+    return {
+      signal: controller.signal,
+      cleanup: () => {
+        for (const signal of signals) {
+          signal.removeEventListener('abort', onAbort);
+        }
+      },
+    };
+  }
+
+  private async request<T>(path: string, options: RequestInit = {}, config: { authRequired?: boolean } = {}): Promise<T> {
+    const authRequired = config.authRequired !== false;
+
+    if (authRequired && !this.token) {
       throw new Error('Not authenticated');
     }
 
     const headers = new Headers(options.headers);
-    headers.set('Authorization', `Bearer ${this.token}`);
+    if (authRequired && this.token) {
+      headers.set('Authorization', `Bearer ${this.token}`);
+    }
 
     if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
@@ -58,12 +136,15 @@ class ApiClient {
 
     const timeoutController = new AbortController();
     const timeout = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+    const mergedSignal = options.signal
+      ? this.mergeAbortSignals([options.signal, timeoutController.signal])
+      : { signal: timeoutController.signal, cleanup: () => {} };
 
     try {
       const response = await fetch(`${API_BASE}${path}`, {
         ...options,
         headers,
-        signal: options.signal ? AbortSignal.any([options.signal, timeoutController.signal]) : timeoutController.signal,
+        signal: mergedSignal.signal,
       });
 
       const body = await this.parseResponse(response);
@@ -73,21 +154,19 @@ class ApiClient {
           this.clearToken();
         }
 
-        const message = typeof body === 'object' && body !== null
-          ? (body as { error?: { message?: string }; message?: string }).error?.message
-            ?? (body as { message?: string }).message
-            ?? response.statusText
-          : typeof body === 'string'
-            ? body
-            : response.statusText;
+        const message = this.extractErrorMessage(body, response);
 
         throw new Error(message || `API error: ${response.status}`);
       }
 
       return body as T;
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (timeoutController.signal.aborted && !options.signal?.aborted) {
         throw new Error('Request timed out. Please try again.');
+      }
+
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error('Request was cancelled.');
       }
 
       if (error instanceof Error) {
@@ -97,6 +176,7 @@ class ApiClient {
       throw new Error('Request failed');
     } finally {
       clearTimeout(timeout);
+      mergedSignal.cleanup();
     }
   }
 
@@ -123,7 +203,16 @@ class ApiClient {
   }
 
   // Auth
-  login(email: string, password: string) { return this.post<{ token: string; user: any }>('/auth/login', { email, password }); }
+  login(email: string, password: string) {
+    return this.request<{ token: string; user: any }>(
+      '/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      },
+      { authRequired: false },
+    );
+  }
   getMe() { return this.get<any>('/tenants/me'); }
 
   // Campaigns

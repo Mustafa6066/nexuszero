@@ -251,7 +251,16 @@ Return JSON: { fatiguedCreatives: [{id, fatigueLevel: "low" | "medium" | "high",
   private normalizeInput(input: CreativeEngineInput) {
     const type = (input.type && input.type in CREATIVE_TYPE_CONFIG ? input.type : 'ad_copy') as keyof typeof CREATIVE_TYPE_CONFIG;
     const requestedCount = Number(input.variants ?? input.count ?? 3);
-    const variantCount = Math.max(1, Math.min(CREATIVE_TYPE_CONFIG[type].maxVariants, Number.isFinite(requestedCount) ? requestedCount : 3));
+
+    if (!Number.isFinite(requestedCount)) {
+      throw new Error('Creative variant count must be a finite number');
+    }
+
+    if (!Number.isInteger(requestedCount) || requestedCount <= 0) {
+      throw new Error('Creative variant count must be a positive integer');
+    }
+
+    const variantCount = Math.min(CREATIVE_TYPE_CONFIG[type].maxVariants, requestedCount);
     const prompt = typeof input.prompt === 'string' && input.prompt.trim().length > 0
       ? input.prompt.trim()
       : String(input.product ?? 'New creative concept').trim();

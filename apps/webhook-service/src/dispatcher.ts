@@ -1,5 +1,5 @@
 import { getDb, webhookEndpoints, webhookDeliveries } from '@nexuszero/db';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { publishWebhookDelivery } from '@nexuszero/queue';
 
 export class WebhookDispatcher {
@@ -38,6 +38,8 @@ export class WebhookDispatcher {
 
       if (!matches) continue;
 
+      let persistedDeliveryId: string | null = null;
+
       try {
         const [delivery] = await db.insert(webhookDeliveries).values({
           tenantId,
@@ -54,6 +56,8 @@ export class WebhookDispatcher {
           console.error(`Failed to persist webhook delivery for endpoint ${endpoint.id}`);
           continue;
         }
+
+        persistedDeliveryId = delivery.id;
 
         await publishWebhookDelivery({
           deliveryId: delivery.id,
@@ -72,26 +76,37 @@ export class WebhookDispatcher {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`Webhook dispatch failed for endpoint ${endpoint.id}: ${message}`);
 
-        const [latestDelivery] = await db.select({ id: webhookDeliveries.id })
-          .from(webhookDeliveries)
-          .where(and(eq(webhookDeliveries.tenantId, tenantId), eq(webhookDeliveries.endpointId, endpoint.id)))
-          .orderBy(desc(webhookDeliveries.createdAt))
-          .limit(1);
-
-        if (latestDelivery) {
-          await db.update(webhookDeliveries)
-            .set({
-              status: 'failed',
-              responseBody: message.slice(0, 10_000),
-              attempts: 1,
-            })
-            .where(eq(webhookDeliveries.id, latestDelivery.id));
+        if (persistedDeliveryId) {
+          await this.markDeliveryAsFailed(db, persistedDeliveryId, `Queueing failed before delivery worker execution: ${message}`);
         }
       }
     }
 
     if (failedCount > 0) {
       console.warn(`Webhook dispatch completed with ${queuedCount} queued and ${failedCount} failed deliveries for tenant ${tenantId}`);
+    }
+  }
+
+  private async markDeliveryAsFailed(
+    db: ReturnType<typeof getDb>,
+    deliveryId: string,
+    errorMessage: string,
+  ): Promise<void> {
+    try {
+      await db.update(webhookDeliveries)
+        .set({
+          status: 'failed',
+          statusCode: null,
+          responseBody: errorMessage.slice(0, 10_000),
+          attempts: 0,
+          nextRetryAt: null,
+          deliveredAt: null,
+        })
+        .where(eq(webhookDeliveries.id, deliveryId));
+    } catch (updateError) {
+      console.error(
+        `Failed to mark webhook delivery ${deliveryId} as failed: ${updateError instanceof Error ? updateError.message : String(updateError)}`,
+      );
     }
   }
 }
