@@ -86,57 +86,62 @@ export async function sendAssistantMessage(
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
+      // Split on \n and handle \r\n line endings from proxies
+      const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() ?? '';
 
       for (const line of lines) {
-        if (line.startsWith('data:')) {
-          const jsonStr = line.slice(5).trim();
-          if (!jsonStr) continue;
+        const trimmedLine = line.trim();
+        if (!trimmedLine.startsWith('data:')) continue;
 
-          try {
-            const event = JSON.parse(jsonStr);
+        const jsonStr = trimmedLine.slice(5).trim();
+        if (!jsonStr) continue;
 
-            switch (event.type) {
-              case 'text': {
-                let text = event.content as string;
-                // Extract session ID from hidden comment
-                const sessionMatch = text.match(/<!-- session:([a-f0-9-]+) -->/);
-                if (sessionMatch) {
-                  store.setSessionId(sessionMatch[1]);
-                  text = text.replace(/\n?<!-- session:[a-f0-9-]+ -->/, '');
-                  // Session comment arriving means server round-trip worked
-                  receivedText = true;
-                }
-                if (text) {
-                  store.appendToLastAssistant(text);
-                  receivedText = true;
-                }
-                break;
+        try {
+          const event = JSON.parse(jsonStr);
+
+          // Skip heartbeat events (used to flush proxy buffers)
+          if (event.type === 'heartbeat') continue;
+
+          switch (event.type) {
+            case 'text': {
+              let text = event.content as string;
+              // Extract session ID from hidden comment
+              const sessionMatch = text.match(/<!-- session:([a-f0-9-]+) -->/);
+              if (sessionMatch) {
+                store.setSessionId(sessionMatch[1]);
+                text = text.replace(/\n?<!-- session:[a-f0-9-]+ -->/, '');
+                receivedText = true;
               }
-              case 'tool_call': {
-                const toolCall = event.toolCall as ToolCallData;
-                store.addToolCallToLast(toolCall);
-                onToolCall?.(toolCall);
-                receivedText = true; // tool calls count as valid response
-                break;
+              if (text) {
+                store.appendToLastAssistant(text);
+                receivedText = true;
               }
-              case 'error': {
-                store.setError(event.message || 'An unexpected error occurred');
-                break;
-              }
-              case 'done': {
-                // Stream complete
-                break;
-              }
+              break;
             }
-          } catch {
-            // Skip malformed SSE lines
+            case 'tool_call': {
+              const toolCall = event.toolCall as ToolCallData;
+              store.addToolCallToLast(toolCall);
+              onToolCall?.(toolCall);
+              receivedText = true;
+              break;
+            }
+            case 'error': {
+              store.setError(event.message || 'An unexpected error occurred');
+              receivedText = true; // error counts — prevents misleading "no response" fallback
+              break;
+            }
+            case 'done': {
+              // Stream complete
+              break;
+            }
           }
+        } catch {
+          // Skip malformed SSE lines
         }
       }
     }
-    // If stream ended without any assistant content, show a fallback error
+    // If stream ended without any content or error events, show fallback
     if (!receivedText && !store.error) {
       store.setError('No response received. Please check your connection and try again.');
     }

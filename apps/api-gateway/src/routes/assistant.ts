@@ -22,8 +22,17 @@ app.post('/chat', async (c) => {
 
   const { message, sessionId, uiContext } = parsed.data;
 
+  // Set SSE headers to prevent proxy buffering (Railway, Nginx, Cloudflare)
+  c.header('Content-Type', 'text/event-stream');
+  c.header('Cache-Control', 'no-cache, no-transform');
+  c.header('Connection', 'keep-alive');
+  c.header('X-Accel-Buffering', 'no');
+
   return streamSSE(c, async (stream) => {
     try {
+      // Send an initial heartbeat comment to flush proxy buffers immediately
+      await stream.writeSSE({ event: 'heartbeat', data: '{"type":"heartbeat"}' });
+
       const generator = handleAssistantChat({
         tenantId,
         userId: user.userId,
@@ -40,14 +49,18 @@ app.post('/chat', async (c) => {
       }
     } catch (err) {
       console.error('[NexusAI] SSE stream error:', err);
-      await stream.writeSSE({
-        event: 'error',
-        data: JSON.stringify({ type: 'error', message: 'An unexpected error occurred. Please try again.' }),
-      });
-      await stream.writeSSE({
-        event: 'done',
-        data: JSON.stringify({ type: 'done' }),
-      });
+      try {
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({ type: 'error', message: 'An unexpected error occurred. Please try again.' }),
+        });
+        await stream.writeSSE({
+          event: 'done',
+          data: JSON.stringify({ type: 'done' }),
+        });
+      } catch {
+        // Stream already closed — nothing we can do
+      }
     }
   });
 });

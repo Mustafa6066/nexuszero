@@ -396,6 +396,7 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
   const startMs = Date.now();
 
   if (!ANTHROPIC_API_KEY) {
+    console.error('[NexusAI] ANTHROPIC_API_KEY is empty at runtime — check env vars');
     yield { type: 'text', content: 'NexusAI is not configured. Please set the ANTHROPIC_API_KEY environment variable.' };
     yield { type: 'done' };
     return;
@@ -484,8 +485,11 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
 
       if (!res.ok) {
         const errorBody = await res.text();
-        console.error('[NexusAI] Claude API error:', res.status, errorBody);
-        yield { type: 'error', message: 'AI service temporarily unavailable. Please try again.' };
+        console.error(`[NexusAI] Claude API error ${res.status}:`, errorBody);
+        const hint = res.status === 401 ? ' (invalid API key)' :
+                     res.status === 429 ? ' (rate limited)' :
+                     res.status === 404 ? ` (model "${CLAUDE_MODEL}" not found)` : '';
+        yield { type: 'error', message: `AI service error${hint}. Please try again.` };
         yield { type: 'done' };
         return;
       }
