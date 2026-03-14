@@ -73,8 +73,9 @@ export async function publishAgentTask(task: PublishAgentTaskInput): Promise<str
     dependsOn: task.dependsOn,
   };
 
-  const queue = getOrCreateQueue<TaskPayload>(queueName);
   try {
+    const queue = getOrCreateQueue<TaskPayload>(queueName);
+
     await Promise.race([
       queue.add(task.type, taskPayload, {
         jobId: taskId,
