@@ -1,4 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import * as schema from './schema/index.js';
 
@@ -50,13 +51,13 @@ async function canApplyLocalRole(transaction: any, appRole: string): Promise<boo
   }
 
   try {
-    const result = await transaction<{ roleExists: boolean }[]>`
+    const result = await transaction.execute(sql`
       select exists(
         select 1
         from pg_roles
         where rolname = ${normalizedRole}
       ) as "roleExists"
-    `;
+    `) as { roleExists: boolean }[];
     const roleExists = Boolean(result[0]?.roleExists);
     verifiedRoleAvailability.set(normalizedRole, roleExists);
 
@@ -91,23 +92,24 @@ export async function applyTenantSession<T>(
   const appRole = (options.appRole ?? process.env.DATABASE_APP_ROLE ?? '').trim();
   const enforceRls = options.enforceRls ?? (appRole ? process.env.DB_ENFORCE_RLS !== 'false' : false);
 
-  await transaction`select set_config('app.current_tenant_id', ${tenantId}, true)`;
+  await transaction.execute(sql`select set_config('app.current_tenant_id', ${tenantId}, true)`);
 
   if (enforceRls && appRole && await canApplyLocalRole(transaction, appRole)) {
-    await transaction.unsafe(`set local role ${quotePgIdentifier(appRole)}`);
+    await transaction.execute(sql.raw(`set local role ${quotePgIdentifier(appRole)}`));
   }
 
-  const scopedDb = drizzle(transaction as any, { schema }) as ReturnType<typeof drizzle<typeof schema>>;
-  return callback(scopedDb);
+  return callback(transaction as ReturnType<typeof drizzle<typeof schema>>);
 }
 
 export async function executeWithTenantSession<T>(
   tenantId: string,
   callback: (db: ReturnType<typeof drizzle<typeof schema>>) => Promise<T>,
 ): Promise<T> {
-  const sql = getPostgresClient();
+  const db = getDb();
 
-  return await sql.begin(async (transaction) => applyTenantSession(transaction as any, tenantId, callback)) as T;
+  return await db.transaction(async (transaction) => {
+    return applyTenantSession(transaction as any, tenantId, callback);
+  }) as T;
 }
 
 /**

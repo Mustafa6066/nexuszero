@@ -1,28 +1,51 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { drizzleMock } = vi.hoisted(() => ({
-  drizzleMock: vi.fn(() => ({ scoped: true })),
-}));
+const { dbMock, dbTransactionMock, drizzleMock, postgresClientMock, postgresFactoryMock } = vi.hoisted(() => {
+  const dbTransactionMock = vi.fn();
+  const dbMock = {
+    transaction: dbTransactionMock,
+  };
+  const postgresClientMock = {
+    begin: vi.fn(),
+    end: vi.fn(async () => undefined),
+  };
+
+  return {
+    dbMock,
+    dbTransactionMock,
+    drizzleMock: vi.fn(() => dbMock),
+    postgresClientMock,
+    postgresFactoryMock: vi.fn(() => postgresClientMock),
+  };
+});
 
 vi.mock('drizzle-orm/postgres-js', () => ({
   drizzle: drizzleMock,
 }));
 
-import { applyTenantSession } from './client';
+vi.mock('postgres', () => ({
+  default: postgresFactoryMock,
+}));
+
+import { applyTenantSession, closeDb, executeWithTenantSession } from './client';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+afterEach(async () => {
+  await closeDb();
+  delete process.env.DATABASE_URL;
+});
 
 describe('applyTenantSession', () => {
   it('sets the tenant session variable and local role before running the callback', async () => {
-    const transaction = Object.assign(
-      vi.fn(async (strings: TemplateStringsArray) => {
-        const query = String(strings?.[0] ?? '');
-        if (query.includes('from pg_roles')) {
-          return [{ roleExists: true }];
-        }
-
-        return undefined;
-      }),
-      { unsafe: vi.fn(async () => undefined) },
-    );
+    const transaction = {
+      execute: vi.fn()
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce([{ roleExists: true }])
+        .mockResolvedValueOnce(undefined),
+    };
     const callback = vi.fn(async () => 'ok');
 
     const result = await applyTenantSession(transaction as any, 'tenant-a', callback, {
@@ -31,20 +54,15 @@ describe('applyTenantSession', () => {
     });
 
     expect(result).toBe('ok');
-    expect(transaction).toHaveBeenCalledTimes(2);
-    expect(String(transaction.mock.calls[0][0]?.[0] ?? '')).toContain("set_config('app.current_tenant_id'");
-    expect(transaction.mock.calls[0][1]).toBe('tenant-a');
-    expect(String(transaction.mock.calls[1][0]?.[0] ?? '')).toContain('from pg_roles');
-    expect(transaction.mock.calls[1][1]).toBe('nexuszero_app_existing');
-    expect(transaction.unsafe).toHaveBeenCalledWith('set local role "nexuszero_app_existing"');
-    expect(callback).toHaveBeenCalledWith({ scoped: true });
+    expect(transaction.execute).toHaveBeenCalledTimes(3);
+    expect(callback).toHaveBeenCalledWith(transaction);
+    expect(drizzleMock).not.toHaveBeenCalled();
   });
 
   it('skips local role enforcement when no app role is configured', async () => {
-    const transaction = Object.assign(
-      vi.fn(async () => undefined),
-      { unsafe: vi.fn(async () => undefined) },
-    );
+    const transaction = {
+      execute: vi.fn().mockResolvedValue(undefined),
+    };
     const callback = vi.fn(async () => 'ok');
 
     const result = await applyTenantSession(transaction as any, 'tenant-a', callback, {
@@ -52,22 +70,18 @@ describe('applyTenantSession', () => {
     });
 
     expect(result).toBe('ok');
-    expect(transaction.unsafe).not.toHaveBeenCalled();
-    expect(callback).toHaveBeenCalledWith({ scoped: true });
+    expect(transaction.execute).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith(transaction);
+    expect(drizzleMock).not.toHaveBeenCalled();
   });
 
   it('skips local role enforcement when the configured role does not exist', async () => {
-    const transaction = Object.assign(
-      vi.fn(async (strings: TemplateStringsArray) => {
-        const query = String(strings?.[0] ?? '');
-        if (query.includes('from pg_roles')) {
-          return [{ roleExists: false }];
-        }
-
-        return undefined;
-      }),
-      { unsafe: vi.fn(async () => undefined) },
-    );
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const transaction = {
+      execute: vi.fn()
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce([{ roleExists: false }]),
+    };
     const callback = vi.fn(async () => 'ok');
 
     const result = await applyTenantSession(transaction as any, 'tenant-a', callback, {
@@ -76,7 +90,29 @@ describe('applyTenantSession', () => {
     });
 
     expect(result).toBe('ok');
-    expect(transaction.unsafe).not.toHaveBeenCalled();
-    expect(callback).toHaveBeenCalledWith({ scoped: true });
+    expect(transaction.execute).toHaveBeenCalledTimes(2);
+    expect(callback).toHaveBeenCalledWith(transaction);
+    expect(drizzleMock).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+});
+
+describe('executeWithTenantSession', () => {
+  it('uses a Drizzle transaction instead of the raw postgres begin API', async () => {
+    const transaction = {
+      execute: vi.fn().mockResolvedValue(undefined),
+    };
+    const callback = vi.fn(async () => 'ok');
+
+    process.env.DATABASE_URL = 'postgres://test:test@localhost:5432/test';
+    dbTransactionMock.mockImplementationOnce(async (handler) => handler(transaction));
+
+    const result = await executeWithTenantSession('tenant-a', callback);
+
+    expect(result).toBe('ok');
+    expect(postgresFactoryMock).toHaveBeenCalledTimes(1);
+    expect(dbTransactionMock).toHaveBeenCalledTimes(1);
+    expect(postgresClientMock.begin).not.toHaveBeenCalled();
+    expect(callback).toHaveBeenCalledWith(transaction);
   });
 });
