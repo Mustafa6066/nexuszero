@@ -60,7 +60,14 @@ app.get('/:id', async (c) => {
 // POST /creatives/generate
 app.post('/generate', async (c) => {
   const tenantId = c.get('tenantId');
-  const body = await c.req.json();
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    throw new AppError('INVALID_INPUT', { reason: 'Request body must be valid JSON' });
+  }
+
   const parsed = generateCreativeSchema.safeParse(body);
   if (!parsed.success) {
     throw new AppError('INVALID_INPUT', parsed.error.issues);
