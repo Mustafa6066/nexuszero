@@ -100,7 +100,7 @@ export async function buildBehavioralIntelligence(
               eq(assistantMessages.tenantId, tenantId),
               eq(assistantMessages.role, 'assistant' as never),
               gte(assistantMessages.createdAt, since30d),
-              sql`jsonb_array_length(tool_calls) > 0`,
+              sql`jsonb_typeof(tool_calls) = 'array' and jsonb_array_length(tool_calls) > 0`,
             ),
           )
           .innerJoin(
