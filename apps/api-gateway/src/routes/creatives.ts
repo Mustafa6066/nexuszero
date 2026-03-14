@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
-import { withTenantDb, creatives, creativeTests } from '@nexuszero/db';
+import { withTenantDb, creatives, creativeTests, agentTasks } from '@nexuszero/db';
 import { generateCreativeSchema, creativeFiltersSchema, AppError, ERROR_CODES } from '@nexuszero/shared';
 import { publishAgentTask } from '@nexuszero/queue';
 import { eq, and, ilike, sql, desc } from 'drizzle-orm';
@@ -76,16 +76,33 @@ app.post('/generate', async (c) => {
 
   // Creative generation is processed by the ad agent's creative engine worker.
   const taskId = randomUUID();
-  await publishAgentTask({
-    id: taskId,
-    tenantId,
-    agentType: 'ad',
-    type: 'generate_creative',
-    priority: 'high',
-    input: data,
-  });
+  let status: 'queued' | 'pending' = 'queued';
 
-  return c.json({ taskId, status: 'queued', message: 'Creative generation task queued' }, 202);
+  try {
+    await publishAgentTask({
+      id: taskId,
+      tenantId,
+      agentType: 'ad',
+      type: 'generate_creative',
+      priority: 'high',
+      input: data,
+    });
+  } catch {
+    // Redis/queue unavailable — persist directly to DB so the task is not lost.
+    await withTenantDb(tenantId, async (db) => {
+      await db.insert(agentTasks).values({
+        id: taskId,
+        tenantId,
+        type: 'generate_creative',
+        priority: 'high',
+        status: 'pending',
+        input: data,
+      });
+    });
+    status = 'pending';
+  }
+
+  return c.json({ taskId, status, message: `Creative generation task ${status}` }, 202);
 });
 
 // GET /creatives/:id/tests
@@ -119,14 +136,25 @@ app.post('/:id/tests', async (c) => {
     }).returning();
 
     // Queue the test execution
-    await publishAgentTask({
-      id: randomUUID(),
-      tenantId,
-      agentType: 'ad',
-      type: 'run_ab_test',
-      priority: 'medium',
-      input: { testId: test.id, creativeId, campaignId },
-    });
+    try {
+      await publishAgentTask({
+        id: randomUUID(),
+        tenantId,
+        agentType: 'ad',
+        type: 'run_ab_test',
+        priority: 'medium',
+        input: { testId: test.id, creativeId, campaignId },
+      });
+    } catch {
+      // Redis unavailable — persist task directly so it can be picked up later.
+      await db.insert(agentTasks).values({
+        tenantId,
+        type: 'run_ab_test',
+        priority: 'medium',
+        status: 'pending',
+        input: { testId: test.id, creativeId, campaignId },
+      });
+    }
 
     return c.json(test, 201);
   });
