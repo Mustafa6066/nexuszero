@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
+import { randomUUID } from 'node:crypto';
 import { withTenantDb, creatives, creativeTests } from '@nexuszero/db';
 import { generateCreativeSchema, creativeFiltersSchema, AppError, ERROR_CODES } from '@nexuszero/shared';
 import { publishAgentTask } from '@nexuszero/queue';
 import { eq, and, ilike, sql, desc } from 'drizzle-orm';
-import { z } from 'zod';
 
 const app = new Hono();
 
@@ -51,7 +51,7 @@ app.get('/:id', async (c) => {
       .limit(1);
 
     if (!creative) {
-      throw new AppError(ERROR_CODES.CREATIVE.NOT_FOUND, 'Creative not found', 404);
+      throw new AppError('CREATIVE_NOT_FOUND');
     }
     return c.json(creative);
   });
@@ -63,16 +63,16 @@ app.post('/generate', async (c) => {
   const body = await c.req.json();
   const parsed = generateCreativeSchema.safeParse(body);
   if (!parsed.success) {
-    throw new AppError(ERROR_CODES.VALIDATION.INVALID_INPUT, parsed.error.issues, 400);
+    throw new AppError('INVALID_INPUT', parsed.error.issues);
   }
   const data = parsed.data;
 
-  // Publish task to Creative Agent
-  const taskId = crypto.randomUUID();
+  // Creative generation is processed by the ad agent's creative engine worker.
+  const taskId = randomUUID();
   await publishAgentTask({
     id: taskId,
     tenantId,
-    agentType: 'creative',
+    agentType: 'ad',
     type: 'generate_creative',
     priority: 'high',
     input: data,
@@ -101,7 +101,7 @@ app.post('/:id/tests', async (c) => {
   const { campaignId } = await c.req.json();
 
   if (!campaignId) {
-    throw new AppError(ERROR_CODES.VALIDATION.MISSING_FIELD, 'campaignId is required', 400);
+    throw new AppError('VALIDATION_ERROR', { field: 'campaignId', reason: 'campaignId is required' });
   }
 
   return withTenantDb(tenantId, async (db) => {
@@ -113,9 +113,9 @@ app.post('/:id/tests', async (c) => {
 
     // Queue the test execution
     await publishAgentTask({
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       tenantId,
-      agentType: 'creative',
+      agentType: 'ad',
       type: 'run_ab_test',
       priority: 'medium',
       input: { testId: test.id, creativeId, campaignId },
@@ -136,7 +136,7 @@ app.delete('/:id', async (c) => {
       .returning();
 
     if (!creative) {
-      throw new AppError(ERROR_CODES.CREATIVE.NOT_FOUND, 'Creative not found', 404);
+      throw new AppError('CREATIVE_NOT_FOUND');
     }
     return c.json({ deleted: true });
   });
