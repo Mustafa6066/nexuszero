@@ -100,11 +100,11 @@ export async function buildBehavioralIntelligence(
               eq(assistantMessages.tenantId, tenantId),
               eq(assistantMessages.role, 'assistant' as never),
               gte(assistantMessages.createdAt, since30d),
-              sql`jsonb_typeof(tool_calls) = 'array' and jsonb_array_length(tool_calls) > 0`,
+              sql`jsonb_typeof(tool_calls) = 'array' and tool_calls != '[]'::jsonb`,
             ),
           )
           .innerJoin(
-            sql`jsonb_array_elements(${assistantMessages.toolCalls}) as tool_elem` as never,
+            sql`jsonb_array_elements(case when jsonb_typeof(${assistantMessages.toolCalls}) = 'array' then ${assistantMessages.toolCalls} else '[]'::jsonb end) as tool_elem` as never,
             sql`true`,
           )
           .groupBy(sql`tool_elem->>'tool'`)

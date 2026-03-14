@@ -8,19 +8,18 @@ import { Loader2, Zap } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    const form = new FormData(e.currentTarget);
     const result = await signIn('credentials', {
-      email,
-      password,
+      email: form.get('email') as string,
+      password: form.get('password') as string,
       redirect: false,
     });
 
@@ -67,9 +66,8 @@ export default function LoginPage() {
               <label htmlFor="email" className="block text-xs font-medium text-muted-foreground">Email</label>
               <input
                 id="email"
+                name="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-colors placeholder:text-muted-foreground/50"
                 placeholder="you@company.com"
                 required
@@ -81,9 +79,8 @@ export default function LoginPage() {
               <label htmlFor="password" className="block text-xs font-medium text-muted-foreground">Password</label>
               <input
                 id="password"
+                name="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-colors placeholder:text-muted-foreground/50"
                 placeholder="••••••••"
                 required
