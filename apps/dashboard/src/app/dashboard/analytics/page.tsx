@@ -7,6 +7,7 @@ import { Card, MetricCard } from '@/components/ui';
 import { AreaChartWidget, BarChartWidget, DonutChartWidget } from '@/components/charts';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils';
 import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
+import { CompoundInsightsPanel } from '@/components/compound-insights-panel';
 
 const PERIODS = ['7d', '30d', '90d'] as const;
 
@@ -131,6 +132,9 @@ export default function AnalyticsPage() {
           )}
         </Card>
       </div>
+
+      {/* Compound Insights */}
+      <CompoundInsightsPanel />
     </div>
   );
 }

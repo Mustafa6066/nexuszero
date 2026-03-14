@@ -99,7 +99,10 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-xs text-muted-foreground/60 mt-6">
-            Autonomous AI Marketing Platform
+            Don&apos;t have an account?{' '}
+            <Link href="/register" className="text-primary hover:text-primary/80 font-medium transition-colors">
+              Sign up
+            </Link>
           </p>
         </div>
       </div>

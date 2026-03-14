@@ -3,12 +3,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Bell, Bot, AlertTriangle, CheckCircle, Info, X, ChevronRight } from 'lucide-react';
+import { Bell, Bot, AlertTriangle, CheckCircle, Info, X, ChevronRight, Zap, Lightbulb } from 'lucide-react';
 import { useAssistantStore } from '@/lib/assistant-store';
 
 interface Notification {
   id: string;
-  type: 'ai_digest' | 'alert' | 'activity';
+  type: 'ai_digest' | 'alert' | 'activity' | 'health' | 'feature';
   priority: 'critical' | 'advisory' | 'info';
   title: string;
   body: string;
@@ -16,7 +16,7 @@ interface Notification {
   read: boolean;
 }
 
-function generateNotifications(agents: any[], stats: any): Notification[] {
+function generateNotifications(agents: any[], stats: any, intelligence: any): Notification[] {
   const notifications: Notification[] = [];
   const now = Date.now();
 
@@ -76,6 +76,54 @@ function generateNotifications(agents: any[], stats: any): Notification[] {
     });
   }
 
+  // Intelligence: health warnings
+  const healthWarnings = intelligence?.dashboard?.healthWarnings ?? intelligence?.guidance?.healthWarnings ?? [];
+  for (const [i, warning] of healthWarnings.entries()) {
+    if (typeof warning === 'string' && warning.trim()) {
+      notifications.push({
+        id: `health-${i}`,
+        type: 'health',
+        priority: 'advisory',
+        title: 'Health Warning',
+        body: warning,
+        timestamp: now,
+        read: false,
+      });
+    }
+  }
+
+  // Intelligence: performance alerts
+  const perfAlerts = intelligence?.dashboard?.performanceAlerts ?? intelligence?.guidance?.performanceAlerts ?? [];
+  for (const [i, alert] of perfAlerts.entries()) {
+    if (typeof alert === 'string' && alert.trim()) {
+      notifications.push({
+        id: `perf-${i}`,
+        type: 'alert',
+        priority: 'advisory',
+        title: 'Performance Alert',
+        body: alert,
+        timestamp: now,
+        read: false,
+      });
+    }
+  }
+
+  // Intelligence: feature discovery
+  const features = intelligence?.dashboard?.featureDiscovery ?? intelligence?.guidance?.featureDiscovery ?? [];
+  for (const [i, feature] of features.entries()) {
+    if (typeof feature === 'string' && feature.trim()) {
+      notifications.push({
+        id: `feat-${i}`,
+        type: 'feature',
+        priority: 'info',
+        title: 'Tip',
+        body: feature,
+        timestamp: now,
+        read: false,
+      });
+    }
+  }
+
   return notifications.sort((a, b) => {
     const prio = { critical: 0, advisory: 1, info: 2 };
     return prio[a.priority] - prio[b.priority];
@@ -86,6 +134,14 @@ const priorityConfig = {
   critical: { color: 'text-red-400', bg: 'bg-red-500/10', dot: 'bg-red-400', Icon: AlertTriangle },
   advisory: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', dot: 'bg-yellow-400', Icon: AlertTriangle },
   info: { color: 'text-primary', bg: 'bg-primary/10', dot: 'bg-primary', Icon: Info },
+};
+
+const typeIcons: Record<string, typeof Info> = {
+  ai_digest: Bot,
+  alert: AlertTriangle,
+  activity: Zap,
+  health: AlertTriangle,
+  feature: Lightbulb,
 };
 
 export function NotificationTray() {
@@ -106,9 +162,15 @@ export function NotificationTray() {
     staleTime: 30000,
   });
 
+  const { data: intelligence } = useQuery({
+    queryKey: ['intelligence', 'summary'],
+    queryFn: () => api.getIntelligenceSummary(),
+    staleTime: 5 * 60 * 1000, // 5 min
+  });
+
   const notifications = useMemo(
-    () => generateNotifications(agents ?? [], stats),
-    [agents, stats],
+    () => generateNotifications(agents ?? [], stats, intelligence),
+    [agents, stats, intelligence],
   );
   const unreadCount = useMemo(
     () => notifications.filter((n) => !readIds.has(n.id)).length,
@@ -171,7 +233,7 @@ export function NotificationTray() {
               <div className="divide-y divide-border/30">
                 {notifications.map((n) => {
                   const config = priorityConfig[n.priority];
-                  const PrioIcon = n.type === 'ai_digest' ? Bot : config.Icon;
+                  const PrioIcon = typeIcons[n.type] ?? config.Icon;
                   return (
                     <div
                       key={n.id}

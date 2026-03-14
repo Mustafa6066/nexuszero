@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { getDb, withTenantDb, tenants, users } from '@nexuszero/db';
-import { createTenantSchema, loginSchema, updateTenantSchema, AppError, hashPassword, verifyPassword, generateApiKey, sha256Hash } from '@nexuszero/shared';
+import { getDb, withTenantDb, tenants, users, loginStreaks } from '@nexuszero/db';
+import { createTenantSchema, loginSchema, registerSchema, updateTenantSchema, AppError, hashPassword, verifyPassword, generateApiKey, sha256Hash } from '@nexuszero/shared';
 import { eq, and } from 'drizzle-orm';
 import { signJwt } from '../middleware/auth.js';
 import { apiKeys } from '@nexuszero/db';
@@ -52,6 +52,39 @@ app.post('/login', async (c) => {
     throw new AppError('AUTH_INVALID_TOKEN', { reason: 'Invalid credentials' });
   }
 
+  // Update login streak
+  const today = new Date().toISOString().slice(0, 10);
+  const [existing] = await db.select().from(loginStreaks)
+    .where(and(eq(loginStreaks.userId, user.id), eq(loginStreaks.tenantId, user.tenantId))).limit(1);
+
+  if (existing) {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const newStreak = existing.lastLoginDate === yesterday
+      ? existing.currentStreak + 1
+      : existing.lastLoginDate === today ? existing.currentStreak : 1;
+    await db.update(loginStreaks)
+      .set({
+        currentStreak: newStreak,
+        longestStreak: Math.max(existing.longestStreak, newStreak),
+        lastLoginDate: today,
+        totalLogins: existing.totalLogins + (existing.lastLoginDate === today ? 0 : 1),
+        updatedAt: new Date(),
+      })
+      .where(eq(loginStreaks.id, existing.id));
+  } else {
+    await db.insert(loginStreaks).values({
+      tenantId: user.tenantId,
+      userId: user.id,
+      currentStreak: 1,
+      longestStreak: 1,
+      lastLoginDate: today,
+      totalLogins: 1,
+    });
+  }
+
+  // Update lastLoginAt
+  await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
+
   const token = signJwt({
     userId: user.id,
     tenantId: user.tenantId,
@@ -60,6 +93,85 @@ app.post('/login', async (c) => {
   });
 
   return c.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, tenantId: user.tenantId } });
+});
+
+// POST /auth/register
+app.post('/register', async (c) => {
+  const ip = c.req.header('X-Forwarded-For')?.split(',')[0]?.trim() ?? c.req.header('X-Real-IP') ?? 'unknown';
+  if (isLoginRateLimited(ip)) {
+    throw new AppError('RATE_LIMIT_EXCEEDED');
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = registerSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new AppError('VALIDATION_ERROR', parsed.error.issues);
+  }
+  const { name, email, password, companyName } = parsed.data;
+
+  const db = getDb();
+
+  // Check if email already exists
+  const [existingUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (existingUser) {
+    throw new AppError('VALIDATION_ERROR', { field: 'email', reason: 'An account with this email already exists' });
+  }
+
+  // Generate slug from company name
+  const baseSlug = companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+  const slug = `${baseSlug}-${Date.now().toString(36)}`;
+
+  // Check slug uniqueness
+  const [existingTenant] = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1);
+  if (existingTenant) {
+    throw new AppError('TENANT_SLUG_TAKEN');
+  }
+
+  const passwordHash = hashPassword(password);
+
+  // Create tenant
+  const [tenant] = await db.insert(tenants).values({
+    name: companyName,
+    slug,
+    plan: 'launchpad',
+    status: 'pending',
+    onboardingState: 'created',
+    autonomyLevel: 'manual',
+    settings: {},
+  }).returning();
+
+  // Create owner user
+  const [user] = await db.insert(users).values({
+    tenantId: tenant.id,
+    email,
+    name,
+    passwordHash,
+    role: 'owner',
+  }).returning();
+
+  // Initialize login streak
+  const today = new Date().toISOString().slice(0, 10);
+  await db.insert(loginStreaks).values({
+    tenantId: tenant.id,
+    userId: user.id,
+    currentStreak: 1,
+    longestStreak: 1,
+    lastLoginDate: today,
+    totalLogins: 1,
+  });
+
+  const token = signJwt({
+    userId: user.id,
+    tenantId: tenant.id,
+    email: user.email,
+    role: user.role,
+  });
+
+  return c.json({
+    token,
+    user: { id: user.id, email: user.email, name: user.name, role: user.role, tenantId: tenant.id },
+    tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug, plan: tenant.plan },
+  }, 201);
 });
 
 // GET /tenants/me

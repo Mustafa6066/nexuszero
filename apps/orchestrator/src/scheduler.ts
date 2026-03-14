@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import { getDb, tenants, campaigns, agents } from '@nexuszero/db';
 import { publishAgentTask } from '@nexuszero/queue';
 import { eq, and } from 'drizzle-orm';
+import { runDailyDigest } from './daily-digest.js';
 
 export class Scheduler {
   private jobs: cron.ScheduledTask[] = [];
@@ -46,7 +47,12 @@ export class Scheduler {
       cron.schedule('*/2 * * * *', safe('checkAgentHealth', () => this.checkAgentHealth()), { timezone: 'UTC' }),
     );
 
-    console.log(JSON.stringify({ level: 'info', msg: 'Scheduler started', jobs: 6 }));
+    // Daily Orbit digest — every day at 07:00 UTC
+    this.jobs.push(
+      cron.schedule('0 7 * * *', safe('dailyOrbitDigest', () => runDailyDigest().then(() => {})), { timezone: 'UTC' }),
+    );
+
+    console.log(JSON.stringify({ level: 'info', msg: 'Scheduler started', jobs: 7 }));
   }
 
   stop() {

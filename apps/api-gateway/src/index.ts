@@ -16,6 +16,10 @@ import { assistantRoutes } from './routes/assistant.js';
 import { scannerRoutes } from './routes/scanner.js';
 import { engineRoutes } from './routes/engines.js';
 import { intelligenceRoutes } from './routes/intelligence.js';
+import { approvalRoutes } from './routes/approvals.js';
+import { alertRoutes } from './routes/alerts.js';
+import { streakRoutes } from './routes/streaks.js';
+import { compoundInsightsRoutes } from './routes/compound-insights.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { tenantMiddleware } from './middleware/tenant.js';
@@ -64,6 +68,10 @@ api.route('/assistant', assistantRoutes);
 api.route('/scanner', scannerRoutes);
 api.route('/engines', engineRoutes);
 api.route('/intelligence', intelligenceRoutes);
+api.route('/approvals', approvalRoutes);
+api.route('/alerts', alertRoutes);
+api.route('/streaks', streakRoutes);
+api.route('/insights', compoundInsightsRoutes);
 
 app.route('/api/v1', api);
 

@@ -15,6 +15,7 @@ import { MilestonesPanel } from '@/components/milestones';
 import { DashboardSectionBoundary } from '@/components/dashboard-section-boundary';
 import { OverviewIntelligencePanel } from '@/components/overview-intelligence-panel';
 import { useAssistantActions } from '@/hooks/use-assistant';
+import { StreakWidget } from '@/components/streak-widget';
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'outline'> = {
   active: 'success',
@@ -549,10 +550,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Milestones */}
-      <DashboardSectionBoundary title="Milestones">
-        <MilestonesPanel />
-      </DashboardSectionBoundary>
+      {/* Milestones & Streak */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+        <DashboardSectionBoundary title="Milestones">
+          <MilestonesPanel />
+        </DashboardSectionBoundary>
+        <div className="lg:w-72">
+          <StreakWidget />
+        </div>
+      </div>
     </div>
   );
 }

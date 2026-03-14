@@ -16,6 +16,7 @@ export const tenants = pgTable('tenants', {
   plan: planEnum('plan').notNull().default('launchpad'),
   status: tenantStatusEnum('status').notNull().default('pending'),
   onboardingState: onboardingStateEnum('onboarding_state').notNull().default('created'),
+  autonomyLevel: varchar('autonomy_level', { length: 20 }).notNull().default('manual'),
   settings: jsonb('settings').notNull().default({}),
   stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
   stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }),

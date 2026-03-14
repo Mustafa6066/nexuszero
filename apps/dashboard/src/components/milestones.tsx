@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Trophy, Flame, Rocket, Target, Star, Zap, TrendingUp } from 'lucide-react';
@@ -127,6 +127,35 @@ export function MilestonesPanel() {
 
   const achieved = milestones.filter((m) => m.achieved).length;
 
+  // Track newly achieved milestones for celebration
+  const [celebrating, setCelebrating] = useState<string | null>(null);
+  const prevAchievedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    // Load previously seen achievements from localStorage
+    try {
+      const stored = localStorage.getItem('nexuszero_milestones');
+      if (stored) prevAchievedRef.current = new Set(JSON.parse(stored));
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    const prev = prevAchievedRef.current;
+    const currentAchieved = milestones.filter((m) => m.achieved).map((m) => m.id);
+    const newlyAchieved = currentAchieved.filter((id) => !prev.has(id));
+
+    if (newlyAchieved.length > 0) {
+      setCelebrating(newlyAchieved[0]);
+      setTimeout(() => setCelebrating(null), 2500);
+      // Persist so we don't celebrate again
+      const updated = new Set([...prev, ...currentAchieved]);
+      prevAchievedRef.current = updated;
+      try {
+        localStorage.setItem('nexuszero_milestones', JSON.stringify([...updated]));
+      } catch { /* ignore */ }
+    }
+  }, [milestones]);
+
   return (
     <div className="rounded-2xl border border-border/40 bg-card/60 overflow-hidden">
       <div className="px-5 py-3.5 border-b border-border/30 flex items-center justify-between">
@@ -141,13 +170,44 @@ export function MilestonesPanel() {
       <div className="divide-y divide-border/20">
         {milestones.map((m) => {
           const Icon = m.icon;
+          const isCelebrating = celebrating === m.id;
           return (
             <div
               key={m.id}
-              className={`px-5 py-3 flex items-center gap-3.5 transition-colors ${
+              className={`px-5 py-3 flex items-center gap-3.5 transition-all relative overflow-hidden ${
                 m.achieved ? 'bg-primary/[0.02]' : ''
-              }`}
+              } ${isCelebrating ? 'ring-2 ring-amber-400/40 bg-amber-400/5' : ''}`}
+              style={isCelebrating ? { animation: 'milestonePopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' } : undefined}
             >
+              {isCelebrating && (
+                <>
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className="absolute w-1.5 h-1.5 rounded-full pointer-events-none"
+                      style={{
+                        left: '32px',
+                        top: '50%',
+                        backgroundColor: ['#fbbf24', '#818cf8', '#38bdf8', '#10b981', '#ec4899', '#f59e0b'][i % 6],
+                        animation: `milestoneBurst 0.8s ease-out forwards`,
+                        animationDelay: `${i * 40}ms`,
+                        transform: `rotate(${i * 30}deg)`,
+                      }}
+                    />
+                  ))}
+                  <style>{`
+                    @keyframes milestonePopIn {
+                      0% { transform: scale(0.95); opacity: 0.8; }
+                      50% { transform: scale(1.03); }
+                      100% { transform: scale(1); opacity: 1; }
+                    }
+                    @keyframes milestoneBurst {
+                      0% { transform: translateX(0) translateY(0) scale(1); opacity: 1; }
+                      100% { transform: translateX(${Math.cos(0) * 40}px) translateY(${Math.sin(0) * 40}px) scale(0); opacity: 0; }
+                    }
+                  `}</style>
+                </>
+              )}
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                 m.achieved ? 'bg-primary/10' : 'bg-secondary/40'
               }`}>

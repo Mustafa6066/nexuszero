@@ -86,6 +86,8 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [discoveries, setDiscoveries] = useState<{ label: string; value: string; icon: string }[]>([]);
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activityFeedRef = useRef<HTMLDivElement>(null);
 
@@ -94,6 +96,13 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
       // Move any 'running' items to 'done'
       const updated = prev.map((a) => (a.status === 'running' ? { ...a, status: 'done' as const } : a));
       return [...updated, { id: `${Date.now()}-${Math.random()}`, text, status, timestamp: Date.now() }];
+    });
+  }, []);
+
+  const addDiscovery = useCallback((label: string, value: string, icon: string) => {
+    setDiscoveries((prev) => {
+      if (prev.some((d) => d.label === label)) return prev;
+      return [...prev, { label, value, icon }];
     });
   }, []);
 
@@ -110,23 +119,23 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
 
         // Simulate progress feed since we don't have websocket events yet
         // In production this would poll the actual onboarding state
-        const timeline = [
-          { delay: 2000, text: 'Detected: Google Analytics ✓', step: 'connecting' as VisualStep },
-          { delay: 1500, text: 'Detected: WordPress ✓', step: 'connecting' as VisualStep },
-          { delay: 2000, text: 'Platform connections established', step: 'connecting' as VisualStep },
-          { delay: 1000, text: 'SEO Agent analyzing keywords...', step: 'analyzing' as VisualStep },
-          { delay: 3000, text: 'SEO Agent found 847 keywords', step: 'analyzing' as VisualStep },
-          { delay: 1500, text: 'Ad Agent scanning campaign structure...', step: 'analyzing' as VisualStep },
-          { delay: 2500, text: 'Ad Agent mapped 3 campaign opportunities', step: 'analyzing' as VisualStep },
-          { delay: 1500, text: 'Data Nexus running quality checks...', step: 'analyzing' as VisualStep },
-          { delay: 2000, text: 'Data quality score: 92%', step: 'analyzing' as VisualStep },
-          { delay: 1500, text: 'Generating marketing strategy...', step: 'analyzing' as VisualStep },
-          { delay: 3000, text: 'Strategy document ready — 12 recommendations', step: 'analyzing' as VisualStep },
-          { delay: 1000, text: 'Activating agent swarm...', step: 'launching' as VisualStep },
-          { delay: 2000, text: 'SEO Agent online ✓', step: 'launching' as VisualStep },
-          { delay: 1000, text: 'Ad Agent online ✓', step: 'launching' as VisualStep },
-          { delay: 1000, text: 'Data Nexus online ✓', step: 'launching' as VisualStep },
-          { delay: 1500, text: 'All systems operational — Welcome to NexusZero.', step: 'launching' as VisualStep },
+        const timeline: { delay: number; text: string; step: VisualStep; discovery?: { label: string; value: string; icon: string } }[] = [
+          { delay: 2000, text: 'Detected: Google Analytics ✓', step: 'connecting', discovery: { label: 'Analytics', value: 'Google Analytics', icon: '📊' } },
+          { delay: 1500, text: 'Detected: WordPress ✓', step: 'connecting', discovery: { label: 'Platform', value: 'WordPress', icon: '🌐' } },
+          { delay: 2000, text: 'Platform connections established', step: 'connecting' },
+          { delay: 1000, text: 'SEO Agent analyzing keywords...', step: 'analyzing' },
+          { delay: 3000, text: 'SEO Agent found 847 keywords', step: 'analyzing', discovery: { label: 'Keywords Found', value: '847', icon: '🔑' } },
+          { delay: 1500, text: 'Ad Agent scanning campaign structure...', step: 'analyzing' },
+          { delay: 2500, text: 'Ad Agent mapped 3 campaign opportunities', step: 'analyzing', discovery: { label: 'Opportunities', value: '3 campaigns', icon: '📈' } },
+          { delay: 1500, text: 'Data Nexus running quality checks...', step: 'analyzing' },
+          { delay: 2000, text: 'Data quality score: 92%', step: 'analyzing', discovery: { label: 'Data Quality', value: '92%', icon: '✅' } },
+          { delay: 1500, text: 'Generating marketing strategy...', step: 'analyzing' },
+          { delay: 3000, text: 'Strategy document ready — 12 recommendations', step: 'analyzing', discovery: { label: 'Recommendations', value: '12 actions', icon: '📋' } },
+          { delay: 1000, text: 'Activating agent swarm...', step: 'launching' },
+          { delay: 2000, text: 'SEO Agent online ✓', step: 'launching' },
+          { delay: 1000, text: 'Ad Agent online ✓', step: 'launching' },
+          { delay: 1000, text: 'Data Nexus online ✓', step: 'launching' },
+          { delay: 1500, text: 'All systems operational — Welcome to NexusZero.', step: 'launching' },
         ];
 
         let totalDelay = 0;
@@ -135,11 +144,15 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
           setTimeout(() => {
             if (cancelled) return;
             setCurrentStep(entry.step);
+            if (entry.discovery) {
+              addDiscovery(entry.discovery.label, entry.discovery.value, entry.discovery.icon);
+            }
             const isLast = entry === timeline[timeline.length - 1];
             addActivity(entry.text, isLast ? 'done' : 'running');
             if (isLast) {
               setIsComplete(true);
               setShowConfetti(true);
+              setShowSuccessScreen(true);
               setTimeout(() => setShowConfetti(false), 4000);
             }
           }, totalDelay);
@@ -195,6 +208,7 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
 
   const stepIndex = STEP_ORDER.indexOf(currentStep);
   const progressPct = isComplete ? 100 : Math.round(((stepIndex + 0.5) / STEP_ORDER.length) * 100);
+  const estimatedSeconds = isComplete ? 0 : Math.max(0, (STEP_ORDER.length - stepIndex - 1) * 30 + 15);
 
   return (
     <div className="min-h-screen bg-background relative flex items-center justify-center p-4">
@@ -236,7 +250,7 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
           <p className="text-sm text-muted-foreground mt-2">
             {isComplete
               ? 'Your AI agents are deployed and ready for operation.'
-              : 'This usually takes 2-3 minutes. Watch your AI team get briefed and deployed.'}
+              : `Step ${stepIndex + 1} of ${STEP_ORDER.length} — ~${Math.ceil(estimatedSeconds / 60)}m remaining`}
           </p>
         </div>
 
@@ -275,6 +289,25 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
             })}
           </div>
         </div>
+
+        {/* Discovery cards */}
+        {discoveries.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {discoveries.map((d, i) => (
+              <div
+                key={d.label}
+                className="rounded-xl border border-border bg-card/60 p-3 flex items-center gap-3 animate-fade-in"
+                style={{ animationDelay: `${i * 80}ms` }}
+              >
+                <span className="text-lg">{d.icon}</span>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{d.label}</p>
+                  <p className="text-sm font-semibold truncate">{d.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Activity feed */}
         <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
@@ -332,8 +365,24 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
           </div>
         )}
 
-        {isComplete && (
-          <div className="flex justify-center">
+        {isComplete && showSuccessScreen && (
+          <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-8 text-center space-y-4 animate-fade-in">
+            <div className="mx-auto w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center ring-4 ring-green-500/10">
+              <Check size={32} className="text-green-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Setup Complete!</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your AI agents found {discoveries.length} key insights during setup.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {discoveries.map((d) => (
+                <span key={d.label} className="inline-flex items-center gap-1 rounded-full bg-card/80 border border-border px-3 py-1 text-xs">
+                  <span>{d.icon}</span> {d.label}: <span className="font-semibold">{d.value}</span>
+                </span>
+              ))}
+            </div>
             <button
               onClick={handleContinue}
               className="btn-glow inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-green-600 px-8 py-3 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"

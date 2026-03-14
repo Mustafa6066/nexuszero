@@ -66,6 +66,10 @@ module.exports = {
           '0%': { transform: 'translateX(0)' },
           '100%': { transform: 'translateX(-50%)' },
         },
+        'page-in': {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.5s ease-out forwards',
@@ -76,6 +80,7 @@ module.exports = {
         'shimmer': 'shimmer 2s linear infinite',
         'spin-slow': 'spin-slow 8s linear infinite',
         'marquee': 'marquee 28s linear infinite',
+        'page-in': 'page-in 0.3s ease-out forwards',
       },
       backdropBlur: {
         xs: '2px',

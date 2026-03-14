@@ -17,3 +17,6 @@ export * from './integration-health.js';
 export * from './schema-snapshots.js';
 export * from './assistant-sessions.js';
 export * from './assistant-messages.js';
+export * from './approval-queue.js';
+export * from './alert-rules.js';
+export * from './login-streaks.js';

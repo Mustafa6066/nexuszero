@@ -279,6 +279,26 @@ class ApiClient {
   // Intelligence
   getIntelligenceSummary() { return this.get<any>('/intelligence/summary'); }
 
+  // Approvals
+  getApprovals(status = 'pending') { return this.get<any[]>(`/approvals?status=${status}`); }
+  getApprovalCount() { return this.get<{ count: number }>('/approvals/count'); }
+  approveItem(id: string, note?: string) { return this.post<any>(`/approvals/${id}/approve`, { note }); }
+  rejectItem(id: string, note?: string) { return this.post<any>(`/approvals/${id}/reject`, { note }); }
+  getAutonomyLevel() { return this.get<{ autonomyLevel: string }>('/approvals/autonomy'); }
+  setAutonomyLevel(autonomyLevel: string) { return this.patch<any>('/approvals/autonomy', { autonomyLevel }); }
+
+  // Alert Rules
+  getAlertRules() { return this.get<any[]>('/alerts'); }
+  createAlertRule(data: any) { return this.post<any>('/alerts', data); }
+  updateAlertRule(id: string, data: any) { return this.patch<any>(`/alerts/${id}`, data); }
+  deleteAlertRule(id: string) { return this.delete(`/alerts/${id}`); }
+
+  // Streaks
+  getMyStreak() { return this.get<any>('/streaks/me'); }
+
+  // Compound Insights
+  getCompoundInsights() { return this.get<any[]>('/insights'); }
+
   // Scanner
   runPreflightScan(websiteUrl: string) { return this.post<any>('/scanner/preflight', { websiteUrl }); }
 

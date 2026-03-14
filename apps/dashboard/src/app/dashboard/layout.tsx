@@ -21,7 +21,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <FloatingNav />
       <main className={mainClassName}>
         {!isOnboarding && <MissionRail />}
-        {children}
+        <div key={pathname} className="animate-page-in">
+          {children}
+        </div>
       </main>
       <CommandPalette />
       <AssistantPanel />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
@@ -14,6 +14,7 @@ const STATUSES = ['active', 'paused', 'draft', 'completed'] as const;
 export default function CampaignsPage() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [filter, setFilter] = useState<string>('all');
   const [showCreate, setShowCreate] = useState(false);
 
@@ -42,7 +43,10 @@ export default function CampaignsPage() {
           <h1 className="text-2xl font-bold">Campaigns</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage your advertising campaigns across all platforms.</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>+ New Campaign</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => router.push('/dashboard/campaigns/compare')}>Compare</Button>
+          <Button onClick={() => setShowCreate(true)}>+ New Campaign</Button>
+        </div>
       </div>
 
       <div className="flex gap-2">

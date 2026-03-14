@@ -34,7 +34,9 @@ export function CommandPalette() {
     setSelectedIndex(0);
   }, []);
 
-  // Keyboard shortcut: Cmd+K / Ctrl+K
+  // Keyboard shortcut: Cmd+K / Ctrl+K and ? for shortcuts overlay
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -42,12 +44,21 @@ export function CommandPalette() {
         setIsOpen((prev: boolean) => !prev);
       }
       if (e.key === 'Escape') {
+        if (showShortcuts) {
+          setShowShortcuts(false);
+          return;
+        }
         close();
+      }
+      // ? key (only when not typing in an input)
+      if (e.key === '?' && !isOpen && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        setShowShortcuts((prev) => !prev);
       }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [close]);
+  }, [close, isOpen, showShortcuts]);
 
   // Focus input when opened
   useEffect(() => {
@@ -143,7 +154,48 @@ export function CommandPalette() {
     }
   }, [selectedIndex]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !showShortcuts) return null;
+
+  if (showShortcuts) {
+    const shortcuts = [
+      { keys: ['⌘', 'K'], label: 'Open command palette' },
+      { keys: ['?'], label: 'Show keyboard shortcuts' },
+      { keys: ['G', 'D'], label: 'Go to Dashboard' },
+      { keys: ['G', 'C'], label: 'Go to Campaigns' },
+      { keys: ['G', 'A'], label: 'Go to Agents' },
+      { keys: ['G', 'N'], label: 'Go to Analytics' },
+      { keys: ['G', 'I'], label: 'Go to Integrations' },
+      { keys: ['G', 'S'], label: 'Go to Settings' },
+      { keys: ['Esc'], label: 'Close overlay / panel' },
+    ];
+    return (
+      <>
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm" onClick={() => setShowShortcuts(false)} />
+        <div className="fixed inset-0 z-[61] flex items-center justify-center px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+              <h3 className="text-sm font-semibold">Keyboard Shortcuts</h3>
+              <kbd className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">?</kbd>
+            </div>
+            <div className="p-4 space-y-2.5">
+              {shortcuts.map((s) => (
+                <div key={s.label} className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{s.label}</span>
+                  <div className="flex items-center gap-1">
+                    {s.keys.map((k) => (
+                      <kbd key={k} className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground min-w-[20px] text-center">
+                        {k}
+                      </kbd>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   let flatIndex = -1;
 
