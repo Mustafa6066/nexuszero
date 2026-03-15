@@ -8,11 +8,13 @@ import {
   ArrowRight,
   CheckCircle2,
   ChevronRight,
+  Eye,
   Globe,
   Layers3,
   PlayCircle,
   Radar,
   Rocket,
+  Shield,
   ShieldCheck,
   Sparkles,
   Zap,
@@ -20,9 +22,11 @@ import {
 import { api } from '@/lib/api';
 import { Badge, Button, Card } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { useLang } from '@/app/providers';
 import { CinematicOnboarding } from './cinematic-onboarding';
 
-type Step = 'mission' | 'scan' | 'snapshot' | 'connections' | 'launch';
+type Step = 'mission' | 'scan' | 'snapshot' | 'connections' | 'strategy' | 'confirm' | 'launch';
+type AutonomyMode = 'manual' | 'guardrailed' | 'autonomous';
 type PrimaryGoal = (typeof GOAL_OPTIONS)[number]['value'];
 type PrimaryChannel = (typeof CHANNEL_OPTIONS)[number]['value'];
 
@@ -61,7 +65,90 @@ interface ScanResult {
   };
 }
 
-const STEP_ORDER: Step[] = ['mission', 'scan', 'snapshot', 'connections', 'launch'];
+const STEP_ORDER: Step[] = ['mission', 'scan', 'snapshot', 'connections', 'strategy', 'confirm', 'launch'];
+
+const AUTONOMY_MODES: Array<{ value: AutonomyMode; icon: typeof Eye; label: string; description: string; detail: string }> = [
+  {
+    value: 'manual',
+    icon: Eye,
+    label: 'Observe Only',
+    description: 'Agents analyze and report. No actions are taken without your explicit approval.',
+    detail: 'Every recommendation enters the approval queue. You decide what executes.',
+  },
+  {
+    value: 'guardrailed',
+    icon: Shield,
+    label: 'Recommend & Approve',
+    description: 'Safe actions execute automatically. Changes above spend thresholds need your go-ahead.',
+    detail: 'Routine optimizations run hands-free. Budget-impacting decisions wait for you.',
+  },
+  {
+    value: 'autonomous',
+    icon: Zap,
+    label: 'Autopilot for Safe Actions',
+    description: 'Agents operate within guardrail limits. Review results in the weekly digest.',
+    detail: 'Maximum velocity. Guardrails still protect against overspend and brand risk.',
+  },
+];
+
+const AGENT_DESCRIPTIONS: Record<string, string> = {
+  seo: 'Monitors rankings, identifies keyword gaps, and generates optimized content briefs.',
+  ad: 'Allocates budget, kills underperformers, scales winners, and writes ad copy.',
+  aeo: 'Ensures your brand appears in AI-generated answers across ChatGPT, Perplexity, and Gemini.',
+  data_nexus: 'Aggregates cross-channel signals into predictive insights and anomaly alerts.',
+  creative: 'Generates AI-powered ad creatives, copy variants, and visual assets.',
+};
+
+const MVP_THRESHOLDS: Record<string, { required: string[]; alternatives: string[][]; label: string }> = {
+  lead_generation: {
+    required: ['google_analytics'],
+    alternatives: [['hubspot', 'salesforce']],
+    label: 'Analytics + CRM',
+  },
+  reduce_ad_waste: {
+    required: ['google_analytics'],
+    alternatives: [['google_ads', 'meta_ads']],
+    label: 'Analytics + Ad platform',
+  },
+  increase_ai_visibility: {
+    required: [],
+    alternatives: [['google_search_console']],
+    label: 'Search Console (or scan-only)',
+  },
+  launch_faster: {
+    required: ['google_analytics'],
+    alternatives: [['google_ads', 'meta_ads', 'wordpress', 'shopify']],
+    label: 'Analytics + one channel',
+  },
+  diagnose_issues: {
+    required: [],
+    alternatives: [],
+    label: 'Scan results are enough',
+  },
+};
+
+function checkMvpThreshold(goal: string, connectedPlatforms: string[]): { met: boolean; metCount: number; totalRequired: number; label: string } {
+  const threshold = MVP_THRESHOLDS[goal] ?? MVP_THRESHOLDS.diagnose_issues;
+  const connected = new Set(connectedPlatforms);
+
+  let metCount = 0;
+  let totalRequired = threshold.required.length + threshold.alternatives.length;
+
+  // Check required platforms
+  for (const platform of threshold.required) {
+    if (connected.has(platform)) metCount++;
+  }
+
+  // Check alternative groups (at least one from each group)
+  for (const group of threshold.alternatives) {
+    if (group.some((p) => connected.has(p))) metCount++;
+  }
+
+  // diagnose_issues has no requirements
+  if (totalRequired === 0) return { met: true, metCount: 0, totalRequired: 0, label: threshold.label };
+
+  return { met: metCount >= totalRequired, metCount, totalRequired, label: threshold.label };
+}
 
 const GOAL_OPTIONS = [
   { value: 'lead_generation', label: 'Improve lead generation' },
@@ -176,6 +263,7 @@ function buildOpportunitySnapshot(result: ScanResult, primaryGoal: string) {
 export function OnboardingShell() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { t } = useLang();
   const [step, setStep] = useState<Step>('mission');
   const [form, setForm] = useState<OnboardingFormState>({
     websiteUrl: '',
@@ -185,6 +273,7 @@ export function OnboardingShell() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [autonomyMode, setAutonomyMode] = useState<AutonomyMode>('guardrailed');
 
   const { data: tenant, isLoading: tenantLoading } = useQuery({
     queryKey: ['tenant', 'me'],
@@ -214,8 +303,14 @@ export function OnboardingShell() {
     },
   });
 
+  const autonomyMutation = useMutation({
+    mutationFn: (level: AutonomyMode) => api.setAutonomyLevel(level),
+  });
+
   const onboardingState = getOnboardingState(tenant);
   const tenantWebsite = tenant?.website ?? tenant?.websiteUrl ?? '';
+  const connectedPlatforms = (integrations ?? []).filter((i: any) => i.status === 'active' || i.status === 'pending').map((i: any) => i.platform);
+  const mvpStatus = checkMvpThreshold(form.primaryGoal, connectedPlatforms);
 
   useEffect(() => {
     if (!form.websiteUrl && tenantWebsite) {
@@ -283,7 +378,7 @@ export function OnboardingShell() {
   }
 
   if (step === 'launch') {
-    return <CinematicOnboarding websiteUrl={form.websiteUrl} onComplete={() => router.push('/dashboard')} />;
+    return <CinematicOnboarding websiteUrl={form.websiteUrl} primaryGoal={form.primaryGoal} primaryChannel={form.primaryChannel} onComplete={() => router.push('/dashboard')} />;
   }
 
   return (
@@ -304,7 +399,7 @@ export function OnboardingShell() {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="mt-6 grid grid-cols-3 gap-2 sm:grid-cols-7">
             {STEP_ORDER.map((item, index) => {
               const isActive = item === step;
               const isDone = STEP_ORDER.indexOf(step) > index;
@@ -318,13 +413,15 @@ export function OnboardingShell() {
                     !isActive && !isDone && 'border-border/50 bg-background/30 text-muted-foreground',
                   )}
                 >
-                  <div className="font-medium capitalize">{item}</div>
+                  <div className="font-medium capitalize">{item === 'confirm' ? 'Go Live' : item}</div>
                   <div className="mt-1 text-[11px] opacity-80">
                     {item === 'mission' && 'Capture goals'}
                     {item === 'scan' && 'Run analysis'}
-                    {item === 'snapshot' && 'See the fastest wins'}
-                    {item === 'connections' && 'Choose setup path'}
-                    {item === 'launch' && 'Provision workspace'}
+                    {item === 'snapshot' && 'See fastest wins'}
+                    {item === 'connections' && 'Choose path'}
+                    {item === 'strategy' && 'Pick mode'}
+                    {item === 'confirm' && 'Review launch'}
+                    {item === 'launch' && 'Provision'}
                   </div>
                 </div>
               );
@@ -583,6 +680,35 @@ export function OnboardingShell() {
 
                 <Card className="rounded-[1.6rem] border-border/60 bg-background/45 p-6">
                   <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-primary/80">Minimum viable setup</h3>
+
+                  {/* MVP threshold progress */}
+                  {mvpStatus.totalRequired > 0 ? (
+                    <div className="mt-4 rounded-2xl border border-border/50 bg-background/35 p-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-foreground">{mvpStatus.label}</span>
+                        <span className={cn('text-xs font-semibold', mvpStatus.met ? 'text-green-400' : 'text-amber-400')}>
+                          {mvpStatus.metCount}/{mvpStatus.totalRequired} met
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary/60">
+                        <div
+                          className={cn('h-full rounded-full transition-all duration-500', mvpStatus.met ? 'bg-green-500' : 'bg-amber-500')}
+                          style={{ width: `${Math.round((mvpStatus.metCount / mvpStatus.totalRequired) * 100)}%` }}
+                        />
+                      </div>
+                      {mvpStatus.met ? (
+                        <p className="mt-2 text-xs text-green-400">You have met the minimum threshold. Ready to continue.</p>
+                      ) : (
+                        <p className="mt-2 text-xs text-muted-foreground">Connect the recommended platforms above to unlock full automation for your goal.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-2xl border border-green-500/15 bg-green-500/5 p-4">
+                      <p className="text-sm text-green-400 font-medium">No connections required</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Scan results alone provide enough signal for your goal.</p>
+                    </div>
+                  )}
+
                   <div className="mt-4 rounded-2xl border border-primary/15 bg-primary/8 p-4">
                     <div className="text-sm font-medium text-foreground">You do not need a perfect setup to continue.</div>
                     <p className="mt-2 text-sm leading-7 text-muted-foreground">
@@ -606,18 +732,220 @@ export function OnboardingShell() {
                   </div>
 
                   <div className="mt-6 flex flex-col gap-3">
-                    <Button onClick={() => setStep('launch')} className="gap-1.5">
-                      Continue with guided setup
+                    <Button onClick={() => setStep('strategy')} className="gap-1.5">
+                      {mvpStatus.met ? (t.onboardingConfirm?.mvpMet || 'Continue to strategy review') : (t.onboardingConfirm?.mvpNotMet || 'Continue with limited setup')}
                       <ArrowRight size={14} />
-                    </Button>
-                    <Button variant="outline" onClick={() => setStep('launch')}>
-                      Skip to limited automation
                     </Button>
                     <Button variant="ghost" onClick={() => setStep('snapshot')}>
                       Back to snapshot
                     </Button>
                   </div>
                 </Card>
+              </div>
+            </div>
+          )}
+
+          {step === 'strategy' && (
+            <div className="space-y-6">
+              <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                <Card className="rounded-[1.6rem] border-border/60 bg-background/45 p-6">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/80">{t.onboardingStrategy?.badge || 'Strategy Review'}</p>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t.onboardingStrategy?.heading || 'How should your agents operate?'}</h2>
+                  <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                    {t.onboardingStrategy?.subtitle || 'Choose how much autonomy the agent swarm should have. You can change this anytime from Settings.'}
+                  </p>
+
+                  <div className="mt-6 space-y-3">
+                    {AUTONOMY_MODES.map((mode) => {
+                      const Icon = mode.icon;
+                      const isSelected = autonomyMode === mode.value;
+                      return (
+                        <button
+                          key={mode.value}
+                          type="button"
+                          onClick={() => setAutonomyMode(mode.value)}
+                          className={cn(
+                            'w-full rounded-2xl border p-4 text-start transition-all',
+                            isSelected
+                              ? 'border-primary/40 bg-primary/10 ring-2 ring-primary/20'
+                              : 'border-border/50 bg-background/35 hover:bg-background/55',
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={cn('rounded-xl p-2', isSelected ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground')}>
+                              <Icon size={18} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-foreground">{mode.label}</span>
+                                {mode.value === 'guardrailed' && (
+                                  <Badge variant="outline">{t.onboardingStrategy?.recommended || 'Recommended'}</Badge>
+                                )}
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">{mode.description}</p>
+                            </div>
+                            <div className={cn(
+                              'h-5 w-5 shrink-0 rounded-full border-2 transition-all',
+                              isSelected ? 'border-primary bg-primary' : 'border-border',
+                            )}>
+                              {isSelected && <div className="m-auto mt-[3px] h-2 w-2 rounded-full bg-white" />}
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <p className="mt-3 text-xs text-muted-foreground/80 ltr:ml-12 rtl:mr-12">{mode.detail}</p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Card>
+
+                <Card className="rounded-[1.6rem] border-border/60 bg-background/45 p-6">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-primary/80">{t.onboardingStrategy?.operatingPlan || 'Your operating plan'}</h3>
+                  {snapshot && (
+                    <div className="mt-4 rounded-2xl border border-border/50 bg-background/35 p-4">
+                      <div className="text-sm font-medium text-foreground">{t.onboardingStrategy?.recommendedMission || 'Recommended first mission'}</div>
+                      <p className="mt-2 text-sm leading-7 text-muted-foreground">{snapshot.mission}</p>
+                    </div>
+                  )}
+
+                  <div className="mt-5">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-3">{t.onboardingStrategy?.agentsActivate || 'Agents that will activate'}</div>
+                    <div className="space-y-2">
+                      {(scanResult?.recommendedAgents ?? []).map((agent) => (
+                        <div key={agent} className="flex items-start gap-3 rounded-xl border border-border/40 bg-background/35 p-3">
+                          <Rocket size={14} className="mt-0.5 text-primary shrink-0" />
+                          <div>
+                            <div className="text-sm font-semibold text-foreground">{prettifyPlatform(agent)} Agent</div>
+                            <p className="text-xs text-muted-foreground mt-0.5">{AGENT_DESCRIPTIONS[agent] ?? 'Autonomous marketing agent.'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-2">{t.onboardingStrategy?.startsImmediately || 'What starts immediately'}</div>
+                    <div className="space-y-1.5 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2"><CheckCircle2 size={12} className="text-green-400" /> {t.onboardingStrategy?.monitorKeywords || 'Keyword and ranking tracking'}</div>
+                      <div className="flex items-center gap-2"><CheckCircle2 size={12} className="text-green-400" /> {t.onboardingStrategy?.monitorSpend || 'Spend monitoring and anomaly alerts'}</div>
+                      <div className="flex items-center gap-2"><CheckCircle2 size={12} className="text-green-400" /> {t.onboardingStrategy?.monitorAi || 'AI visibility checks across LLM platforms'}</div>
+                      <div className="flex items-center gap-2"><CheckCircle2 size={12} className="text-green-400" /> {t.onboardingStrategy?.monitorSignals || 'Cross-channel signal aggregation'}</div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  onClick={async () => {
+                    await autonomyMutation.mutateAsync(autonomyMode);
+                    setStep('confirm');
+                  }}
+                  disabled={autonomyMutation.isPending}
+                  className="gap-1.5"
+                >
+                  {autonomyMutation.isPending ? (t.onboardingStrategy?.saving || 'Saving…') : (t.onboardingStrategy?.reviewLaunch || 'Review launch summary')}
+                  <ArrowRight size={14} />
+                </Button>
+                <Button variant="outline" onClick={() => setStep('connections')}>{t.onboardingStrategy?.backToConnections || 'Back to connections'}</Button>
+              </div>
+            </div>
+          )}
+
+          {step === 'confirm' && (
+            <div className="space-y-6">
+              <Card className="rounded-[1.6rem] border-border/60 bg-background/45 p-6 sm:p-8">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/80">{t.onboardingConfirm?.badge || 'Go-Live Confirmation'}</p>
+                    <h2 className="mt-2 text-2xl font-semibold tracking-tight">{t.onboardingConfirm?.heading || 'Ready to launch your command center?'}</h2>
+                    <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                      {t.onboardingConfirm?.subtitle || 'Review what you are approving. Once launched, agents begin their first monitoring cycle within minutes.'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-primary/15 bg-primary/10 p-4 text-primary">
+                    <Rocket size={28} />
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {/* Connected Platforms */}
+                  <div className="rounded-2xl border border-border/50 bg-background/35 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t.onboardingConfirm?.connectedPlatforms || 'Connected Platforms'}</div>
+                    {connectedPlatforms.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {connectedPlatforms.map((p: string) => (
+                          <Badge key={p} variant="success">{prettifyPlatform(p)}</Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">{t.onboardingConfirm?.scanOnly || 'Scan-only mode — platforms can be added later.'}</p>
+                    )}
+                  </div>
+
+                  {/* Agents Activating */}
+                  <div className="rounded-2xl border border-border/50 bg-background/35 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t.onboardingConfirm?.agentsActivating || 'Agents Activating'}</div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(scanResult?.recommendedAgents ?? []).map((agent) => (
+                        <Badge key={agent} variant="outline">{prettifyPlatform(agent)}</Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Autonomy Mode */}
+                  <div className="rounded-2xl border border-border/50 bg-background/35 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t.onboardingConfirm?.autonomyMode || 'Autonomy Mode'}</div>
+                    <div className="mt-3">
+                      {(() => {
+                        const mode = AUTONOMY_MODES.find((m) => m.value === autonomyMode)!;
+                        const Icon = mode.icon;
+                        return (
+                          <div className="flex items-center gap-2">
+                            <Icon size={16} className="text-primary" />
+                            <span className="text-sm font-semibold text-foreground">{mode.label}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Approval behavior callout */}
+                <div className={cn(
+                  'mt-5 rounded-2xl border p-4',
+                  autonomyMode === 'manual' && 'border-blue-500/20 bg-blue-500/5',
+                  autonomyMode === 'guardrailed' && 'border-amber-500/20 bg-amber-500/5',
+                  autonomyMode === 'autonomous' && 'border-green-500/20 bg-green-500/5',
+                )}>
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    {autonomyMode === 'manual' && <><Eye size={14} className="text-blue-400" /> {t.onboardingConfirm?.approvalManual || 'All agent actions will wait for your approval'}</>}
+                    {autonomyMode === 'guardrailed' && <><Shield size={14} className="text-amber-400" /> {t.onboardingConfirm?.approvalGuardrailed || 'Only changes above your guardrail limits need approval'}</>}
+                    {autonomyMode === 'autonomous' && <><Zap size={14} className="text-green-400" /> {t.onboardingConfirm?.approvalAutonomous || 'Agents will execute freely — review in weekly digest'}</>}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {autonomyMode === 'manual' && (t.onboardingConfirm?.approvalManualDetail || 'Every recommendation queues for review. Nothing runs without your explicit go-ahead.')}
+                    {autonomyMode === 'guardrailed' && (t.onboardingConfirm?.approvalGuardrailedDetail || 'Routine optimizations run hands-free. Budget-impacting decisions wait for your approval.')}
+                    {autonomyMode === 'autonomous' && (t.onboardingConfirm?.approvalAutonomousDetail || 'Maximum velocity with guardrail protection. Check the weekly digest for a full summary.')}
+                  </p>
+                </div>
+
+                {/* Mission reminder */}
+                {snapshot && (
+                  <div className="mt-5 rounded-2xl border border-border/50 bg-background/35 p-4">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{t.onboardingConfirm?.yourMission || 'Your mission'}</div>
+                    <p className="mt-2 text-sm text-foreground">{snapshot.mission}</p>
+                  </div>
+                )}
+              </Card>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button onClick={() => setStep('launch')} className="gap-2 bg-gradient-to-r from-primary to-green-600 hover:from-primary/90 hover:to-green-600/90">
+                  <Rocket size={16} />
+                  {t.onboardingConfirm?.launchButton || 'Launch My Command Center'}
+                </Button>
+                <Button variant="outline" onClick={() => setStep('strategy')}>{t.onboardingConfirm?.goBack || 'Go back'}</Button>
               </div>
             </div>
           )}

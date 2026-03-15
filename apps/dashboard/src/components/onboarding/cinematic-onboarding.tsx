@@ -3,7 +3,42 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { ArrowRight, Check, Loader2, Plug, Search, Rocket, AlertCircle, RefreshCw } from 'lucide-react';
+import { ArrowRight, Check, Loader2, Plug, Search, Rocket, AlertCircle, RefreshCw, Target } from 'lucide-react';
+import { useLang } from '@/app/providers';
+
+/* ─── First Mission routing by goal ─── */
+const FIRST_MISSIONS: Record<string, { title: string; description: string; route: string; cta: string }> = {
+  lead_generation: {
+    title: 'Review your attribution baseline',
+    description: 'Your analytics setup is live. Open the attribution dashboard to see where leads originate and where signal gaps exist.',
+    route: '/dashboard/analytics',
+    cta: 'Open Attribution Dashboard',
+  },
+  reduce_ad_waste: {
+    title: 'Approve the top ad waste reductions',
+    description: 'The Ad Agent has identified initial spend inefficiencies. Review the approval queue to accept or override the first recommendations.',
+    route: '/dashboard/approvals',
+    cta: 'Review Approval Queue',
+  },
+  increase_ai_visibility: {
+    title: 'Review your AI visibility gaps',
+    description: 'The AEO Agent has started tracking your brand across ChatGPT, Perplexity, and Gemini. See where you appear and where you are missing.',
+    route: '/dashboard/aeo',
+    cta: 'View AI Visibility',
+  },
+  launch_faster: {
+    title: 'Review your first creative pack',
+    description: 'The Creative Engine has generated initial ad variants based on your brand and goals. Review, edit, and approve before launch.',
+    route: '/dashboard/creatives',
+    cta: 'Open Creative Engine',
+  },
+  diagnose_issues: {
+    title: 'Review your diagnostic report',
+    description: 'The scanner has mapped your stack, identified risks, and scored your readiness. Dig into the full report to prioritize fixes.',
+    route: '/dashboard/scanner',
+    cta: 'Open Diagnostic Report',
+  },
+};
 
 /* ─── Visual step mapping ─── */
 type VisualStep = 'connecting' | 'analyzing' | 'launching';
@@ -79,7 +114,8 @@ interface ActivityItem {
   timestamp: number;
 }
 
-export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: string; onComplete?: () => void }) {
+export function CinematicOnboarding({ websiteUrl, primaryGoal, primaryChannel, onComplete }: { websiteUrl: string; primaryGoal?: string; primaryChannel?: string; onComplete?: () => void }) {
+  const { t } = useLang();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState<VisualStep>('connecting');
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -196,7 +232,8 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
 
   function handleContinue() {
     onComplete?.();
-    router.push('/dashboard');
+    const mission = FIRST_MISSIONS[primaryGoal ?? ''];
+    router.push(mission?.route ?? '/dashboard');
   }
 
   function handleRetry() {
@@ -365,33 +402,60 @@ export function CinematicOnboarding({ websiteUrl, onComplete }: { websiteUrl: st
           </div>
         )}
 
-        {isComplete && showSuccessScreen && (
-          <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-8 text-center space-y-4 animate-fade-in">
-            <div className="mx-auto w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center ring-4 ring-green-500/10">
-              <Check size={32} className="text-green-400" />
+        {isComplete && showSuccessScreen && (() => {
+          const mission = FIRST_MISSIONS[primaryGoal ?? ''];
+          return (
+            <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-8 space-y-5 animate-fade-in">
+              <div className="flex items-center justify-center">
+                <div className="mx-auto w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center ring-4 ring-green-500/10">
+                  <Check size={32} className="text-green-400" />
+                </div>
+              </div>
+              <div className="text-center">
+                <h2 className="text-xl font-bold">{t.onboardingMission?.commandCenterLive || 'Your Command Center is Live'}</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {typeof t.onboardingMission?.insightsFound === 'function' ? t.onboardingMission.insightsFound(discoveries.length) : `Your AI agents found ${discoveries.length} key insights during setup.`}
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                {discoveries.map((d) => (
+                  <span key={d.label} className="inline-flex items-center gap-1 rounded-full bg-card/80 border border-border px-3 py-1 text-xs">
+                    <span>{d.icon}</span> {d.label}: <span className="font-semibold">{d.value}</span>
+                  </span>
+                ))}
+              </div>
+
+              {/* First Mission card */}
+              {mission && (
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 text-start">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary/80">
+                    <Target size={12} /> {t.onboardingMission?.firstMission || 'Your First Mission'}
+                  </div>
+                  <h3 className="mt-2 text-base font-semibold text-foreground">{mission.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{mission.description}</p>
+                </div>
+              )}
+
+              <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <button
+                  onClick={handleContinue}
+                  className="btn-glow inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-green-600 px-8 py-3 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  {mission?.cta ?? 'Open Command Center'}
+                  <ArrowRight size={16} />
+                </button>
+                {mission && (
+                  <button
+                    onClick={() => { onComplete?.(); router.push('/dashboard'); }}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t.onboardingMission?.openDashboard || 'Open full dashboard instead'}
+                  </button>
+                )}
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold">Setup Complete!</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Your AI agents found {discoveries.length} key insights during setup.
-              </p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-2">
-              {discoveries.map((d) => (
-                <span key={d.label} className="inline-flex items-center gap-1 rounded-full bg-card/80 border border-border px-3 py-1 text-xs">
-                  <span>{d.icon}</span> {d.label}: <span className="font-semibold">{d.value}</span>
-                </span>
-              ))}
-            </div>
-            <button
-              onClick={handleContinue}
-              className="btn-glow inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-green-600 px-8 py-3 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Open Command Center
-              <ArrowRight size={16} />
-            </button>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
