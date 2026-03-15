@@ -94,7 +94,7 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
         icon: Rocket,
         eyebrow: t.workspaceGuidance.resumeSetup,
         title: t.workspaceGuidance.inSetupMode,
-        detail: `Resume the onboarding shell to connect the stack, provision the workspace, and move into a first mission instead of configuring things by hand.${intelligence?.journey?.onboardingProgress != null ? ` Progress: ${intelligence.journey.onboardingProgress}%.` : ''}`,
+        detail: `${t.workspaceGuidance.detailResumeOnboarding}${intelligence?.journey?.onboardingProgress != null ? ` ${t.workspaceGuidance.progressLabel(intelligence.journey.onboardingProgress)}` : ''}`,
         cta: t.workspaceGuidance.resumeOnboarding,
         action: () => router.push('/dashboard/onboarding'),
         tone: 'primary' as const,
@@ -105,8 +105,8 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
       return {
         icon: Link2,
         eyebrow: t.workspaceGuidance.nextUnlock,
-        title: `Queue ${PLATFORM_LABELS[firstDisconnected.platform] ?? firstDisconnected.platform} for connection.`,
-        detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? 'This is the fastest way to deepen the workspace context without restarting setup.',
+        title: t.workspaceGuidance.titleQueuePlatform(PLATFORM_LABELS[firstDisconnected.platform] ?? firstDisconnected.platform),
+        detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? t.workspaceGuidance.detailQueuePlatform,
         cta: connectMutation.isPending ? t.workspaceGuidance.queueing : t.workspaceGuidance.queueConnection,
         action: () => connectMutation.mutate(firstDisconnected.platform),
         tone: 'primary' as const,
@@ -117,8 +117,8 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
       return {
         icon: AlertTriangle,
         eyebrow: t.workspaceGuidance.riskWatch,
-        title: `${degraded.length} integration${degraded.length > 1 ? 's are' : ' is'} limiting decision quality.`,
-        detail: intelligence?.dashboard?.healthWarnings?.[0] ?? 'Review connection health before asking the agents to optimize against stale or incomplete data.',
+        title: t.workspaceGuidance.titleDegradedQuality(degraded.length),
+        detail: intelligence?.dashboard?.healthWarnings?.[0] ?? t.workspaceGuidance.detailDegradedQuality,
         cta: t.workspaceGuidance.reviewIntegrations,
         action: () => router.push('/dashboard/integrations'),
         tone: 'warning' as const,
@@ -129,8 +129,8 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
       return {
         icon: Sparkles,
         eyebrow: t.workspaceGuidance.firstMission,
-        title: 'Create the first campaign and let NexusZero benchmark performance.',
-        detail: intelligence?.dashboard?.surfaceGuidance?.campaigns ?? 'Once one campaign is live, the platform can move from diagnostics into optimization and creative feedback loops.',
+        title: t.workspaceGuidance.titleCreateCampaign,
+        detail: intelligence?.dashboard?.surfaceGuidance?.campaigns ?? t.workspaceGuidance.detailCreateCampaign,
         cta: t.workspaceGuidance.createCampaign,
         action: () => router.push('/dashboard/campaigns?create=true'),
         tone: 'primary' as const,
@@ -141,8 +141,8 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
       return {
         icon: Workflow,
         eyebrow: t.workspaceGuidance.agentPlanning,
-        title: 'Use NexusAI to decide which agent mix should run next.',
-        detail: intelligence?.dashboard?.surfaceGuidance?.agents ?? 'The platform has enough context to propose the highest-value agent configuration based on your stack and current activity.',
+        title: t.workspaceGuidance.titleAgentMix,
+        detail: intelligence?.dashboard?.surfaceGuidance?.agents ?? t.workspaceGuidance.detailAgentMix,
         cta: t.workspaceGuidance.askForAgentPlan,
         action: () => {
           open();
@@ -156,8 +156,8 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
       return {
         icon: Link2,
         eyebrow: t.workspaceGuidance.firstMission,
-        title: 'Start with one analytics or ad-platform connection.',
-        detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? 'A single high-value connection is enough to improve attribution confidence and unlock the next automation layer.',
+        title: t.workspaceGuidance.titleStartConnection,
+        detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? t.workspaceGuidance.detailStartConnection,
         cta: t.workspaceGuidance.openOnboarding,
         action: () => router.push('/dashboard/onboarding'),
         tone: 'primary' as const,
@@ -167,8 +167,8 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
     return {
       icon: Bot,
       eyebrow: t.workspaceGuidance.guidedNextStep,
-      title: 'Ask NexusAI for the highest-impact move on this surface.',
-        detail: intelligence?.dashboard?.surfaceGuidance?.[surface] ?? 'Use the live context from this page instead of manually reviewing every card and table.',
+      title: t.workspaceGuidance.titleAskHighestImpact,
+        detail: intelligence?.dashboard?.surfaceGuidance?.[surface] ?? t.workspaceGuidance.detailAskHighestImpact,
       cta: t.workspaceGuidance.askNexusAI,
       action: () => {
         open();

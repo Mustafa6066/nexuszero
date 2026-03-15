@@ -64,7 +64,7 @@ export function MissionRail() {
         icon: Rocket,
         eyebrow: t.missionRail.onboardingMission,
         title: t.missionRail.finishSetup,
-        detail: intelligence?.dashboard?.nextActions?.[0] ?? 'Your workspace is partially configured. Resume onboarding to connect your stack and deploy the first agent mix.',
+        detail: intelligence?.dashboard?.nextActions?.[0] ?? t.missionRail.detailOnboarding,
         cta: t.missionRail.resumeSetup,
         action: () => router.push('/dashboard/onboarding'),
       };
@@ -75,7 +75,7 @@ export function MissionRail() {
         icon: AlertTriangle,
         eyebrow: t.missionRail.attentionRequired,
         title: t.missionRail.integrationsNeedAttention(degradedIntegrations.length),
-        detail: intelligence?.dashboard?.healthWarnings?.[0] ?? 'Reconnect degraded platforms before the agents make optimization decisions with stale data.',
+        detail: intelligence?.dashboard?.healthWarnings?.[0] ?? t.missionRail.detailDegraded,
         cta: t.missionRail.reviewIntegrations,
         action: () => router.push('/dashboard/integrations'),
       };
@@ -86,7 +86,7 @@ export function MissionRail() {
         icon: Link2,
         eyebrow: t.missionRail.unlockMoreValue,
         title: t.missionRail.connectStack,
-        detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? 'Add analytics or ad platforms so NexusZero can move from diagnostics into optimization.',
+        detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? t.missionRail.detailNoIntegrations,
         cta: t.missionRail.connectPlatforms,
         action: () => router.push('/dashboard/integrations'),
       };
@@ -97,7 +97,7 @@ export function MissionRail() {
         icon: PlayCircle,
         eyebrow: t.missionRail.nextBestMove,
         title: t.missionRail.createFirstCampaign,
-        detail: intelligence?.dashboard?.surfaceGuidance?.campaigns ?? 'A live campaign gives Data Nexus, Ad Agent, and Creatives enough signal to start producing recommendations.',
+        detail: intelligence?.dashboard?.surfaceGuidance?.campaigns ?? t.missionRail.detailNoCampaigns,
         cta: t.missionRail.openCampaigns,
         action: () => router.push('/dashboard/campaigns?create=true'),
       };
@@ -108,7 +108,7 @@ export function MissionRail() {
         icon: Sparkles,
         eyebrow: t.missionRail.guidedAction,
         title: t.missionRail.askNexusAIOptimization,
-        detail: intelligence?.dashboard?.surfaceGuidance?.agents ?? 'Your stack is connected, but no agents are currently running. Pull a fresh recommendation from the intelligence layer.',
+        detail: intelligence?.dashboard?.surfaceGuidance?.agents ?? t.missionRail.detailNoAgents,
         cta: t.missionRail.askNexusAI,
         action: () => {
           open();
@@ -121,7 +121,7 @@ export function MissionRail() {
       icon: Bot,
       eyebrow: t.missionRail.systemLive,
       title: t.missionRail.agentsWorking(activeAgents.length),
-      detail: intelligence?.dashboard?.surfaceGuidance?.overview ?? 'Review live activity and recent changes, or ask NexusAI to summarize the strongest win opportunity across your current campaigns.',
+        detail: intelligence?.dashboard?.surfaceGuidance?.overview ?? t.missionRail.detailSystemLive,
       cta: t.missionRail.openAgentFleet,
       action: () => router.push('/dashboard/agents'),
     };

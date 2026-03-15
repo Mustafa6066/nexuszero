@@ -8,8 +8,13 @@ import { useLang } from '@/app/providers';
 
 export function OverviewIntelligencePanel({ intelligence }: { intelligence?: DashboardOverviewIntelligence | null }) {
   const router = useRouter();
-  const panel = getOverviewPanelData(intelligence);
   const { t } = useLang();
+  const panel = getOverviewPanelData(intelligence, {
+    title: t.overviewIntelligence.fallbackMissionTitle,
+    detail: t.overviewIntelligence.fallbackMissionDetail,
+    actionLabel: t.overviewIntelligence.fallbackMissionAction,
+    actionPath: '/dashboard',
+  });
 
   return (
     <div className="space-y-4">

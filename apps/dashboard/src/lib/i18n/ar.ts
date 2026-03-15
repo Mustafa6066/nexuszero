@@ -299,6 +299,23 @@ const ar: Translations = {
     createFirstCampaign: 'أنشئ أول حملة للبدء',
     milestones: 'المعالم',
     dataUnavailable: 'بيانات لوحة التحكم غير متوفرة مؤقتاً. التنقل يبقى نشطاً أثناء إعادة الاتصال.',
+    // Daily brief dynamic strings
+    briefNextMove: (action: string) => `الخطوة التالية الموصى بها: ${action}`,
+    briefRevenueUp: (pct: string) => `الإيرادات ارتفعت ${pct} مقارنة بالفترة السابقة.`,
+    briefRevenueDown: (pct: string) => `الإيرادات انخفضت ${pct} مقارنة بالفترة السابقة.`,
+    briefRevenueTrend: 'اتجاه الإيرادات لا يزال قيد التحديد.',
+    briefAgentsActive: (count: number) => `${count} وكيل${count > 1 ? ' يعالجون' : ' يعالج'} المهام بنشاط الآن.`,
+    briefNoAgents: 'لا يوجد وكلاء يعملون حالياً.',
+    briefIntegrationsAttention: (count: number) => `${count} تكامل${count > 1 ? 'ات تحتاج' : ' يحتاج'} انتباهاً قبل أن تعمل طبقة الأتمتة بثقة كاملة.`,
+    briefIntegrationsStable: 'صحة التكاملات تبدو مستقرة عبر المنظومة المتصلة.',
+    // Attention items detail strings
+    degradedPlatforms: (count: number) => `${count} منصة تُبلّغ عن حالة متدهورة أو خطأ.`,
+    disconnectedPlatforms: (count: number) => `${count} منصة موصى بها لا تزال غير متصلة.`,
+    // Next best move detail fallbacks
+    nbmDegradedDetail: 'المنصة ترصد اتصالات متدهورة. أصلحها أولاً لتبقى التوصيات والأتمتة موثوقة.',
+    nbmNoAgentsDetail: 'مساحة العمل متصلة، لكن لم يتم نشر وكلاء بعد. افتح الأسطول وابدأ الأتمتة الموجهة.',
+    nbmNoCampaignsDetail: 'بيانات الحملات تُطلق تقارير أفضل وإرشادات إبداعية وتوصيات الوكلاء.',
+    nbmDefaultDetail: 'مساحة العمل تمتلك سياقاً كافياً لإنتاج إجراء مستهدف عبر الحملات والوكلاء والتحليلات.',
   },
 
   // ─── Campaigns ────────────────────────────────────────────────────
@@ -624,6 +641,12 @@ const ar: Translations = {
     systemLive: 'النظام يعمل',
     agentsWorking: (count: number) => `${count} وكيل${count > 1 ? ' يعملون' : ' يعمل'} الآن.`,
     openAgentFleet: 'فتح أسطول الوكلاء',
+    detailOnboarding: 'مساحة العمل مُعدّة جزئياً. استأنف الإعداد لربط منظومتك ونشر أول مزيج وكلاء.',
+    detailDegraded: 'أعد ربط المنصات المتدهورة قبل أن يتخذ الوكلاء قرارات تحسين ببيانات قديمة.',
+    detailNoIntegrations: 'أضف منصات تحليلات أو إعلانات ليتمكن NexusZero من الانتقال من التشخيص إلى التحسين.',
+    detailNoCampaigns: 'حملة مباشرة تمنح Data Nexus و Ad Agent و Creatives إشارة كافية لبدء إنتاج التوصيات.',
+    detailNoAgents: 'منظومتك متصلة، لكن لا يوجد وكلاء يعملون حالياً. اسحب توصية جديدة من طبقة الذكاء.',
+    detailSystemLive: 'راجع النشاط المباشر والتغييرات الأخيرة، أو اطلب من NexusAI تلخيص أقوى فرصة فوز عبر حملاتك الحالية.',
   },
 
   // ─── Header ───────────────────────────────────────────────────────
@@ -660,6 +683,9 @@ const ar: Translations = {
     opportunitiesEmpty: 'لا توجد فرص إضافية في الطابور حاليًا.',
     topRisks: 'أبرز المخاطر',
     risksEmpty: 'لم تظهر مخاطر حرجة من طبقة الذكاء حاليًا.',
+    fallbackMissionTitle: 'حوّل أحدث إشارة إلى قرار تشغيلي.',
+    fallbackMissionDetail: 'استخدم طبقة ذكاء لوحة التحكم لتحديد الإجراء التالي الجدير بالتنفيذ.',
+    fallbackMissionAction: 'مراجعة لوحة التحكم',
   },
 
   // ─── Tier Gate Overlay ────────────────────────────────────────────
@@ -779,6 +805,20 @@ const ar: Translations = {
     openOnboarding: 'فتح الإعداد',
     guidedNextStep: 'الخطوة التالية الموجّهة',
     askNexusAI: 'اسأل NexusAI',
+    detailResumeOnboarding: 'استأنف هيكل الإعداد لربط المنظومة وتجهيز مساحة العمل والانتقال إلى المهمة الأولى بدلاً من الإعداد اليدوي.',
+    progressLabel: (pct: number) => `التقدم: ${pct}%.`,
+    titleQueuePlatform: (platform: string) => `ضع ${platform} في طابور الاتصال.`,
+    detailQueuePlatform: 'هذه أسرع طريقة لتعميق سياق مساحة العمل دون إعادة تشغيل الإعداد.',
+    titleDegradedQuality: (count: number) => `${count} تكامل${count > 1 ? 'ات تُقيّد' : ' يُقيّد'} جودة القرارات.`,
+    detailDegradedQuality: 'راجع صحة الاتصال قبل طلب تحسين الوكلاء ببيانات قديمة أو ناقصة.',
+    titleCreateCampaign: 'أنشئ أول حملة ودع NexusZero يقيّم الأداء.',
+    detailCreateCampaign: 'بمجرد أن تكون حملة واحدة مباشرة، يمكن للمنصة الانتقال من التشخيص إلى حلقات التحسين والتغذية الإبداعية.',
+    titleAgentMix: 'استخدم NexusAI لتحديد مزيج الوكلاء الأنسب.',
+    detailAgentMix: 'المنصة تمتلك سياقاً كافياً لاقتراح إعداد الوكلاء الأعلى قيمة بناءً على منظومتك ونشاطك الحالي.',
+    titleStartConnection: 'ابدأ باتصال تحليلات أو منصة إعلانات واحدة.',
+    detailStartConnection: 'اتصال واحد عالي القيمة يكفي لتحسين ثقة الإسناد وفتح الطبقة التالية من الأتمتة.',
+    titleAskHighestImpact: 'اسأل NexusAI عن أعلى إجراء تأثيراً على هذا السطح.',
+    detailAskHighestImpact: 'استخدم السياق المباشر من هذه الصفحة بدلاً من مراجعة كل بطاقة وجدول يدوياً.',
   },
 } as const;
 

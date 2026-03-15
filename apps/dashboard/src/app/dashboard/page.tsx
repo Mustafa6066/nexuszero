@@ -181,42 +181,44 @@ export default function DashboardPage() {
 
   const dailyBrief = [
     intelligence?.dashboard?.nextActions?.[0]
-      ? `Next recommended move: ${intelligence.dashboard.nextActions[0]}`
+      ? t.dashboard.briefNextMove(intelligence.dashboard.nextActions[0])
       : summary?.revenueChange != null
-      ? `Revenue ${summary.revenueChange >= 0 ? 'is up' : 'is down'} ${formatPercent(Math.abs(summary.revenueChange))} versus the last period.`
-      : 'Revenue trend is still being established.',
+      ? summary.revenueChange >= 0
+        ? t.dashboard.briefRevenueUp(formatPercent(Math.abs(summary.revenueChange)))
+        : t.dashboard.briefRevenueDown(formatPercent(Math.abs(summary.revenueChange)))
+      : t.dashboard.briefRevenueTrend,
     activeAgents.length > 0
-      ? `${activeAgents.length} agent${activeAgents.length > 1 ? 's are' : ' is'} actively processing work right now.`
-      : 'No agents are actively processing right now.',
+      ? t.dashboard.briefAgentsActive(activeAgents.length)
+      : t.dashboard.briefNoAgents,
     intelligence?.dashboard?.healthWarnings?.[0]
       ? intelligence.dashboard.healthWarnings[0]
       : degradedIntegrations.length > 0
-      ? `${degradedIntegrations.length} integration${degradedIntegrations.length > 1 ? 's need' : ' needs'} attention before the automation layer can operate at full confidence.`
-      : 'Integration health looks stable across the connected stack.',
+      ? t.dashboard.briefIntegrationsAttention(degradedIntegrations.length)
+      : t.dashboard.briefIntegrationsStable,
   ];
 
   const attentionItems = [
     degradedIntegrations.length > 0
       ? {
-          title: 'Reconnect degraded integrations',
-          detail: `${degradedIntegrations.length} platform${degradedIntegrations.length > 1 ? 's are' : ' is'} reporting degraded or error state.`,
-          action: 'Review integrations',
+          title: t.dashboard.reconnectDegraded,
+          detail: t.dashboard.degradedPlatforms(degradedIntegrations.length),
+          action: t.dashboard.reviewIntegrations,
           onClick: () => router.push('/dashboard/integrations'),
         }
       : null,
     (!campaigns || campaigns.length === 0)
       ? {
-          title: 'No campaigns are live yet',
-          detail: 'Launch a first campaign to give the optimization loop real performance signal.',
-          action: 'Open campaigns',
+          title: t.dashboard.noLiveCampaigns,
+          detail: t.dashboard.launchFirst,
+          action: t.dashboard.openCampaigns,
           onClick: () => router.push('/dashboard/campaigns?create=true'),
         }
       : null,
     disconnectedIntegrations.length > 0
       ? {
-          title: 'High-value connections are still missing',
-          detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? `${disconnectedIntegrations.length} recommended platform${disconnectedIntegrations.length > 1 ? 's remain' : ' remains'} disconnected.`,
-          action: 'Connect stack',
+          title: t.dashboard.missingConnections,
+          detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? t.dashboard.disconnectedPlatforms(disconnectedIntegrations.length),
+          action: t.dashboard.connectStack,
           onClick: () => router.push('/dashboard/integrations'),
         }
       : null,
@@ -225,10 +227,10 @@ export default function DashboardPage() {
   const nextBestMove = (() => {
     if (degradedIntegrations.length > 0) {
       return {
-        eyebrow: 'Attention Required',
-        title: 'Restore integration health before the agents optimize against stale data.',
-        detail: intelligence?.dashboard?.healthWarnings?.[0] ?? 'The platform is seeing degraded connections. Fix these first so recommendations and automations stay trustworthy.',
-        cta: 'Review integrations',
+        eyebrow: t.dashboard.attentionRequired,
+        title: t.dashboard.restoreHealth,
+        detail: intelligence?.dashboard?.healthWarnings?.[0] ?? t.dashboard.nbmDegradedDetail,
+        cta: t.dashboard.reviewIntegrations,
         onClick: () => router.push('/dashboard/integrations'),
         icon: Plug,
       };
@@ -236,10 +238,10 @@ export default function DashboardPage() {
 
     if (!agents || agents.length === 0) {
       return {
-        eyebrow: 'Next Best Move',
-        title: 'Deploy or activate your first agent fleet.',
-        detail: intelligence?.dashboard?.surfaceGuidance?.agents ?? 'The workspace is live, but no agents are deployed yet. Open the fleet and move into guided automation.',
-        cta: 'Open agents',
+        eyebrow: t.dashboard.nextBestMove,
+        title: t.dashboard.deployFleet,
+        detail: intelligence?.dashboard?.surfaceGuidance?.agents ?? t.dashboard.nbmNoAgentsDetail,
+        cta: t.dashboard.openAgents,
         onClick: () => router.push('/dashboard/agents'),
         icon: Zap,
       };
@@ -247,20 +249,20 @@ export default function DashboardPage() {
 
     if (!campaigns || campaigns.length === 0) {
       return {
-        eyebrow: 'Next Best Move',
-        title: 'Create the first campaign so NexusZero has signal to optimize.',
-        detail: intelligence?.dashboard?.surfaceGuidance?.campaigns ?? 'Campaign data unlocks better reporting, creative guidance, and agent recommendations.',
-        cta: 'Create campaign',
+        eyebrow: t.dashboard.nextBestMove,
+        title: t.dashboard.createCampaignSignal,
+        detail: intelligence?.dashboard?.surfaceGuidance?.campaigns ?? t.dashboard.nbmNoCampaignsDetail,
+        cta: t.dashboard.createCampaign,
         onClick: () => router.push('/dashboard/campaigns?create=true'),
         icon: Sparkles,
       };
     }
 
     return {
-      eyebrow: 'Recommended Action',
-      title: 'Ask NexusAI to summarize the highest-impact optimization available today.',
-      detail: intelligence?.dashboard?.surfaceGuidance?.overview ?? 'The workspace has enough live context to produce a targeted next action across campaigns, agents, and analytics.',
-      cta: 'Ask NexusAI',
+      eyebrow: t.dashboard.recommendedAction,
+      title: t.dashboard.askSummarize,
+      detail: intelligence?.dashboard?.surfaceGuidance?.overview ?? t.dashboard.nbmDefaultDetail,
+      cta: t.dashboard.askNexusAI,
       onClick: () => {
         open();
         void sendMessage('Summarize the single highest-impact action I should take today based on my current campaigns, integrations, and agent activity.');

@@ -25,8 +25,8 @@ export interface DashboardOverviewIntelligence {
   highlights?: OverviewHighlight[];
 }
 
-export function getOverviewPanelData(intelligence?: DashboardOverviewIntelligence | null) {
-  const fallbackMission: OverviewMission = {
+export function getOverviewPanelData(intelligence?: DashboardOverviewIntelligence | null, fallbackMission?: OverviewMission) {
+  const defaultFallback: OverviewMission = fallbackMission ?? {
     title: 'Turn the latest signal into an operating decision.',
     detail: 'Use the dashboard intelligence layer to identify the next action worth taking.',
     actionLabel: 'Review dashboard',
@@ -36,7 +36,7 @@ export function getOverviewPanelData(intelligence?: DashboardOverviewIntelligenc
   const severityRank = { critical: 0, warning: 1, info: 2 } as const;
 
   return {
-    mission: intelligence?.mission ?? fallbackMission,
+    mission: intelligence?.mission ?? defaultFallback,
     opportunities: (intelligence?.opportunities ?? []).slice(0, 3),
     risks: [...(intelligence?.risks ?? [])]
       .sort((left, right) => severityRank[left.severity ?? 'info'] - severityRank[right.severity ?? 'info'])

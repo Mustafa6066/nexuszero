@@ -297,6 +297,23 @@ const en = {
     createFirstCampaign: 'Create your first campaign to get started',
     milestones: 'Milestones',
     dataUnavailable: 'Live dashboard data is temporarily unavailable. Navigation remains active while data reconnects.',
+    // Daily brief dynamic strings
+    briefNextMove: (action: string) => `Next recommended move: ${action}`,
+    briefRevenueUp: (pct: string) => `Revenue is up ${pct} versus the last period.`,
+    briefRevenueDown: (pct: string) => `Revenue is down ${pct} versus the last period.`,
+    briefRevenueTrend: 'Revenue trend is still being established.',
+    briefAgentsActive: (count: number) => `${count} agent${count > 1 ? 's are' : ' is'} actively processing work right now.`,
+    briefNoAgents: 'No agents are actively processing right now.',
+    briefIntegrationsAttention: (count: number) => `${count} integration${count > 1 ? 's need' : ' needs'} attention before the automation layer can operate at full confidence.`,
+    briefIntegrationsStable: 'Integration health looks stable across the connected stack.',
+    // Attention items detail strings
+    degradedPlatforms: (count: number) => `${count} platform${count > 1 ? 's are' : ' is'} reporting degraded or error state.`,
+    disconnectedPlatforms: (count: number) => `${count} recommended platform${count > 1 ? 's remain' : ' remains'} disconnected.`,
+    // Next best move detail fallbacks
+    nbmDegradedDetail: 'The platform is seeing degraded connections. Fix these first so recommendations and automations stay trustworthy.',
+    nbmNoAgentsDetail: 'The workspace is live, but no agents are deployed yet. Open the fleet and move into guided automation.',
+    nbmNoCampaignsDetail: 'Campaign data unlocks better reporting, creative guidance, and agent recommendations.',
+    nbmDefaultDetail: 'The workspace has enough live context to produce a targeted next action across campaigns, agents, and analytics.',
   },
 
   // ─── Campaigns ────────────────────────────────────────────────────
@@ -622,6 +639,12 @@ const en = {
     systemLive: 'System Live',
     agentsWorking: (count: number) => `${count} agent${count > 1 ? 's are' : ' is'} actively working right now.`,
     openAgentFleet: 'Open agent fleet',
+    detailOnboarding: 'Your workspace is partially configured. Resume onboarding to connect your stack and deploy the first agent mix.',
+    detailDegraded: 'Reconnect degraded platforms before the agents make optimization decisions with stale data.',
+    detailNoIntegrations: 'Add analytics or ad platforms so NexusZero can move from diagnostics into optimization.',
+    detailNoCampaigns: 'A live campaign gives Data Nexus, Ad Agent, and Creatives enough signal to start producing recommendations.',
+    detailNoAgents: 'Your stack is connected, but no agents are currently running. Pull a fresh recommendation from the intelligence layer.',
+    detailSystemLive: 'Review live activity and recent changes, or ask NexusAI to summarize the strongest win opportunity across your current campaigns.',
   },
 
   // ─── Header ───────────────────────────────────────────────────────
@@ -658,6 +681,9 @@ const en = {
     opportunitiesEmpty: 'No additional opportunities are queued right now.',
     topRisks: 'Top Risks',
     risksEmpty: 'No critical risks are currently surfaced by the intelligence layer.',
+    fallbackMissionTitle: 'Turn the latest signal into an operating decision.',
+    fallbackMissionDetail: 'Use the dashboard intelligence layer to identify the next action worth taking.',
+    fallbackMissionAction: 'Review dashboard',
   },
 
   // ─── Tier Gate Overlay ────────────────────────────────────────────
@@ -777,6 +803,20 @@ const en = {
     openOnboarding: 'Open onboarding',
     guidedNextStep: 'Guided Next Step',
     askNexusAI: 'Ask NexusAI',
+    detailResumeOnboarding: 'Resume the onboarding shell to connect the stack, provision the workspace, and move into a first mission instead of configuring things by hand.',
+    progressLabel: (pct: number) => `Progress: ${pct}%.`,
+    titleQueuePlatform: (platform: string) => `Queue ${platform} for connection.`,
+    detailQueuePlatform: 'This is the fastest way to deepen the workspace context without restarting setup.',
+    titleDegradedQuality: (count: number) => `${count} integration${count > 1 ? 's are' : ' is'} limiting decision quality.`,
+    detailDegradedQuality: 'Review connection health before asking the agents to optimize against stale or incomplete data.',
+    titleCreateCampaign: 'Create the first campaign and let NexusZero benchmark performance.',
+    detailCreateCampaign: 'Once one campaign is live, the platform can move from diagnostics into optimization and creative feedback loops.',
+    titleAgentMix: 'Use NexusAI to decide which agent mix should run next.',
+    detailAgentMix: 'The platform has enough context to propose the highest-value agent configuration based on your stack and current activity.',
+    titleStartConnection: 'Start with one analytics or ad-platform connection.',
+    detailStartConnection: 'A single high-value connection is enough to improve attribution confidence and unlock the next automation layer.',
+    titleAskHighestImpact: 'Ask NexusAI for the highest-impact move on this surface.',
+    detailAskHighestImpact: 'Use the live context from this page instead of manually reviewing every card and table.',
   },
 } as const;
 
