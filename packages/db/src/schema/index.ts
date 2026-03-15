@@ -20,3 +20,5 @@ export * from './assistant-messages.js';
 export * from './approval-queue.js';
 export * from './alert-rules.js';
 export * from './login-streaks.js';
+export * from './agent-actions.js';
+export * from './campaign-versions.js';

@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { withTenantDb, campaigns } from '@nexuszero/db';
+import { withTenantDb, campaigns, agentActions } from '@nexuszero/db';
 import { getCurrentTenantId } from '@nexuszero/shared';
 import { llmAnalyze } from '../llm.js';
 import { eq, and } from 'drizzle-orm';
@@ -34,6 +34,27 @@ Requested Action: ${action || 'optimize'}
 Return JSON: { recommendations: [{action, rationale, expectedImpact}], statusRecommendation: string, riskLevel: "low" | "medium" | "high" }`;
 
     const analysis = await llmAnalyze(prompt);
+
+    // Log agent action
+    try {
+      await withTenantDb(tenantId, async (db) => {
+        await db.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'campaign_management',
+          category: 'analysis',
+          reasoning: `Campaign management analysis for "${campaign.name}" (${campaign.type}/${campaign.platform}). Action: ${action || 'optimize'}.`,
+          trigger: { taskType: 'campaign_management', campaignId, action },
+          beforeState: { status: campaign.status, spend: campaign.spend, roas: campaign.roas },
+          confidence: 0.75,
+          impactMetric: 'campaign_health',
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
+    }
+
     await job.updateProgress(100);
 
     try {

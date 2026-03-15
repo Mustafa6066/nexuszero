@@ -308,6 +308,31 @@ class ApiClient {
   deployEngine(data: { websiteUrl: string; companyName: string; agents: string[]; tier: string; platforms?: string[]; skipPreflight?: boolean }) {
     return this.post<any>('/engines/deploy', data);
   }
+
+  // Agent Actions (Explainability)
+  getAgentActions(agentId: string, params?: { limit?: number; category?: string }) {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([,v]) => v != null).map(([k,v]) => [k, String(v)])).toString() : '';
+    return this.get<any[]>(`/agents/${agentId}/actions${qs}`);
+  }
+  getRecentActions(params?: { limit?: number; category?: string }) {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([,v]) => v != null).map(([k,v]) => [k, String(v)])).toString() : '';
+    return this.get<any[]>(`/agents/actions/recent${qs}`);
+  }
+  getActionDetail(actionId: string) { return this.get<any>(`/agents/actions/${actionId}`); }
+
+  // Campaign Versioning
+  getCampaignVersions(campaignId: string) { return this.get<any[]>(`/campaigns/${campaignId}/versions`); }
+  rollbackCampaign(campaignId: string, versionId: string) { return this.post<any>(`/campaigns/${campaignId}/rollback/${versionId}`); }
+
+  // Guardrails
+  getGuardrails() { return this.get<any>('/tenants/me/guardrails'); }
+  updateGuardrails(data: any) { return this.patch<any>('/tenants/me/guardrails', data); }
+
+  // Weekly Digest
+  getWeeklyDigest(days?: number) { return this.get<any>(`/intelligence/weekly-digest${days ? `?days=${days}` : ''}`); }
+
+  // Emergency Stop
+  emergencyStop() { return this.post<any>('/agents/emergency-stop'); }
 }
 
 export const api = new ApiClient();

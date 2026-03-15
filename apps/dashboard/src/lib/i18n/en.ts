@@ -212,6 +212,7 @@ const en = {
     approvals: 'Approvals',
     webhooks: 'Webhooks',
     settings: 'Settings',
+    digest: 'Digest',
     toggleTheme: 'Toggle theme',
     nexusAI: 'NexusAI',
   },
@@ -817,6 +818,64 @@ const en = {
     detailStartConnection: 'A single high-value connection is enough to improve attribution confidence and unlock the next automation layer.',
     titleAskHighestImpact: 'Ask NexusAI for the highest-impact move on this surface.',
     detailAskHighestImpact: 'Use the live context from this page instead of manually reviewing every card and table.',
+  },
+
+  // ─── Agent Actions / Explainability ───────────────────────────────
+  actions: {
+    title: 'Action Log',
+    empty: 'No actions recorded yet',
+    confidence: 'Confidence',
+    viewActions: 'View Actions',
+    emergencyStop: 'Emergency Stop',
+    emergencyStopConfirm: 'Stop all agents immediately? This will pause all active processing.',
+    backToList: '← Back to list',
+    whyTaken: 'Why this action was taken',
+    before: 'Before',
+    after: 'After',
+    trigger: 'Trigger',
+    impact: 'Impact',
+  },
+
+  // ─── Guardrails ───────────────────────────────────────────────────
+  guardrails: {
+    heading: 'Agent Guardrails',
+    description: 'Set safety limits that agents cannot exceed. These constraints protect your campaigns and budget.',
+    enabled: 'Guardrails enabled',
+    disabled: 'Guardrails disabled',
+    maxDailySpend: 'Max Daily Spend',
+    maxDailySpendDesc: 'Maximum total daily ad spend across all campaigns',
+    maxBidChange: 'Max Bid Change (%)',
+    maxBidChangeDesc: 'Maximum percentage change per bid optimization',
+    pauseOnRoas: 'Pause Campaign if ROAS Below',
+    pauseOnRoasDesc: 'Automatically pause campaigns that drop below this ROAS threshold',
+    requireApproval: 'Require Approval Above',
+    requireApprovalDesc: 'Actions affecting spend above this amount need manual approval',
+    cooldown: 'Cooldown Between Actions',
+    cooldownDesc: 'Minimum minutes between agent optimizations on the same campaign',
+    save: 'Save Guardrails',
+  },
+
+  // ─── Weekly Digest ────────────────────────────────────────────────
+  digest: {
+    heading: 'Weekly Digest',
+    subtitle: 'Summary of agent activity and impact',
+    totalActions: 'Total Actions',
+    avgImpact: 'Avg Impact',
+    categories: 'Categories',
+    agentsActive: 'Agents Active',
+    byCategory: 'Actions by Category',
+    highlights: 'Top Highlights',
+    noData: 'No agent activity in this period',
+  },
+
+  // ─── Campaign Versions ────────────────────────────────────────────
+  versions: {
+    heading: 'Version History',
+    noVersions: 'No version history yet',
+    noVersionsDesc: 'Versions are created automatically when campaigns are updated.',
+    rollback: 'Rollback',
+    rollbackConfirm: 'Rollback this campaign to the selected version?',
+    snapshot: 'Campaign State at this Version',
   },
 } as const;
 

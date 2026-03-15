@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { withTenantDb, aeoCitations, entityProfiles } from '@nexuszero/db';
+import { withTenantDb, aeoCitations, entityProfiles, agentActions } from '@nexuszero/db';
 import { eq } from 'drizzle-orm';
 import { llmAnalyzeCitations } from '../llm.js';
 import { publishAgentSignal } from '@nexuszero/queue';
@@ -96,6 +96,27 @@ export class CitationScanHandler {
           correlationId: job.data.correlationId as string,
         });
       }
+    }
+
+    // Log agent action for explainability
+    try {
+      await withTenantDb(tenantId, async (db) => {
+        await db.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'scan_citations',
+          category: 'analysis',
+          reasoning: `Scanned ${entities.length} entities across AI platforms. Found ${totalCitationsFound} citations total.`,
+          trigger: { taskType: 'scan_citations', entityCount: entities.length },
+          afterState: { entitiesScanned: entities.length, totalCitationsFound, results },
+          confidence: 0.75,
+          impactMetric: 'citations_found',
+          impactDelta: totalCitationsFound,
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
     }
 
     return {

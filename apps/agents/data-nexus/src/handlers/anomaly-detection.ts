@@ -1,5 +1,6 @@
 import type { Job } from 'bullmq';
 import { detectAnomalies } from '@nexuszero/shared';
+import { withTenantDb, agentActions } from '@nexuszero/db';
 import { queryMetricHistory, logAnomaly, insertMetricSnapshot } from '../clickhouse-client.js';
 import { llmInvestigateAnomaly } from '../llm.js';
 import { publishAgentSignal } from '@nexuszero/queue';
@@ -135,9 +136,31 @@ export class AnomalyDetectionHandler {
       }
     }
 
+    // Log agent action
+    const totalAnomalies = allAnomalies.reduce((sum, a) => sum + a.anomalies.length, 0);
+    try {
+      await withTenantDb(tenantId, async (db) => {
+        await db.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'anomaly_detection',
+          category: totalAnomalies > 0 ? 'alert' : 'analysis',
+          reasoning: `Scanned ${KEY_METRICS.length} metrics. Found ${totalAnomalies} anomalies across ${allAnomalies.length} metrics.`,
+          trigger: { taskType: 'anomaly_detection', metricsScanned: KEY_METRICS },
+          afterState: { metricsScanned: KEY_METRICS.length, anomaliesFound: totalAnomalies },
+          confidence: 0.8,
+          impactMetric: 'anomalies_detected',
+          impactDelta: totalAnomalies,
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
+    }
+
     return {
       metricsScanned: KEY_METRICS.length,
-      anomaliesFound: allAnomalies.reduce((sum, a) => sum + a.anomalies.length, 0),
+      anomaliesFound: totalAnomalies,
       details: allAnomalies,
     };
   }

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Job } from 'bullmq';
-import { withTenantDb, creatives, creativeTests } from '@nexuszero/db';
+import { withTenantDb, creatives, creativeTests, agentActions } from '@nexuszero/db';
 import {
   buildCreativeLanguageInstruction,
   enforceRtlHtmlDocument,
@@ -109,6 +109,27 @@ export class CreativeEngine {
     }).catch((error) => {
       console.warn('Failed to publish creative_generated signal:', error instanceof Error ? error.message : String(error));
     });
+
+    // Log agent action for explainability
+    try {
+      await withTenantDb(tenantId, async (db) => {
+        await db.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'generate_creative',
+          category: 'creation',
+          reasoning: `Generated ${storedVariants.length} creative variant(s) of type "${normalized.type}" for campaign ${normalized.campaignId || 'N/A'}.`,
+          trigger: { taskType: 'generate_creative', type: normalized.type, campaignId: normalized.campaignId },
+          afterState: { creativeId: storedCreative.id, variantCount: storedVariants.length, brandScore, predictedCtr },
+          confidence: brandScore ? brandScore / 100 : 0.7,
+          impactMetric: 'creative_variants',
+          impactDelta: storedVariants.length,
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
+    }
 
     await job.updateProgress(100);
 

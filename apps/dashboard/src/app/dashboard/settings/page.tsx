@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Button, Badge } from '@/components/ui';
+import { GuardrailsPanel } from '@/components/guardrails-panel';
 import { useLang } from '@/app/providers';
 
 export default function SettingsPage() {
@@ -159,6 +160,9 @@ export default function SettingsPage() {
           })}
         </div>
       </Card>
+
+      {/* Agent Guardrails */}
+      <GuardrailsPanel />
 
       <Card>
         <h3 className="text-sm font-semibold mb-4">{t.settingsPage.notificationPreferences}</h3>

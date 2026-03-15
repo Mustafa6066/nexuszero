@@ -1,6 +1,6 @@
 import type { Job } from 'bullmq';
 import { getCurrentTenantId } from '@nexuszero/shared';
-import { withTenantDb, tenants } from '@nexuszero/db';
+import { withTenantDb, tenants, agentActions } from '@nexuszero/db';
 import { eq } from 'drizzle-orm';
 import { llmGenerateKeywords } from '../llm.js';
 
@@ -41,6 +41,27 @@ export class KeywordResearchHandler {
       transactional: keywords.filter((k: any) => k.intent === 'transactional'),
       informational: keywords.filter((k: any) => k.intent === 'informational'),
     };
+
+    // Log agent action
+    try {
+      await withTenantDb(tenantId, async (db) => {
+        await db.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'keyword_research',
+          category: 'analysis',
+          reasoning: `Generated ${keywords.length} keywords — ${grouped.highPriority.length} high priority, ${grouped.transactional.length} transactional intent.`,
+          trigger: { taskType: 'keyword_research', industry: settings.industry || input.industry },
+          afterState: { totalKeywords: keywords.length, highPriority: grouped.highPriority.length },
+          confidence: 0.8,
+          impactMetric: 'keywords_found',
+          impactDelta: keywords.length,
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
+    }
 
     await job.updateProgress(100);
 

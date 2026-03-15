@@ -9,7 +9,7 @@ import { signOut } from 'next-auth/react';
 import { useAssistantVisibility } from '@/hooks/use-assistant';
 import {
   LayoutDashboard, BarChart3, Bot, Megaphone, Palette,
-  Globe, Webhook, Settings, Plug, Sun, Moon, LogOut, ScanSearch, ShieldCheck,
+  Globe, Webhook, Settings, Plug, Sun, Moon, LogOut, ScanSearch, ShieldCheck, Newspaper,
 } from 'lucide-react';
 import { NexusIconInline } from './assistant/nexus-icon';
 import { NotificationTray } from './notification-tray';
@@ -27,6 +27,7 @@ function useNavItems() {
     { href: '/dashboard/aeo', icon: Globe, label: t.sidebar.aeo },
     { href: '/dashboard/integrations', icon: Plug, label: t.sidebar.integrations },
     { href: '/dashboard/approvals', icon: ShieldCheck, label: t.sidebar.approvals },
+    { href: '/dashboard/digest', icon: Newspaper, label: t.sidebar.digest || 'Digest' },
     { href: '/dashboard/webhooks', icon: Webhook, label: t.sidebar.webhooks },
     { href: '/dashboard/settings', icon: Settings, label: t.sidebar.settings },
   ], [t]);

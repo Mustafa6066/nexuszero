@@ -7,7 +7,7 @@ const app = new Hono();
 // GET / — list active compound insights, ordered by confidence
 app.get('/', async (c) => {
   const db = getDb();
-  const now = new Date();
+  const now = new Date().toISOString();
 
   const rows = await db
     .select()

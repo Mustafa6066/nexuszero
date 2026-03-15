@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { getDb, withTenantDb, analyticsDataPoints, campaigns } from '@nexuszero/db';
+import { getDb, withTenantDb, analyticsDataPoints, campaigns, agentActions } from '@nexuszero/db';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { queryDailyMetrics, insertMetricSnapshot } from '../clickhouse-client.js';
 import { llmDailyInsights } from '../llm.js';
@@ -121,6 +121,27 @@ export class DailyAnalysisHandler {
       confidence: 0.85,
       correlationId: job.data.correlationId as string,
     });
+
+    // Log agent action for explainability
+    try {
+      await withTenantDb(tenantId, async (tDb) => {
+        await tDb.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'daily_analysis',
+          category: 'analysis',
+          reasoning: `Daily analysis for ${today}: ${activeCampaigns.length} campaigns, ROAS ${avgRoas.toFixed(2)}, CTR ${(avgCtr * 100).toFixed(1)}%. ${insights.alerts?.length || 0} alerts.`,
+          trigger: { taskType: 'daily_analysis', date: today },
+          afterState: { avgRoas, avgCtr, avgCpa, campaignCount: activeCampaigns.length, alertCount: insights.alerts?.length || 0 },
+          confidence: 0.85,
+          impactMetric: 'daily_roas',
+          impactDelta: avgRoas,
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
+    }
 
     return {
       date: today,

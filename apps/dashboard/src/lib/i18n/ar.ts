@@ -214,6 +214,7 @@ const ar: Translations = {
     approvals: 'الموافقات',
     webhooks: 'الويب هوك',
     settings: 'الإعدادات',
+    digest: 'الملخص',
     toggleTheme: 'تغيير المظهر',
     nexusAI: 'NexusAI',
   },
@@ -819,6 +820,64 @@ const ar: Translations = {
     detailStartConnection: 'اتصال واحد عالي القيمة يكفي لتحسين ثقة الإسناد وفتح الطبقة التالية من الأتمتة.',
     titleAskHighestImpact: 'اسأل NexusAI عن أعلى إجراء تأثيراً على هذا السطح.',
     detailAskHighestImpact: 'استخدم السياق المباشر من هذه الصفحة بدلاً من مراجعة كل بطاقة وجدول يدوياً.',
+  },
+
+  // ─── Agent Actions / Explainability ───────────────────────────────
+  actions: {
+    title: 'سجل الإجراءات',
+    empty: 'لا توجد إجراءات مسجلة بعد',
+    confidence: 'الثقة',
+    viewActions: 'عرض الإجراءات',
+    emergencyStop: 'إيقاف طارئ',
+    emergencyStopConfirm: 'إيقاف جميع الوكلاء فوراً؟ سيتم إيقاف جميع العمليات النشطة.',
+    backToList: '→ العودة للقائمة',
+    whyTaken: 'سبب اتخاذ هذا الإجراء',
+    before: 'قبل',
+    after: 'بعد',
+    trigger: 'المحفّز',
+    impact: 'التأثير',
+  },
+
+  // ─── Guardrails ───────────────────────────────────────────────────
+  guardrails: {
+    heading: 'حدود أمان الوكلاء',
+    description: 'حدد حدود الأمان التي لا يمكن للوكلاء تجاوزها. هذه القيود تحمي حملاتك وميزانيتك.',
+    enabled: 'حدود الأمان مفعّلة',
+    disabled: 'حدود الأمان معطّلة',
+    maxDailySpend: 'الحد الأقصى للإنفاق اليومي',
+    maxDailySpendDesc: 'الحد الأقصى لإجمالي الإنفاق الإعلاني اليومي عبر جميع الحملات',
+    maxBidChange: 'الحد الأقصى لتغيير المزايدة (%)',
+    maxBidChangeDesc: 'أقصى نسبة تغيير لكل عملية تحسين مزايدة',
+    pauseOnRoas: 'إيقاف الحملة إذا انخفض ROAS عن',
+    pauseOnRoasDesc: 'إيقاف الحملات تلقائياً التي تنخفض عن هذا الحد من ROAS',
+    requireApproval: 'طلب موافقة للمبالغ أعلى من',
+    requireApprovalDesc: 'الإجراءات التي تؤثر على إنفاق أعلى من هذا المبلغ تحتاج موافقة يدوية',
+    cooldown: 'فترة التهدئة بين الإجراءات',
+    cooldownDesc: 'الحد الأدنى بالدقائق بين تحسينات الوكيل على نفس الحملة',
+    save: 'حفظ حدود الأمان',
+  },
+
+  // ─── Weekly Digest ────────────────────────────────────────────────
+  digest: {
+    heading: 'الملخص الأسبوعي',
+    subtitle: 'ملخص نشاط الوكلاء وتأثيرهم',
+    totalActions: 'إجمالي الإجراءات',
+    avgImpact: 'متوسط التأثير',
+    categories: 'الفئات',
+    agentsActive: 'الوكلاء النشطون',
+    byCategory: 'الإجراءات حسب الفئة',
+    highlights: 'أبرز النقاط',
+    noData: 'لا يوجد نشاط للوكلاء في هذه الفترة',
+  },
+
+  // ─── Campaign Versions ────────────────────────────────────────────
+  versions: {
+    heading: 'سجل الإصدارات',
+    noVersions: 'لا يوجد سجل إصدارات بعد',
+    noVersionsDesc: 'يتم إنشاء الإصدارات تلقائياً عند تحديث الحملات.',
+    rollback: 'استعادة',
+    rollbackConfirm: 'استعادة هذه الحملة إلى الإصدار المحدد؟',
+    snapshot: 'حالة الحملة في هذا الإصدار',
   },
 } as const;
 

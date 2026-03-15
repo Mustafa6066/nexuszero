@@ -258,4 +258,41 @@ app.post('/api-keys', async (c) => {
   return c.json({ ...key, key: rawKey }, 201);
 });
 
+// GET /tenants/me/guardrails — get guardrails config
+app.get('/me/guardrails', async (c) => {
+  const tenantId = c.get('tenantId');
+
+  return withTenantDb(tenantId, async (db) => {
+    const [tenant] = await db.select({ guardrails: tenants.guardrails })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId))
+      .limit(1);
+
+    if (!tenant) {
+      throw new AppError('TENANT_NOT_FOUND');
+    }
+    return c.json(tenant.guardrails || {});
+  });
+});
+
+// PATCH /tenants/me/guardrails — update guardrails config
+app.patch('/me/guardrails', async (c) => {
+  const tenantId = c.get('tenantId');
+  const user = c.get('user');
+  const body = await c.req.json();
+
+  if (user.role !== 'owner' && user.role !== 'admin') {
+    throw new AppError('AUTH_INSUFFICIENT_PERMISSIONS');
+  }
+
+  return withTenantDb(tenantId, async (db) => {
+    const [updated] = await db.update(tenants)
+      .set({ guardrails: body, updatedAt: new Date() })
+      .where(eq(tenants.id, tenantId))
+      .returning({ guardrails: tenants.guardrails });
+
+    return c.json(updated.guardrails);
+  });
+});
+
 export { app as tenantRoutes };

@@ -5,8 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 import { BarChartWidget } from '@/components/charts';
+import { ActionDrawer } from '@/components/action-drawer';
 import { useAssistantActions } from '@/hooks/use-assistant';
-import { ChevronDown, ChevronUp, Flame, Bot, Check, X, Clock, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Flame, Bot, Check, X, Clock, Loader2, Brain, ShieldOff } from 'lucide-react';
 import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
 import { useLang } from '@/app/providers';
 
@@ -65,6 +66,7 @@ function StreakBadge({ completed, failed }: { completed: number; failed: number 
 export default function AgentsPage() {
   const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionDrawer, setActionDrawer] = useState<{ agentId: string; label: string } | null>(null);
   const { open, sendMessage } = useAssistantActions();
   const { t } = useLang();
 
@@ -87,6 +89,11 @@ export default function AgentsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
   });
 
+  const emergencyStopMutation = useMutation({
+    mutationFn: () => api.emergencyStop(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
+  });
+
   const tasksByType = AGENT_TYPES.map((type) => {
     const typeAgents = (agents ?? []).filter((a: any) => a.type === type);
     return {
@@ -105,9 +112,24 @@ export default function AgentsPage() {
     <div className="space-y-6">
       <WorkspaceGuidanceBanner surface="agents" />
 
-      <div>
-        <h1 className="text-2xl font-bold">{t.agentsPage.heading}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t.agentsPage.monitorSubtitle}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{t.agentsPage.heading}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t.agentsPage.monitorSubtitle}</p>
+        </div>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => {
+            if (confirm(t.actions?.emergencyStopConfirm || 'Stop all agents immediately? This will pause all active processing.')) {
+              emergencyStopMutation.mutate();
+            }
+          }}
+          disabled={emergencyStopMutation.isPending}
+        >
+          <ShieldOff size={14} className="ltr:mr-1.5 rtl:ml-1.5" />
+          {t.actions?.emergencyStop || 'Emergency Stop'}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -286,6 +308,12 @@ export default function AgentsPage() {
                       {/* Actions */}
                       <div className="flex items-center gap-2 pt-1">
                         <button
+                          onClick={() => setActionDrawer({ agentId: agent.id, label })}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-secondary/50 hover:bg-secondary px-3 py-1.5 text-xs font-medium text-foreground transition-colors"
+                        >
+                          <Brain size={12} /> {t.actions?.viewActions || 'View Actions'}
+                        </button>
+                        <button
                           onClick={() => askAboutAgent(agent.type)}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 px-3 py-1.5 text-xs font-medium text-primary transition-colors"
                         >
@@ -306,6 +334,14 @@ export default function AgentsPage() {
           </div>
         )}
       </div>
+
+      {/* Action Drawer */}
+      <ActionDrawer
+        agentId={actionDrawer?.agentId ?? ''}
+        agentLabel={actionDrawer?.label ?? ''}
+        isOpen={!!actionDrawer}
+        onClose={() => setActionDrawer(null)}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { Job } from 'bullmq';
 import { linearRegression } from '@nexuszero/shared';
-import { getDb, withTenantDb, forecasts } from '@nexuszero/db';
+import { getDb, withTenantDb, forecasts, agentActions } from '@nexuszero/db';
 import { queryMetricHistory } from '../clickhouse-client.js';
 import { llmForecastAnalysis } from '../llm.js';
 import { publishAgentSignal } from '@nexuszero/queue';
@@ -110,6 +110,27 @@ export class ForecastingHandler {
       confidence: 0.8,
       correlationId: job.data.correlationId as string,
     });
+
+    // Log agent action
+    try {
+      const avgConf = results.reduce((s, r) => s + r.trend.rSquared, 0) / Math.max(results.length, 1);
+      await withTenantDb(tenantId, async (tDb) => {
+        await tDb.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'forecasting',
+          category: 'analysis',
+          reasoning: `Generated ${horizonDays}-day forecasts for ${results.length} metrics. Average model confidence: ${(avgConf * 100).toFixed(0)}%.`,
+          trigger: { taskType: 'forecasting', metrics: results.map(r => r.metric), horizonDays },
+          afterState: { metricsForecasted: results.length, avgConfidence: avgConf },
+          confidence: avgConf,
+          impactMetric: 'forecast_accuracy',
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
+    }
 
     return {
       metricsForecasted: results.length,

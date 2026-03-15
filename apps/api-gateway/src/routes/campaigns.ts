@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { withTenantDb, campaigns } from '@nexuszero/db';
+import { withTenantDb, campaigns, campaignVersions } from '@nexuszero/db';
 import { createCampaignSchema, updateCampaignSchema, campaignFiltersSchema, AppError } from '@nexuszero/shared';
-import { eq, and, ilike, sql, asc, desc } from 'drizzle-orm';
+import { eq, and, ilike, sql, asc, desc, max } from 'drizzle-orm';
 
 const SORT_COLUMNS: Record<string, any> = {
   name: campaigns.name,
@@ -112,6 +112,33 @@ app.patch('/:id', async (c) => {
   const data = updateCampaignSchema.parse(body);
 
   return withTenantDb(tenantId, async (db) => {
+    // Fetch current state for snapshot before updating
+    const [current] = await db.select().from(campaigns)
+      .where(and(eq(campaigns.id, id), eq(campaigns.tenantId, tenantId)))
+      .limit(1);
+
+    if (!current) {
+      throw new AppError('CAMPAIGN_NOT_FOUND');
+    }
+
+    // Determine next version number
+    const [{ maxVersion }] = await db.select({
+      maxVersion: max(campaignVersions.version),
+    }).from(campaignVersions)
+      .where(and(eq(campaignVersions.campaignId, id), eq(campaignVersions.tenantId, tenantId)));
+
+    const nextVersion = (maxVersion ?? 0) + 1;
+
+    // Snapshot current state before change
+    await db.insert(campaignVersions).values({
+      tenantId,
+      campaignId: id,
+      version: nextVersion,
+      snapshot: current as any,
+      changedBy: 'user',
+      changeReason: body.changeReason || 'Manual update',
+    });
+
     const [campaign] = await db.update(campaigns)
       .set({
         ...data,
@@ -145,6 +172,95 @@ app.delete('/:id', async (c) => {
       throw new AppError('CAMPAIGN_NOT_FOUND');
     }
     return c.json({ deleted: true });
+  });
+});
+
+// GET /campaigns/:id/versions — version history
+app.get('/:id/versions', async (c) => {
+  const tenantId = c.get('tenantId');
+  const campaignId = c.req.param('id');
+  const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '50', 10)));
+
+  return withTenantDb(tenantId, async (db) => {
+    const versions = await db.select().from(campaignVersions)
+      .where(and(
+        eq(campaignVersions.campaignId, campaignId),
+        eq(campaignVersions.tenantId, tenantId),
+      ))
+      .orderBy(desc(campaignVersions.version))
+      .limit(limit);
+
+    return c.json(versions);
+  });
+});
+
+// POST /campaigns/:id/rollback/:versionId — restore campaign to a previous version
+app.post('/:id/rollback/:versionId', async (c) => {
+  const tenantId = c.get('tenantId');
+  const campaignId = c.req.param('id');
+  const versionId = c.req.param('versionId');
+  const user = c.get('user');
+
+  if (user.role !== 'owner' && user.role !== 'admin') {
+    throw new AppError('AUTH_INSUFFICIENT_PERMISSIONS');
+  }
+
+  return withTenantDb(tenantId, async (db) => {
+    // Find the version to rollback to
+    const [version] = await db.select().from(campaignVersions)
+      .where(and(
+        eq(campaignVersions.id, versionId),
+        eq(campaignVersions.campaignId, campaignId),
+        eq(campaignVersions.tenantId, tenantId),
+      ))
+      .limit(1);
+
+    if (!version) {
+      throw new AppError('VALIDATION_ERROR', { reason: 'Version not found' });
+    }
+
+    const snapshot = version.snapshot as Record<string, any>;
+
+    // Snapshot current state before rollback
+    const [current] = await db.select().from(campaigns)
+      .where(and(eq(campaigns.id, campaignId), eq(campaigns.tenantId, tenantId)))
+      .limit(1);
+
+    if (!current) {
+      throw new AppError('CAMPAIGN_NOT_FOUND');
+    }
+
+    const [{ maxVersion }] = await db.select({
+      maxVersion: max(campaignVersions.version),
+    }).from(campaignVersions)
+      .where(and(eq(campaignVersions.campaignId, campaignId), eq(campaignVersions.tenantId, tenantId)));
+
+    await db.insert(campaignVersions).values({
+      tenantId,
+      campaignId,
+      version: (maxVersion ?? 0) + 1,
+      snapshot: current as any,
+      changedBy: 'user',
+      changeReason: `Rollback to version ${version.version}`,
+    });
+
+    // Restore from snapshot
+    const [restored] = await db.update(campaigns)
+      .set({
+        name: snapshot.name,
+        status: snapshot.status,
+        type: snapshot.type,
+        platform: snapshot.platform,
+        budget: snapshot.budget,
+        targeting: snapshot.targeting,
+        schedule: snapshot.schedule,
+        config: snapshot.config,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(campaigns.id, campaignId), eq(campaigns.tenantId, tenantId)))
+      .returning();
+
+    return c.json({ restored, fromVersion: version.version });
   });
 });
 

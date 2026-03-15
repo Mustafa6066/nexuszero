@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { withTenantDb, campaigns } from '@nexuszero/db';
+import { withTenantDb, campaigns, agentActions } from '@nexuszero/db';
 import { getCurrentTenantId } from '@nexuszero/shared';
 import { publishAgentSignal } from '@nexuszero/queue';
 import { llmAnalyze } from '../llm.js';
@@ -54,6 +54,27 @@ Analyze and return JSON with:
         type: 'seo_keywords_updated',
         data: { keywordGaps: result.keywordGaps, source: 'seo_audit' },
       });
+    }
+
+    // Log agent action for explainability
+    try {
+      await withTenantDb(tenantId, async (db) => {
+        await db.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'seo_audit',
+          category: 'analysis',
+          reasoning: `SEO audit scored ${result.overallScore}/100 across ${seoCampaigns.length} campaigns. Found ${result.criticalIssues?.length || 0} critical issues and ${result.opportunities?.length || 0} opportunities.`,
+          trigger: { taskType: 'seo_audit', campaignCount: seoCampaigns.length },
+          afterState: { overallScore: result.overallScore, criticalIssues: result.criticalIssues?.length || 0 },
+          confidence: Math.min(1, (result.overallScore || 0) / 100),
+          impactMetric: 'seo_score',
+          impactDelta: result.overallScore || 0,
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
     }
 
     await job.updateProgress(100);

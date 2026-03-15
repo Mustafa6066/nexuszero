@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { withTenantDb, entityProfiles } from '@nexuszero/db';
+import { withTenantDb, entityProfiles, agentActions } from '@nexuszero/db';
 import { eq } from 'drizzle-orm';
 import { llmGenerateSchemaMarkup } from '../llm.js';
 
@@ -42,6 +42,27 @@ export class SchemaOptimizerHandler {
         })
         .where(eq(entityProfiles.id, entityId));
     });
+
+    // Log agent action
+    try {
+      await withTenantDb(tenantId, async (db) => {
+        await db.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'optimize_schema',
+          category: 'optimization',
+          reasoning: `Generated optimized schema markup for entity "${entity.entityName}" (${entity.entityType}). Schema generated: ${Object.keys(schemaJson).length > 0}.`,
+          trigger: { taskType: 'optimize_schema', entityId, entityName: entity.entityName },
+          beforeState: { schemaMarkupStatus: entity.schemaMarkupStatus },
+          afterState: { schemaGenerated: Object.keys(schemaJson).length > 0, recommendationCount: recommendations.length },
+          confidence: 0.8,
+          impactMetric: 'schema_optimization',
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
+    }
 
     return {
       entityId,

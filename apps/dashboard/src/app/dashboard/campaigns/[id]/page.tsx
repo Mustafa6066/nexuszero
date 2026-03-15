@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
+import { VersionHistory } from '@/components/version-history';
 import { formatCurrency } from '@/lib/utils';
 import { ArrowLeft } from 'lucide-react';
 import { useLang } from '@/app/providers';
@@ -246,6 +247,13 @@ export default function CampaignDetailPage() {
             </div>
           </Card>
         </>
+      )}
+
+      {/* Version History */}
+      {!editing && campaign && (
+        <Card>
+          <VersionHistory campaignId={id} campaignName={campaign.name ?? 'Campaign'} />
+        </Card>
       )}
     </div>
   );

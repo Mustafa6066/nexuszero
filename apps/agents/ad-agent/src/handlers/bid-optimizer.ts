@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { withTenantDb, campaigns } from '@nexuszero/db';
+import { withTenantDb, campaigns, agentActions } from '@nexuszero/db';
 import { getCurrentTenantId } from '@nexuszero/shared';
 import { llmOptimizeBids } from '../llm.js';
 import { eq, and } from 'drizzle-orm';
@@ -55,12 +55,35 @@ export class BidOptimizer {
       });
     }
 
+    // Log agent action for explainability
+    const applied = optimization.expectedImpact?.roasChange > 0.1;
+    try {
+      await withTenantDb(tenantId, async (db) => {
+        await db.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'optimize_bids',
+          category: applied ? 'optimization' : 'analysis',
+          reasoning: `Bid optimization for campaign "${campaign.name}". ${applied ? 'Applied budget change.' : 'No change applied — insufficient ROAS impact.'} Expected ROAS change: ${optimization.expectedImpact?.roasChange?.toFixed(2) || 'N/A'}.`,
+          trigger: { taskType: 'optimize_bids', campaignId },
+          beforeState: { budget: campaign.budget, spend: campaign.spend, roas: campaign.roas },
+          afterState: { budgetRecommendation: optimization.budgetRecommendation, applied },
+          confidence: Math.min(1, Math.abs(optimization.expectedImpact?.roasChange || 0)),
+          impactMetric: 'roas',
+          impactDelta: optimization.expectedImpact?.roasChange || 0,
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
+    }
+
     await job.updateProgress(100);
 
     return {
       campaignId,
       optimization,
-      applied: optimization.expectedImpact?.roasChange > 0.1,
+      applied,
       completedAt: new Date().toISOString(),
     };
   }

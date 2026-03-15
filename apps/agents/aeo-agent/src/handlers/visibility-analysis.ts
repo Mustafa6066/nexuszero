@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { withTenantDb, entityProfiles, aeoCitations, aiVisibilityScores } from '@nexuszero/db';
+import { withTenantDb, entityProfiles, aeoCitations, aiVisibilityScores, agentActions } from '@nexuszero/db';
 import { eq, and } from 'drizzle-orm';
 import { llmScoreVisibility } from '../llm.js';
 import { publishAgentSignal } from '@nexuszero/queue';
@@ -97,6 +97,27 @@ export class VisibilityAnalysisHandler {
       confidence: 0.7,
       correlationId: job.data.correlationId as string,
     });
+
+    // Log agent action
+    try {
+      await withTenantDb(tenantId, async (db) => {
+        await db.insert(agentActions).values({
+          tenantId,
+          agentId: job.data.agentId || null,
+          taskId: job.id || null,
+          actionType: 'analyze_visibility',
+          category: 'analysis',
+          reasoning: `Analyzed visibility across ${targetPlatforms.length} platforms for ${entities.length} entities. Average score: ${avgScore.toFixed(1)}. Low-scoring: ${results.filter(r => r.overallScore < 50).length} platform-entity pairs.`,
+          trigger: { taskType: 'analyze_visibility', platforms: targetPlatforms },
+          afterState: { avgScore, entitiesAnalyzed: entities.length, lowScoring: results.filter(r => r.overallScore < 50).length },
+          confidence: 0.7,
+          impactMetric: 'visibility_score',
+          impactDelta: avgScore,
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to log agent action:', (e as Error).message);
+    }
 
     return {
       entitiesAnalyzed: entities.length,
