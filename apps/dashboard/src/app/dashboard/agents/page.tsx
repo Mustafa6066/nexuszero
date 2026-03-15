@@ -8,6 +8,7 @@ import { BarChartWidget } from '@/components/charts';
 import { useAssistantActions } from '@/hooks/use-assistant';
 import { ChevronDown, ChevronUp, Flame, Bot, Check, X, Clock, Loader2 } from 'lucide-react';
 import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
+import { useLang } from '@/app/providers';
 
 const AGENT_TYPES = ['seo', 'ad', 'data_nexus', 'aeo', 'creative'] as const;
 
@@ -65,6 +66,7 @@ export default function AgentsPage() {
   const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const { open, sendMessage } = useAssistantActions();
+  const { t } = useLang();
 
   const { data: agents, isLoading } = useQuery({
     queryKey: ['agents'],
@@ -104,33 +106,33 @@ export default function AgentsPage() {
       <WorkspaceGuidanceBanner surface="agents" />
 
       <div>
-        <h1 className="text-2xl font-bold">AI Agents</h1>
-        <p className="text-sm text-muted-foreground mt-1">Monitor and manage your autonomous agent swarm.</p>
+        <h1 className="text-2xl font-bold">{t.agentsPage.heading}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t.agentsPage.monitorSubtitle}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <p className="text-sm text-muted-foreground">Total Agents</p>
+          <p className="text-sm text-muted-foreground">{t.agentsPage.totalAgents}</p>
           <p className="mt-1 text-2xl font-bold">{agents?.length ?? 0}</p>
         </Card>
         <Card>
-          <p className="text-sm text-muted-foreground">Active</p>
+          <p className="text-sm text-muted-foreground">{t.agentsPage.active}</p>
           <p className="mt-1 text-2xl font-bold text-green-400">
             {agents?.filter((a: any) => a.status === 'processing').length ?? 0}
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-muted-foreground">Tasks Today</p>
+          <p className="text-sm text-muted-foreground">{t.agentsPage.tasksToday}</p>
           <p className="mt-1 text-2xl font-bold">{stats?.tasksToday ?? 0}</p>
         </Card>
         <Card>
-          <p className="text-sm text-muted-foreground">Success Rate</p>
+          <p className="text-sm text-muted-foreground">{t.agentsPage.successRate}</p>
           <p className="mt-1 text-2xl font-bold">{((stats?.successRate ?? 0) * 100).toFixed(1)}%</p>
         </Card>
       </div>
 
       <Card>
-        <h3 className="mb-4 text-sm font-medium text-muted-foreground">Tasks by Agent Type</h3>
+        <h3 className="mb-4 text-sm font-medium text-muted-foreground">{t.agentsPage.tasksByAgentType}</h3>
         <BarChartWidget
           data={tasksByType}
           bars={[
@@ -143,7 +145,7 @@ export default function AgentsPage() {
 
       {/* Agent fleet with telescope expand */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-muted-foreground">Agent Fleet</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{t.dashboard.agentFleet}</h3>
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -204,7 +206,7 @@ export default function AgentsPage() {
                           size="sm"
                           onClick={(e) => { e.stopPropagation(); signalMutation.mutate({ id: agent.id, signal: { type: 'pause' } }); }}
                         >
-                          Pause
+                          {t.agentsPage.pause}
                         </Button>
                       )}
                       {agent.status === 'paused' && (
@@ -213,7 +215,7 @@ export default function AgentsPage() {
                           size="sm"
                           onClick={(e) => { e.stopPropagation(); signalMutation.mutate({ id: agent.id, signal: { type: 'resume' } }); }}
                         >
-                          Resume
+                          {t.agentsPage.resume}
                         </Button>
                       )}
                       {agent.status === 'error' && (
@@ -222,7 +224,7 @@ export default function AgentsPage() {
                           size="sm"
                           onClick={(e) => { e.stopPropagation(); signalMutation.mutate({ id: agent.id, signal: { type: 'restart' } }); }}
                         >
-                          Restart
+                          {t.agentsPage.restart}
                         </Button>
                       )}
                       {isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
@@ -237,7 +239,7 @@ export default function AgentsPage() {
                         <div className="rounded-xl bg-primary/5 border border-primary/10 p-3">
                           <div className="flex items-center gap-2 mb-2">
                             <Loader2 size={14} className="animate-spin text-primary" />
-                            <span className="text-xs font-semibold text-primary">Current Task</span>
+                            <span className="text-xs font-semibold text-primary">{t.agentsPage.currentTask}</span>
                           </div>
                           <p className="text-sm text-foreground">{agent.currentTask ?? 'Processing queued tasks...'}</p>
                           {agent.taskStartedAt && (

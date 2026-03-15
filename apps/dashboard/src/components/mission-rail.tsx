@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowRight, Bot, Link2, PlayCircle, Rocket, Sparkles } f
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui';
 import { useAssistantActions } from '@/hooks/use-assistant';
+import { useLang } from '@/app/providers';
 
 function getOnboardingState(tenant: any): string {
   return tenant?.onboardingState ?? tenant?.onboarding_state ?? tenant?.status ?? 'created';
@@ -19,6 +20,7 @@ function isOnboardingComplete(state: string): boolean {
 export function MissionRail() {
   const router = useRouter();
   const { open, sendMessage } = useAssistantActions();
+  const { t } = useLang();
 
   const { data: tenant } = useQuery({
     queryKey: ['tenant', 'me'],
@@ -60,10 +62,10 @@ export function MissionRail() {
     if (!isOnboardingComplete(onboardingState)) {
       return {
         icon: Rocket,
-        eyebrow: 'Onboarding Mission',
-        title: 'Finish setup to unlock your command center.',
+        eyebrow: t.missionRail.onboardingMission,
+        title: t.missionRail.finishSetup,
         detail: intelligence?.dashboard?.nextActions?.[0] ?? 'Your workspace is partially configured. Resume onboarding to connect your stack and deploy the first agent mix.',
-        cta: 'Resume setup',
+        cta: t.missionRail.resumeSetup,
         action: () => router.push('/dashboard/onboarding'),
       };
     }
@@ -71,10 +73,10 @@ export function MissionRail() {
     if (degradedIntegrations.length > 0) {
       return {
         icon: AlertTriangle,
-        eyebrow: 'Attention Required',
-        title: `${degradedIntegrations.length} integration${degradedIntegrations.length > 1 ? 's need' : ' needs'} attention.`,
+        eyebrow: t.missionRail.attentionRequired,
+        title: t.missionRail.integrationsNeedAttention(degradedIntegrations.length),
         detail: intelligence?.dashboard?.healthWarnings?.[0] ?? 'Reconnect degraded platforms before the agents make optimization decisions with stale data.',
-        cta: 'Review integrations',
+        cta: t.missionRail.reviewIntegrations,
         action: () => router.push('/dashboard/integrations'),
       };
     }
@@ -82,10 +84,10 @@ export function MissionRail() {
     if (connectedIntegrations.length === 0) {
       return {
         icon: Link2,
-        eyebrow: 'Unlock More Value',
-        title: 'Connect your marketing stack for higher-confidence automation.',
+        eyebrow: t.missionRail.unlockMoreValue,
+        title: t.missionRail.connectStack,
         detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? 'Add analytics or ad platforms so NexusZero can move from diagnostics into optimization.',
-        cta: 'Connect platforms',
+        cta: t.missionRail.connectPlatforms,
         action: () => router.push('/dashboard/integrations'),
       };
     }
@@ -93,10 +95,10 @@ export function MissionRail() {
     if (!hasCampaigns) {
       return {
         icon: PlayCircle,
-        eyebrow: 'Next Best Move',
-        title: 'Create your first campaign and let the agents benchmark performance.',
+        eyebrow: t.missionRail.nextBestMove,
+        title: t.missionRail.createFirstCampaign,
         detail: intelligence?.dashboard?.surfaceGuidance?.campaigns ?? 'A live campaign gives Data Nexus, Ad Agent, and Creatives enough signal to start producing recommendations.',
-        cta: 'Open campaigns',
+        cta: t.missionRail.openCampaigns,
         action: () => router.push('/dashboard/campaigns?create=true'),
       };
     }
@@ -104,10 +106,10 @@ export function MissionRail() {
     if (activeAgents.length === 0) {
       return {
         icon: Sparkles,
-        eyebrow: 'Guided Action',
-        title: 'Ask NexusAI for the next highest-impact optimization.',
+        eyebrow: t.missionRail.guidedAction,
+        title: t.missionRail.askNexusAIOptimization,
         detail: intelligence?.dashboard?.surfaceGuidance?.agents ?? 'Your stack is connected, but no agents are currently running. Pull a fresh recommendation from the intelligence layer.',
-        cta: 'Ask NexusAI',
+        cta: t.missionRail.askNexusAI,
         action: () => {
           open();
           void sendMessage('Based on my current workspace, what should I do next to improve performance?');
@@ -117,13 +119,13 @@ export function MissionRail() {
 
     return {
       icon: Bot,
-      eyebrow: 'System Live',
-      title: `${activeAgents.length} agent${activeAgents.length > 1 ? 's are' : ' is'} actively working right now.`,
+      eyebrow: t.missionRail.systemLive,
+      title: t.missionRail.agentsWorking(activeAgents.length),
       detail: intelligence?.dashboard?.surfaceGuidance?.overview ?? 'Review live activity and recent changes, or ask NexusAI to summarize the strongest win opportunity across your current campaigns.',
-      cta: 'Open agent fleet',
+      cta: t.missionRail.openAgentFleet,
       action: () => router.push('/dashboard/agents'),
     };
-  }, [agents, campaigns, intelligence, integrations, open, router, sendMessage, tenant]);
+  }, [agents, campaigns, intelligence, integrations, open, router, sendMessage, t, tenant]);
 
   const Icon = recommendation.icon;
 

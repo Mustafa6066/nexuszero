@@ -16,6 +16,7 @@ import { DashboardSectionBoundary } from '@/components/dashboard-section-boundar
 import { OverviewIntelligencePanel } from '@/components/overview-intelligence-panel';
 import { useAssistantActions } from '@/hooks/use-assistant';
 import { StreakWidget } from '@/components/streak-widget';
+import { useLang } from '@/app/providers';
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'outline'> = {
   active: 'success',
@@ -63,6 +64,7 @@ function useTimeOfDay() {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { t } = useLang();
   const { data: session, status } = useSession();
   const { open, sendMessage } = useAssistantActions();
   const name = (session?.user?.name ?? '').split(' ')[0] || 'Commander';
@@ -138,7 +140,7 @@ export default function DashboardPage() {
 
   const metrics = [
     {
-      label: 'Total Spend',
+      label: t.dashboard.totalSpend,
       value: formatCurrency(summary?.totalSpend ?? 0),
       delta: summary?.spendChange ? `${summary.spendChange > 0 ? '+' : ''}${formatPercent(summary.spendChange)}` : '—',
       deltaType: summary?.spendChange > 0 ? 'neg' : 'pos',
@@ -147,7 +149,7 @@ export default function DashboardPage() {
       bg: 'from-primary/10',
     },
     {
-      label: 'Revenue',
+      label: t.dashboard.revenue,
       value: formatCurrency(summary?.totalRevenue ?? 0),
       delta: summary?.revenueChange ? `${summary.revenueChange > 0 ? '+' : ''}${formatPercent(summary.revenueChange)}` : '—',
       deltaType: summary?.revenueChange > 0 ? 'pos' : 'neg',
@@ -156,7 +158,7 @@ export default function DashboardPage() {
       bg: 'from-green-500/10',
     },
     {
-      label: 'Conversions',
+      label: t.dashboard.conversions,
       value: formatNumber(summary?.totalConversions ?? 0),
       delta: summary?.conversionChange ? `${summary.conversionChange > 0 ? '+' : ''}${formatPercent(summary.conversionChange)}` : '—',
       deltaType: summary?.conversionChange > 0 ? 'pos' : 'neg',
@@ -165,9 +167,9 @@ export default function DashboardPage() {
       bg: 'from-emerald-500/10',
     },
     {
-      label: 'Active Agents',
+      label: t.dashboard.activeAgents,
       value: String(activeAgents.length),
-      delta: `${agents?.length ?? 0} in fleet`,
+      delta: `${agents?.length ?? 0} ${t.dashboard.inFleet}`,
       deltaType: 'neutral' as const,
       icon: Zap,
       iconColor: 'text-amber-400',
@@ -270,7 +272,7 @@ export default function DashboardPage() {
   if (status === 'authenticated' && tenant && !isOnboardingComplete(onboardingState)) {
     return (
       <div className="rounded-[1.75rem] border border-primary/15 bg-card/70 p-6 text-sm text-muted-foreground">
-        Preparing your onboarding workspace…
+        {t.dashboard.preparingOnboarding}
       </div>
     );
   }
@@ -280,33 +282,33 @@ export default function DashboardPage() {
       {/* Greeting */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">Command Center</p>
+          <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-1">{t.dashboard.commandCenter}</p>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {timeOfDay ? `Good ${timeOfDay}, ${name}` : `Welcome, ${name}`}
+            {timeOfDay === 'morning' ? `${t.dashboard.goodMorning}, ${name}` : timeOfDay === 'afternoon' ? `${t.dashboard.goodAfternoon}, ${name}` : timeOfDay === 'evening' ? `${t.dashboard.goodEvening}, ${name}` : `${t.dashboard.welcome}, ${name}`}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {activeAgents.length > 0
-              ? `${activeAgents.length} agent${activeAgents.length > 1 ? 's' : ''} running autonomously over the last 30 days`
-              : 'Agents standing by for the last 30 days'}
+              ? t.dashboard.agentsRunning(activeAgents.length)
+              : t.dashboard.agentsStandby}
           </p>
         </div>
         <div className="flex w-fit items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-2 text-[11px] text-muted-foreground sm:px-4 sm:text-xs">
           <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse-dot" />
-          System operational
+          {t.common.systemOperational}
         </div>
       </div>
 
       {hasDataError && (
         <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-300">
-          Live dashboard data is temporarily unavailable. Navigation remains active while data reconnects.
+          {t.dashboard.dataUnavailable}
         </div>
       )}
 
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="rounded-[1.75rem] border border-primary/15 bg-[linear-gradient(135deg,hsl(var(--card)/0.92),hsl(var(--background)/0.84))] p-5 sm:p-6">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/80">Daily Brief</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/80">{t.dashboard.dailyBrief}</p>
           <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
-            {timeOfDay ? `Good ${timeOfDay}. Here is what changed.` : 'Here is what changed since your last visit.'}
+            {timeOfDay ? `${timeOfDay === 'morning' ? t.dashboard.goodMorning : timeOfDay === 'afternoon' ? t.dashboard.goodAfternoon : t.dashboard.goodEvening}. ${t.dashboard.hereIsWhatChanged}` : t.dashboard.hereIsWhatChangedSince}
           </h2>
           <div className="mt-4 space-y-3 text-sm text-muted-foreground">
             {dailyBrief.map((item) => (
@@ -321,10 +323,10 @@ export default function DashboardPage() {
               open();
               void sendMessage('Summarize what changed in my workspace since my last visit and tell me what to do next.');
             }}>
-              Open brief with NexusAI
+              {t.dashboard.openBrief}
             </Button>
             <Button variant="outline" onClick={() => router.push('/dashboard/analytics')}>
-              Review analytics
+              {t.dashboard.reviewAnalytics}
             </Button>
           </div>
         </div>
@@ -348,11 +350,11 @@ export default function DashboardPage() {
         <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold">Watchlist</h3>
-              <p className="text-xs text-muted-foreground">Items that need a decision before the next automation cycle.</p>
+              <h3 className="text-sm font-semibold">{t.dashboard.watchlist}</h3>
+              <p className="text-xs text-muted-foreground">{t.dashboard.watchlistSubtitle}</p>
             </div>
             <Badge variant={attentionItems.length > 0 ? 'warning' : 'success'}>
-              {attentionItems.length > 0 ? `${attentionItems.length} pending` : 'All clear'}
+              {attentionItems.length > 0 ? `${attentionItems.length} ${t.dashboard.pending}` : t.dashboard.allClear}
             </Badge>
           </div>
           <div className="space-y-3">
@@ -371,7 +373,7 @@ export default function DashboardPage() {
               </div>
             )) : (
               <div className="rounded-xl border border-green-500/20 bg-green-500/8 p-4 text-sm text-muted-foreground">
-                No urgent blockers surfaced. The workspace is clear for the next round of optimization.
+                {t.dashboard.noBlockers}
               </div>
             )}
           </div>
@@ -380,26 +382,26 @@ export default function DashboardPage() {
         <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold">Ready To Act</h3>
-              <p className="text-xs text-muted-foreground">Fast actions that move the workspace forward without a full audit.</p>
+              <h3 className="text-sm font-semibold">{t.dashboard.readyToAct}</h3>
+              <p className="text-xs text-muted-foreground">{t.dashboard.readyToActSubtitle}</p>
             </div>
-            <Badge variant="outline">Action queue</Badge>
+            <Badge variant="outline">{t.dashboard.actionQueue}</Badge>
           </div>
 
           <div className="space-y-3">
             <ActionCard
-              title="Review agent fleet"
-              detail="Inspect current task flow, stale heartbeats, and any paused execution paths."
+              title={t.dashboard.reviewFleet}
+              detail={t.dashboard.reviewFleetDetail}
               onClick={() => router.push('/dashboard/agents')}
             />
             <ActionCard
-              title="Inspect top campaigns"
-              detail="Check whether current spend is tracking toward revenue and conversion goals."
+              title={t.dashboard.inspectCampaigns}
+              detail={t.dashboard.inspectCampaignsDetail}
               onClick={() => router.push('/dashboard/campaigns')}
             />
             <ActionCard
-              title="Ask for a recommended move"
-              detail="Let NexusAI synthesize campaigns, analytics, and agent activity into one next action."
+              title={t.dashboard.askRecommended}
+              detail={t.dashboard.askRecommendedDetail}
               onClick={() => {
                 open();
                 void sendMessage('Based on my live workspace data, give me the next best move with reasoning and expected impact.');
@@ -409,12 +411,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <DashboardSectionBoundary title="Strategic Pulse">
+      <DashboardSectionBoundary title={t.dashboard.strategicPulse}>
         <OverviewIntelligencePanel intelligence={intelligence?.dashboard} />
       </DashboardSectionBoundary>
 
       {/* Weekly Report Card */}
-      <DashboardSectionBoundary title="Weekly Report Card">
+      <DashboardSectionBoundary title={t.dashboard.weeklyReportCard}>
         <WeeklyReportCard />
       </DashboardSectionBoundary>
 
@@ -434,7 +436,7 @@ export default function DashboardPage() {
               deltaType === 'neg' ? 'text-red-400' :
               'text-muted-foreground'
             }`}>
-              {delta} {deltaType !== 'neutral' ? 'vs last period' : ''}
+              {delta} {deltaType !== 'neutral' ? t.dashboard.vsLastPeriod : ''}
             </p>
           </div>
         ))}
@@ -445,12 +447,12 @@ export default function DashboardPage() {
         <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6 lg:col-span-2">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-sm font-semibold">Spend vs Revenue</h3>
-              <p className="text-xs text-muted-foreground">Last 30 days</p>
+              <h3 className="text-sm font-semibold">{t.dashboard.spend} vs {t.dashboard.revenue}</h3>
+              <p className="text-xs text-muted-foreground">{t.dashboard.last30Days}</p>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" />Spend</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-400" />Revenue</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" />{t.dashboard.spend}</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-400" />{t.dashboard.revenue}</span>
             </div>
           </div>
           <BarChartWidget
@@ -464,8 +466,8 @@ export default function DashboardPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6">
-          <h3 className="text-sm font-semibold mb-1">Agent Fleet</h3>
-          <p className="text-xs text-muted-foreground mb-4">By type</p>
+          <h3 className="text-sm font-semibold mb-1">{t.dashboard.agentFleet}</h3>
+          <p className="text-xs text-muted-foreground mb-4">{t.dashboard.byType}</p>
           <DonutChartWidget data={agentDistribution} />
           <div className="mt-4 space-y-2">
             {agentDistribution.map((item) => (
@@ -475,7 +477,7 @@ export default function DashboardPage() {
               </div>
             ))}
             {agentDistribution.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">No agents provisioned</p>
+              <p className="text-xs text-muted-foreground text-center py-4">{t.dashboard.noAgentsProvisioned}</p>
             )}
           </div>
         </div>
@@ -486,9 +488,9 @@ export default function DashboardPage() {
         {/* Agent status */}
         <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold">Agent Status</h3>
+            <h3 className="text-sm font-semibold">{t.dashboard.agentStatus}</h3>
             <a href="/dashboard/agents" className="flex items-center gap-1 text-xs text-primary hover:underline">
-              View all <ArrowUpRight size={12} />
+              {t.common.viewAll} <ArrowUpRight size={12} />
             </a>
           </div>
           <div className="space-y-2">
@@ -500,7 +502,7 @@ export default function DashboardPage() {
                     {(() => { const Icon = AGENT_ICONS[typeKey] ?? Bot; return <Icon size={16} className="text-primary/80 shrink-0" />; })()}
                     <div>
                       <p className="text-xs font-medium capitalize">{agent.type?.replace(/_/g, ' ')} Agent</p>
-                      <p className="text-xs text-muted-foreground">{agent.tasksCompleted ?? 0} tasks</p>
+                      <p className="text-xs text-muted-foreground">{agent.tasksCompleted ?? 0} {t.dashboard.tasks}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 sm:justify-end">
@@ -513,8 +515,8 @@ export default function DashboardPage() {
             {(!agents || agents.length === 0) && (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <Bot size={32} className="text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">No agents provisioned</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Visit Agents to deploy your swarm</p>
+                <p className="text-sm text-muted-foreground">{t.dashboard.noAgentsProvisioned}</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">{t.dashboard.visitAgentsPage}</p>
               </div>
             )}
           </div>
@@ -523,9 +525,9 @@ export default function DashboardPage() {
         {/* Recent campaigns */}
         <div className="rounded-2xl border border-border bg-card/60 p-4 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold">Recent Campaigns</h3>
+            <h3 className="text-sm font-semibold">{t.dashboard.recentCampaigns}</h3>
             <a href="/dashboard/campaigns" className="flex items-center gap-1 text-xs text-primary hover:underline">
-              View all <ArrowUpRight size={12} />
+              {t.common.viewAll} <ArrowUpRight size={12} />
             </a>
           </div>
           <div className="space-y-2">
@@ -542,8 +544,8 @@ export default function DashboardPage() {
             ))}
             {(!campaigns || campaigns.length === 0) && (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <p className="text-sm text-muted-foreground">No campaigns yet</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Create your first campaign to get started</p>
+                <p className="text-sm text-muted-foreground">{t.dashboard.noCampaignsYet}</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">{t.dashboard.createFirstCampaign}</p>
               </div>
             )}
           </div>
@@ -552,7 +554,7 @@ export default function DashboardPage() {
 
       {/* Milestones & Streak */}
       <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-        <DashboardSectionBoundary title="Milestones">
+        <DashboardSectionBoundary title={t.dashboard.milestones}>
           <MilestonesPanel />
         </DashboardSectionBoundary>
         <div className="lg:w-72">

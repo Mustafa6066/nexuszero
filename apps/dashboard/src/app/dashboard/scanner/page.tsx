@@ -8,6 +8,7 @@ import {
   Search, Globe, ShieldCheck, Zap, BarChart3, Megaphone, Users,
   FileCode, ChevronDown, ChevronUp, CheckCircle2, XCircle, AlertCircle, ArrowRight,
 } from 'lucide-react';
+import { useLang } from '@/app/providers';
 
 // ── Types (mirrors shared package) ────────────────────────────────────────
 
@@ -97,6 +98,7 @@ function scoreRingColor(score: number): string {
 // ── Score Ring Component ──────────────────────────────────────────────────
 
 function ScoreRing({ score }: { score: number }) {
+  const { t } = useLang();
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
@@ -114,7 +116,7 @@ function ScoreRing({ score }: { score: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className={cn('text-3xl font-bold', scoreColor(score))}>{score}</span>
-        <span className="text-xs text-muted-foreground">Readiness</span>
+        <span className="text-xs text-muted-foreground">{t.scannerPage.readiness}</span>
       </div>
     </div>
   );
@@ -128,6 +130,7 @@ export default function ScannerPage() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const { t } = useLang();
 
   const handleScan = async () => {
     if (!url.trim()) return;
@@ -166,9 +169,9 @@ export default function ScannerPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Website Scanner</h1>
+        <h1 className="text-2xl font-bold">{t.scannerPage.heading}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Scan any website to see what NexusZero can power. Get a readiness checklist before onboarding.
+          {t.scannerPage.scannerSubtitle}
         </p>
       </div>
 
@@ -182,7 +185,7 @@ export default function ScannerPage() {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleScan()}
-              placeholder="Enter any website URL (e.g., example.com)"
+              placeholder={t.scannerPage.enterPlaceholder}
               className="w-full rounded-lg border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
@@ -190,12 +193,12 @@ export default function ScannerPage() {
             {scanning ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Scanning...
+                {t.scannerPage.scanning}
               </span>
             ) : (
               <span className="flex items-center gap-2">
                 <Zap size={16} />
-                Scan Website
+                {t.scannerPage.scanWebsite}
               </span>
             )}
           </Button>
@@ -222,22 +225,22 @@ export default function ScannerPage() {
 
             {/* Quick Stats */}
             <Card className="space-y-3 p-5 sm:p-6">
-              <h3 className="text-sm font-medium text-muted-foreground">Detection Summary</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">{t.scannerPage.detectionSummary}</h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Technologies Detected</span>
+                  <span className="text-sm">{t.scannerPage.technologiesDetected}</span>
                   <Badge variant="success">{result.detectedTech.length}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Auto-Connectable</span>
+                  <span className="text-sm">{t.scannerPage.autoConnectable}</span>
                   <Badge>{result.connectablePlatforms.length}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Needs Setup</span>
+                  <span className="text-sm">{t.scannerPage.needsSetup}</span>
                   <Badge variant={result.missingPlatforms.length > 3 ? 'warning' : 'outline'}>{result.missingPlatforms.length}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Server Response</span>
+                  <span className="text-sm">{t.scannerPage.serverResponse}</span>
                   <Badge variant={result.performance.serverResponseMs < 1000 ? 'success' : 'warning'}>
                     {result.performance.serverResponseMs}ms
                   </Badge>
@@ -247,7 +250,7 @@ export default function ScannerPage() {
 
             {/* Recommended Agents */}
             <Card className="space-y-3 p-5 sm:p-6">
-              <h3 className="text-sm font-medium text-muted-foreground">Recommended Agents</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">{t.scannerPage.recommendedAgents}</h3>
               <div className="space-y-2">
                 {result.recommendedAgents.map((agent) => (
                   <div key={agent} className="flex items-center gap-2 text-sm">
@@ -258,7 +261,7 @@ export default function ScannerPage() {
               </div>
               <Button variant="outline" size="sm" className="w-full mt-2">
                 <span className="flex items-center gap-1.5">
-                  Deploy Engine <ArrowRight size={14} />
+                  {t.scannerPage.deployEngine} <ArrowRight size={14} />
                 </span>
               </Button>
             </Card>
@@ -267,7 +270,7 @@ export default function ScannerPage() {
           {/* Detected Technologies */}
           {result.detectedTech.length > 0 && (
             <Card className="p-6">
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">Detected Technologies</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-3">{t.scannerPage.detectedTechnologies}</h3>
               <div className="flex flex-wrap gap-2">
                 {result.detectedTech.map((tech) => (
                   <div
@@ -285,7 +288,7 @@ export default function ScannerPage() {
 
           {/* Requirements Checklist */}
           <Card className="p-6">
-            <h3 className="text-sm font-medium text-muted-foreground mb-4">Requirements Checklist</h3>
+            <h3 className="text-sm font-medium text-muted-foreground mb-4">{t.scannerPage.requirementsChecklist}</h3>
             <div className="space-y-2">
               {Object.entries(grouped).map(([category, items]) => {
                 const Icon = categoryIcons[category] ?? Globe;

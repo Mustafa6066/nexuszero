@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Lock, ArrowUpRight, ShieldCheck } from 'lucide-react';
+import { useLang } from '@/app/providers';
 
 interface TierGateProps {
   /** Feature name shown to the user */
@@ -36,6 +37,7 @@ export function TierGateOverlay({ feature, description, requiredTier, children }
     queryFn: () => api.getMe(),
     staleTime: 60_000,
   });
+  const { t } = useLang();
 
   const currentTier = me?.plan ?? 'launchpad';
   const tierOrder = ['launchpad', 'growth', 'enterprise'];
@@ -74,13 +76,13 @@ export function TierGateOverlay({ feature, description, requiredTier, children }
 
           {/* What you'd unlock */}
           <div className="text-left rounded-xl bg-secondary/40 p-4 space-y-2">
-            <p className="text-xs font-semibold text-foreground">What you&apos;d unlock:</p>
+            <p className="text-xs font-semibold text-foreground">{t.tierGate.whatYouldUnlock}</p>
             {requiredTier === 'growth' && (
               <ul className="space-y-1.5 text-xs text-muted-foreground">
-                <li className="flex items-center gap-2"><Check /> Creative Engine — AI-generated ad creatives</li>
-                <li className="flex items-center gap-2"><Check /> AEO tracking across 6 AI platforms</li>
-                <li className="flex items-center gap-2"><Check /> Advanced analytics & funnel experiments</li>
-                <li className="flex items-center gap-2"><Check /> Multi-touch attribution models</li>
+                <li className="flex items-center gap-2"><Check /> {t.tierGate.creativeEngine}</li>
+                <li className="flex items-center gap-2"><Check /> {t.tierGate.aeoTracking}</li>
+                <li className="flex items-center gap-2"><Check /> {t.tierGate.advancedAnalytics}</li>
+                <li className="flex items-center gap-2"><Check /> {t.tierGate.multiTouchAttribution}</li>
                 <li className="flex items-center gap-2"><Check /> Up to 50 campaigns & 2,000 creatives/mo</li>
               </ul>
             )}

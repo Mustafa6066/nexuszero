@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useTheme } from '@/app/providers';
+import { useTheme, useLang } from '@/app/providers';
 import { signOut } from 'next-auth/react';
 import { useAssistantVisibility } from '@/hooks/use-assistant';
 import {
@@ -13,23 +13,24 @@ import {
 } from 'lucide-react';
 import { NexusIconInline } from './assistant/nexus-icon';
 import { NotificationTray } from './notification-tray';
+import { LanguageToggle } from './language-toggle';
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-  { href: '/dashboard/campaigns', icon: Megaphone, label: 'Campaigns' },
-  { href: '/dashboard/agents', icon: Bot, label: 'Agents' },
-  { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
-  { href: '/dashboard/creatives', icon: Palette, label: 'Creatives' },
-  { href: '/dashboard/scanner', icon: ScanSearch, label: 'Scanner' },
-  { href: '/dashboard/aeo', icon: Globe, label: 'AEO' },
-  { href: '/dashboard/integrations', icon: Plug, label: 'Integrations' },
-  { href: '/dashboard/approvals', icon: ShieldCheck, label: 'Approvals' },
-  { href: '/dashboard/webhooks', icon: Webhook, label: 'Webhooks' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
-];
-
-const primaryNav = navItems.slice(0, 7);
-const secondaryNav = navItems.slice(7);
+function useNavItems() {
+  const { t } = useLang();
+  return useMemo(() => [
+    { href: '/dashboard', icon: LayoutDashboard, label: t.sidebar.overview },
+    { href: '/dashboard/campaigns', icon: Megaphone, label: t.sidebar.campaigns },
+    { href: '/dashboard/agents', icon: Bot, label: t.sidebar.agents },
+    { href: '/dashboard/analytics', icon: BarChart3, label: t.sidebar.analytics },
+    { href: '/dashboard/creatives', icon: Palette, label: t.sidebar.creatives },
+    { href: '/dashboard/scanner', icon: ScanSearch, label: t.sidebar.scanner },
+    { href: '/dashboard/aeo', icon: Globe, label: t.sidebar.aeo },
+    { href: '/dashboard/integrations', icon: Plug, label: t.sidebar.integrations },
+    { href: '/dashboard/approvals', icon: ShieldCheck, label: t.sidebar.approvals },
+    { href: '/dashboard/webhooks', icon: Webhook, label: t.sidebar.webhooks },
+    { href: '/dashboard/settings', icon: Settings, label: t.sidebar.settings },
+  ], [t]);
+}
 
 export function Sidebar() {
   // Legacy export kept to avoid breaking imports — renders nothing.
@@ -39,8 +40,12 @@ export function Sidebar() {
 export function FloatingNav() {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
+  const { t } = useLang();
   const { isOpen, toggle: toggleAssistant } = useAssistantVisibility();
   const [mounted, setMounted] = useState(false);
+  const navItems = useNavItems();
+  const primaryNav = navItems.slice(0, 7);
+  const secondaryNav = navItems.slice(7);
 
   useEffect(() => {
     setMounted(true);
@@ -72,19 +77,20 @@ export function FloatingNav() {
                 )}
               >
                 <NexusIconInline size={13} />
-                <span>NexusAI</span>
+                <span>{t.sidebar.nexusAI}</span>
               </button>
               <NotificationTray />
+              <LanguageToggle className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors inline-flex items-center justify-center" />
               <button
                 onClick={toggle}
-                title="Toggle theme"
+                title={t.sidebar.toggleTheme}
                 className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
               >
                 {mounted ? (theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />) : <span className="block h-[14px] w-[14px]" />}
               </button>
               <button
                 onClick={() => signOut({ callbackUrl: '/' })}
-                title="Sign out"
+                title={t.common.signOut}
                 className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
               >
                 <LogOut size={14} />
@@ -178,19 +184,20 @@ export function FloatingNav() {
             )}
           >
             <NexusIconInline size={13} />
-            <span className="hidden xl:inline">NexusAI</span>
+            <span className="hidden xl:inline">{t.sidebar.nexusAI}</span>
           </button>
           <NotificationTray />
+          <LanguageToggle className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors inline-flex items-center justify-center" />
           <button
             onClick={toggle}
-            title="Toggle theme"
+            title={t.sidebar.toggleTheme}
             className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
           >
             {mounted ? (theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />) : <span className="block h-[14px] w-[14px]" />}
           </button>
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
-            title="Sign out"
+            title={t.common.signOut}
             className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
           >
             <LogOut size={14} />

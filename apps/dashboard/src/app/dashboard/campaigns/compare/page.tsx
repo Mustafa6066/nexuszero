@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ArrowLeft, GitCompare, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import Link from 'next/link';
+import { useLang } from '@/app/providers';
 
 function fmt(v: number | undefined, type: 'currency' | 'number' | 'percent' = 'number') {
   if (v == null) return '—';
@@ -37,6 +38,7 @@ const METRICS: { key: string; label: string; type: 'currency' | 'number' | 'perc
 
 export default function CampaignComparePage() {
   const [selectedIds, setSelectedIds] = useState<[string | null, string | null]>([null, null]);
+  const { t } = useLang();
 
   const { data: campaigns = [] } = useQuery({
     queryKey: ['campaigns', 'all'],
@@ -65,9 +67,9 @@ export default function CampaignComparePage() {
         <div>
           <div className="flex items-center gap-2">
             <GitCompare size={16} className="text-primary" />
-            <h1 className="text-xl font-bold tracking-tight">Compare Campaigns</h1>
+            <h1 className="text-xl font-bold tracking-tight">{t.campaignsCompare.heading}</h1>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">Select two campaigns to compare side by side</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t.campaignsCompare.subtitle}</p>
         </div>
       </div>
 
@@ -76,7 +78,7 @@ export default function CampaignComparePage() {
         {[0, 1].map((slot) => (
           <div key={slot} className="rounded-2xl border border-border bg-card/60 p-4">
             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Campaign {slot === 0 ? 'A' : 'B'}
+              {slot === 0 ? t.campaignsCompare.campaignA : t.campaignsCompare.campaignB}
             </label>
             <select
               value={selectedIds[slot] ?? ''}
@@ -87,7 +89,7 @@ export default function CampaignComparePage() {
               }}
               className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
             >
-              <option value="">Select a campaign…</option>
+              <option value="">{t.campaignsCompare.selectCampaign}…</option>
               {campaigns.map((c: any) => (
                 <option key={c.id} value={c.id} disabled={c.id === selectedIds[slot === 0 ? 1 : 0]}>
                   {c.name} ({c.status})
@@ -110,7 +112,7 @@ export default function CampaignComparePage() {
       {campaignA && campaignB && (
         <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
           <div className="grid grid-cols-[1fr_1fr_1fr] border-b border-border">
-            <div className="px-4 py-3 text-xs font-semibold text-muted-foreground">Metric</div>
+            <div className="px-4 py-3 text-xs font-semibold text-muted-foreground">{t.campaignsCompare.metric}</div>
             <div className="px-4 py-3 text-xs font-semibold text-center border-l border-border truncate">{campaignA.name}</div>
             <div className="px-4 py-3 text-xs font-semibold text-center border-l border-border truncate">{campaignB.name}</div>
           </div>
@@ -137,7 +139,7 @@ export default function CampaignComparePage() {
       {(!campaignA || !campaignB) && (
         <div className="rounded-2xl border border-dashed border-border bg-card/30 p-12 text-center">
           <GitCompare size={32} className="mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">Select two campaigns above to see a side-by-side comparison</p>
+          <p className="text-sm text-muted-foreground">{t.campaignsCompare.selectBothCampaigns}</p>
         </div>
       )}
     </div>

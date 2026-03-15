@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowRight, Bot, Link2, Rocket, Sparkles, Workflow } fro
 import { api } from '@/lib/api';
 import { Badge, Button, Card } from '@/components/ui';
 import { useAssistantActions } from '@/hooks/use-assistant';
+import { useLang } from '@/app/providers';
 
 type Surface = 'campaigns' | 'agents' | 'integrations' | 'analytics' | 'creatives' | 'aeo' | 'webhooks';
 
@@ -41,6 +42,7 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { open, sendMessage } = useAssistantActions();
+  const { t } = useLang();
 
   const { data: tenant } = useQuery({
     queryKey: ['tenant', 'me'],
@@ -90,10 +92,10 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
     if (!isOnboardingComplete(onboardingState)) {
       return {
         icon: Rocket,
-        eyebrow: 'Resume Setup',
-        title: 'This workspace is still in setup mode.',
+        eyebrow: t.workspaceGuidance.resumeSetup,
+        title: t.workspaceGuidance.inSetupMode,
         detail: `Resume the onboarding shell to connect the stack, provision the workspace, and move into a first mission instead of configuring things by hand.${intelligence?.journey?.onboardingProgress != null ? ` Progress: ${intelligence.journey.onboardingProgress}%.` : ''}`,
-        cta: 'Resume onboarding',
+        cta: t.workspaceGuidance.resumeOnboarding,
         action: () => router.push('/dashboard/onboarding'),
         tone: 'primary' as const,
       };
@@ -102,10 +104,10 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
     if (surface === 'integrations' && firstDisconnected) {
       return {
         icon: Link2,
-        eyebrow: 'Next Unlock',
+        eyebrow: t.workspaceGuidance.nextUnlock,
         title: `Queue ${PLATFORM_LABELS[firstDisconnected.platform] ?? firstDisconnected.platform} for connection.`,
         detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? 'This is the fastest way to deepen the workspace context without restarting setup.',
-        cta: connectMutation.isPending ? 'Queueing…' : 'Queue connection',
+        cta: connectMutation.isPending ? t.workspaceGuidance.queueing : t.workspaceGuidance.queueConnection,
         action: () => connectMutation.mutate(firstDisconnected.platform),
         tone: 'primary' as const,
       };
@@ -114,10 +116,10 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
     if (degraded.length > 0) {
       return {
         icon: AlertTriangle,
-        eyebrow: 'Risk Watch',
+        eyebrow: t.workspaceGuidance.riskWatch,
         title: `${degraded.length} integration${degraded.length > 1 ? 's are' : ' is'} limiting decision quality.`,
         detail: intelligence?.dashboard?.healthWarnings?.[0] ?? 'Review connection health before asking the agents to optimize against stale or incomplete data.',
-        cta: 'Review integrations',
+        cta: t.workspaceGuidance.reviewIntegrations,
         action: () => router.push('/dashboard/integrations'),
         tone: 'warning' as const,
       };
@@ -126,10 +128,10 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
     if (surface === 'campaigns' && (!campaigns || campaigns.length === 0)) {
       return {
         icon: Sparkles,
-        eyebrow: 'First Mission',
+        eyebrow: t.workspaceGuidance.firstMission,
         title: 'Create the first campaign and let NexusZero benchmark performance.',
         detail: intelligence?.dashboard?.surfaceGuidance?.campaigns ?? 'Once one campaign is live, the platform can move from diagnostics into optimization and creative feedback loops.',
-        cta: 'Create campaign',
+        cta: t.workspaceGuidance.createCampaign,
         action: () => router.push('/dashboard/campaigns?create=true'),
         tone: 'primary' as const,
       };
@@ -138,10 +140,10 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
     if (surface === 'agents' && (!agents || agents.length === 0 || activeAgents.length === 0)) {
       return {
         icon: Workflow,
-        eyebrow: 'Agent Planning',
+        eyebrow: t.workspaceGuidance.agentPlanning,
         title: 'Use NexusAI to decide which agent mix should run next.',
         detail: intelligence?.dashboard?.surfaceGuidance?.agents ?? 'The platform has enough context to propose the highest-value agent configuration based on your stack and current activity.',
-        cta: 'Ask for agent plan',
+        cta: t.workspaceGuidance.askForAgentPlan,
         action: () => {
           open();
           void sendMessage('Recommend the right agent mix for my current workspace, explain why, and tell me what to activate next.');
@@ -153,10 +155,10 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
     if (surface === 'integrations' && (!integrations || integrations.length === 0)) {
       return {
         icon: Link2,
-        eyebrow: 'First Mission',
+        eyebrow: t.workspaceGuidance.firstMission,
         title: 'Start with one analytics or ad-platform connection.',
         detail: intelligence?.dashboard?.surfaceGuidance?.integrations ?? 'A single high-value connection is enough to improve attribution confidence and unlock the next automation layer.',
-        cta: 'Open onboarding',
+        cta: t.workspaceGuidance.openOnboarding,
         action: () => router.push('/dashboard/onboarding'),
         tone: 'primary' as const,
       };
@@ -164,17 +166,17 @@ export function WorkspaceGuidanceBanner({ surface }: { surface: Surface }) {
 
     return {
       icon: Bot,
-      eyebrow: 'Guided Next Step',
+      eyebrow: t.workspaceGuidance.guidedNextStep,
       title: 'Ask NexusAI for the highest-impact move on this surface.',
         detail: intelligence?.dashboard?.surfaceGuidance?.[surface] ?? 'Use the live context from this page instead of manually reviewing every card and table.',
-      cta: 'Ask NexusAI',
+      cta: t.workspaceGuidance.askNexusAI,
       action: () => {
         open();
         void sendMessage(`Give me the next best action for the ${surface} page based on the current workspace state.`);
       },
       tone: 'neutral' as const,
     };
-  }, [agents, campaigns, connectMutation, intelligence, integrations, open, router, sendMessage, surface, tenant]);
+  }, [agents, campaigns, connectMutation, intelligence, integrations, open, router, sendMessage, surface, t, tenant]);
 
   const Icon = guidance.icon;
   const toneClasses = guidance.tone === 'warning'

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { TrendingUp, TrendingDown, Minus, X, Trophy, AlertTriangle, CheckCircle, BarChart3 } from 'lucide-react';
+import { useLang } from '@/app/providers';
 
 interface ReportMetric {
   label: string;
@@ -38,6 +39,7 @@ function TrendArrow({ current, previous, higherIsBetter }: { current: number; pr
 
 export function WeeklyReportCard() {
   const [isVisible, setIsVisible] = useState(false);
+  const { t } = useLang();
 
   const { data: summary } = useQuery({
     queryKey: ['analytics', 'summary'],
@@ -106,7 +108,7 @@ export function WeeklyReportCard() {
     return score;
   }, [successRate, summary, totalCompleted]);
 
-  const healthLabel = healthScore >= 4 ? 'Excellent' : healthScore >= 2 ? 'Good' : 'Needs Attention';
+  const healthLabel = healthScore >= 4 ? t.weeklyReport.excellent : healthScore >= 2 ? t.weeklyReport.good : t.weeklyReport.needsAttention;
   const healthColor = healthScore >= 4 ? 'text-green-400' : healthScore >= 2 ? 'text-yellow-400' : 'text-red-400';
   const HealthIcon = healthScore >= 4 ? Trophy : healthScore >= 2 ? CheckCircle : AlertTriangle;
 
@@ -117,7 +119,7 @@ export function WeeklyReportCard() {
         className="inline-flex items-center gap-2 rounded-xl border border-border/40 bg-card/60 hover:bg-card/80 px-4 py-2.5 text-xs font-medium text-foreground transition-all hover:border-primary/30"
       >
         <BarChart3 size={14} className="text-primary" />
-        Weekly Report Card
+        {t.weeklyReport.buttonLabel}
       </button>
     );
   }
@@ -128,7 +130,7 @@ export function WeeklyReportCard() {
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/30 bg-gradient-to-r from-primary/5 to-transparent">
         <div className="flex items-center gap-2">
           <BarChart3 size={14} className="text-primary" />
-          <h3 className="text-sm font-semibold">Weekly AI Report Card</h3>
+          <h3 className="text-sm font-semibold">{t.weeklyReport.heading}</h3>
         </div>
         <button
           onClick={() => setIsVisible(false)}
@@ -143,7 +145,7 @@ export function WeeklyReportCard() {
         <HealthIcon size={18} className={healthColor} />
         <div>
           <p className={`text-sm font-bold ${healthColor}`}>{healthLabel}</p>
-          <p className="text-[10px] text-muted-foreground">Overall platform performance</p>
+          <p className="text-[10px] text-muted-foreground">{t.weeklyReport.overallPerformance}</p>
         </div>
       </div>
 

@@ -4,16 +4,18 @@ import { useRouter } from 'next/navigation';
 import { AlertTriangle, ArrowRight, Sparkles, Target } from 'lucide-react';
 import { Badge, Button, Card } from '@/components/ui';
 import { getOverviewPanelData, type DashboardOverviewIntelligence } from '@/lib/overview-intelligence';
+import { useLang } from '@/app/providers';
 
 export function OverviewIntelligencePanel({ intelligence }: { intelligence?: DashboardOverviewIntelligence | null }) {
   const router = useRouter();
   const panel = getOverviewPanelData(intelligence);
+  const { t } = useLang();
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="rounded-[1.7rem] border-primary/15 bg-[linear-gradient(135deg,hsl(var(--card)/0.92),hsl(var(--background)/0.84))] p-5 sm:p-6">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/80">Strategic Mission</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/80">{t.overviewIntelligence.strategicMission}</p>
           <h3 className="mt-2 text-2xl font-semibold tracking-tight">{panel.mission.title}</h3>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">{panel.mission.detail}</p>
           {panel.mission.actionPath && panel.mission.actionLabel && (
@@ -25,7 +27,7 @@ export function OverviewIntelligencePanel({ intelligence }: { intelligence?: Das
         </Card>
 
         <Card className="rounded-[1.7rem] border-border/60 bg-card/70 p-5 sm:p-6">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/80">Workspace Highlights</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary/80">{t.overviewIntelligence.workspaceHighlights}</p>
           <div className="mt-4 grid grid-cols-2 gap-3">
             {panel.highlights.length > 0 ? panel.highlights.map((item) => (
               <div key={item.label} className="rounded-2xl border border-border/50 bg-secondary/20 px-4 py-4">
@@ -34,7 +36,7 @@ export function OverviewIntelligencePanel({ intelligence }: { intelligence?: Das
               </div>
             )) : (
               <div className="col-span-2 rounded-2xl border border-border/50 bg-secondary/20 px-4 py-6 text-sm text-muted-foreground">
-                Highlights will populate as the workspace builds more operating history.
+                {t.overviewIntelligence.highlightsEmpty}
               </div>
             )}
           </div>
@@ -45,7 +47,7 @@ export function OverviewIntelligencePanel({ intelligence }: { intelligence?: Das
         <Card className="rounded-[1.6rem] border-border/60 bg-card/70 p-5 sm:p-6">
           <div className="mb-4 flex items-center gap-2">
             <Sparkles size={16} className="text-primary" />
-            <h3 className="text-sm font-semibold">Top Opportunities</h3>
+            <h3 className="text-sm font-semibold">{t.overviewIntelligence.topOpportunities}</h3>
           </div>
           <div className="space-y-3">
             {panel.opportunities.length > 0 ? panel.opportunities.map((item) => (
@@ -64,7 +66,7 @@ export function OverviewIntelligencePanel({ intelligence }: { intelligence?: Das
               </div>
             )) : (
               <div className="rounded-xl border border-border/60 bg-secondary/20 p-4 text-sm text-muted-foreground">
-                No additional opportunities are queued right now.
+                {t.overviewIntelligence.opportunitiesEmpty}
               </div>
             )}
           </div>
@@ -73,7 +75,7 @@ export function OverviewIntelligencePanel({ intelligence }: { intelligence?: Das
         <Card className="rounded-[1.6rem] border-border/60 bg-card/70 p-5 sm:p-6">
           <div className="mb-4 flex items-center gap-2">
             <AlertTriangle size={16} className="text-yellow-400" />
-            <h3 className="text-sm font-semibold">Top Risks</h3>
+            <h3 className="text-sm font-semibold">{t.overviewIntelligence.topRisks}</h3>
           </div>
           <div className="space-y-3">
             {panel.risks.length > 0 ? panel.risks.map((item) => (
@@ -97,7 +99,7 @@ export function OverviewIntelligencePanel({ intelligence }: { intelligence?: Das
               </div>
             )) : (
               <div className="rounded-xl border border-green-500/20 bg-green-500/8 p-4 text-sm text-muted-foreground">
-                No critical risks are currently surfaced by the intelligence layer.
+                {t.overviewIntelligence.risksEmpty}
               </div>
             )}
           </div>

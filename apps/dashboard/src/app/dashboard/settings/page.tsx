@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Button, Badge } from '@/components/ui';
+import { useLang } from '@/app/providers';
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
@@ -16,6 +17,7 @@ export default function SettingsPage() {
   const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useLang();
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => api.patch('/tenants/me', data),
@@ -34,7 +36,7 @@ export default function SettingsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Settings</h1>
+          <h1 className="text-2xl font-bold">{t.settingsPage.heading}</h1>
         </div>
         <Card className="animate-pulse">
           <div className="h-4 w-1/3 rounded bg-secondary" />
@@ -65,18 +67,18 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage your organization settings and integrations.</p>
+          <h1 className="text-2xl font-bold">{t.settingsPage.heading}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t.settingsPage.settingsSubtitle}</p>
         </div>
-        {saved && <Badge variant="success">Settings saved!</Badge>}
+        {saved && <Badge variant="success">{t.settingsPage.settingsSaved}</Badge>}
         {error && <Badge variant="destructive">{error}</Badge>}
       </div>
 
       <Card>
-        <h3 className="text-sm font-semibold mb-4">Organization</h3>
+        <h3 className="text-sm font-semibold mb-4">{t.settingsPage.organization}</h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Company Name</label>
+            <label className="block text-sm font-medium mb-1">{t.settingsPage.companyName}</label>
             <input
               type="text"
               value={(form.company_name as string) ?? tenant?.company_name ?? ''}
@@ -85,7 +87,7 @@ export default function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Website</label>
+            <label className="block text-sm font-medium mb-1">{t.settingsPage.website}</label>
             <input
               type="url"
               value={(form.website as string) ?? tenant?.website ?? ''}
@@ -94,7 +96,7 @@ export default function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Industry</label>
+            <label className="block text-sm font-medium mb-1">{t.settingsPage.industry}</label>
             <input
               type="text"
               value={(form.industry as string) ?? tenant?.industry ?? ''}
@@ -106,10 +108,10 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <h3 className="text-sm font-semibold mb-4">Subscription</h3>
+        <h3 className="text-sm font-semibold mb-4">{t.settingsPage.subscription}</h3>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm">Current Plan</p>
+            <p className="text-sm">{t.settingsPage.currentPlan}</p>
             <p className="mt-1 text-lg font-bold capitalize">{tenant?.plan_tier ?? 'starter'}</p>
           </div>
           <Badge variant={tenant?.status === 'active' ? 'success' : 'warning'}>
@@ -118,26 +120,26 @@ export default function SettingsPage() {
         </div>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <p className="text-xs text-muted-foreground">Max Agents</p>
+            <p className="text-xs text-muted-foreground">{t.settingsPage.maxAgents}</p>
             <p className="text-sm font-medium">{tenant?.config?.max_agents ?? 'Unlimited'}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Max Campaigns</p>
+            <p className="text-xs text-muted-foreground">{t.settingsPage.maxCampaigns}</p>
             <p className="text-sm font-medium">{tenant?.config?.max_campaigns ?? 'Unlimited'}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">API Rate Limit</p>
+            <p className="text-xs text-muted-foreground">{t.settingsPage.apiRateLimit}</p>
             <p className="text-sm font-medium">{tenant?.config?.rate_limit ?? '100'}/min</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Created</p>
+            <p className="text-xs text-muted-foreground">{t.settingsPage.created}</p>
             <p className="text-sm font-medium">{tenant?.created_at ? new Date(tenant.created_at).toLocaleDateString() : 'N/A'}</p>
           </div>
         </div>
       </Card>
 
       <Card>
-        <h3 className="text-sm font-semibold mb-4">OAuth Integrations</h3>
+        <h3 className="text-sm font-semibold mb-4">{t.settingsPage.oauthIntegrations}</h3>
         <div className="space-y-3">
           {['google_ads', 'meta_ads', 'tiktok_ads', 'linkedin_ads'].map((platform) => {
             const isConnected = tenant?.oauth_tokens?.[platform]?.access_token;
@@ -159,13 +161,13 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <h3 className="text-sm font-semibold mb-4">Notification Preferences</h3>
+        <h3 className="text-sm font-semibold mb-4">{t.settingsPage.notificationPreferences}</h3>
         <div className="space-y-3">
           {[
-            { key: 'anomaly_alerts', label: 'Anomaly Alerts', desc: 'Get notified when unusual patterns are detected' },
-            { key: 'daily_digest', label: 'Daily Digest', desc: 'Receive a daily summary of all agent activity' },
-            { key: 'campaign_updates', label: 'Campaign Updates', desc: 'Notifications for campaign status changes' },
-            { key: 'agent_errors', label: 'Agent Errors', desc: 'Alert when an agent encounters an error' },
+            { key: 'anomaly_alerts', label: t.settingsPage.anomalyAlerts, desc: t.settingsPage.anomalyAlertsDesc },
+            { key: 'daily_digest', label: t.settingsPage.dailyDigest, desc: t.settingsPage.dailyDigestDesc },
+            { key: 'campaign_updates', label: t.settingsPage.campaignUpdates, desc: t.settingsPage.campaignUpdatesDesc },
+            { key: 'agent_errors', label: t.settingsPage.agentErrors, desc: t.settingsPage.agentErrorsDesc },
           ].map((pref) => (
             <div key={pref.key} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
               <div>
@@ -188,7 +190,7 @@ export default function SettingsPage() {
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={updateMutation.isPending}>
-          {updateMutation.isPending ? 'Saving...' : 'Save Settings'}
+          {updateMutation.isPending ? t.settingsPage.saving : t.settingsPage.saveSettings}
         </Button>
       </div>
     </div>

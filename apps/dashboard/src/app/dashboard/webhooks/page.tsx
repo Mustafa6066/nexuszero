@@ -5,10 +5,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
+import { useLang } from '@/app/providers';
 
 export default function WebhooksPage() {
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const { t } = useLang();
 
   const { data: webhooks, isLoading } = useQuery({
     queryKey: ['webhooks'],
@@ -26,10 +28,10 @@ export default function WebhooksPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Webhooks</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage webhook endpoints for real-time event delivery.</p>
+          <h1 className="text-2xl font-bold">{t.webhooksPage.heading}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t.webhooksPage.webhookSubtitle}</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>+ Add Endpoint</Button>
+        <Button onClick={() => setShowCreate(true)}>{t.webhooksPage.addEndpoint}</Button>
       </div>
 
       {isLoading ? (
@@ -65,7 +67,7 @@ export default function WebhooksPage() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => { if (confirm('Delete this webhook endpoint? This cannot be undone.')) deleteMutation.mutate(webhook.id); }}
+                    onClick={() => { if (confirm(t.webhooksPage.deleteConfirm)) deleteMutation.mutate(webhook.id); }}
                     disabled={deleteMutation.isPending}
                   >
                     Delete
@@ -75,11 +77,11 @@ export default function WebhooksPage() {
 
               <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 text-center">
                 <div>
-                  <p className="text-xs text-muted-foreground">Deliveries</p>
+                  <p className="text-xs text-muted-foreground">{t.webhooksPage.deliveries}</p>
                   <p className="text-sm font-medium">{webhook.total_deliveries ?? 0}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Success Rate</p>
+                  <p className="text-xs text-muted-foreground">{t.webhooksPage.successRate}</p>
                   <p className="text-sm font-medium">
                     {webhook.total_deliveries > 0
                       ? `${(((webhook.successful_deliveries ?? 0) / webhook.total_deliveries) * 100).toFixed(1)}%`
@@ -87,13 +89,13 @@ export default function WebhooksPage() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Consecutive Failures</p>
+                  <p className="text-xs text-muted-foreground">{t.webhooksPage.consecutiveFailures}</p>
                   <p className={`text-sm font-medium ${(webhook.consecutive_failures ?? 0) > 10 ? 'text-red-400' : ''}`}>
                     {webhook.consecutive_failures ?? 0}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Last Delivery</p>
+                  <p className="text-xs text-muted-foreground">{t.webhooksPage.lastDelivery}</p>
                   <p className="text-sm font-medium">
                     {webhook.last_delivery_at ? new Date(webhook.last_delivery_at).toLocaleString() : 'Never'}
                   </p>
@@ -109,8 +111,8 @@ export default function WebhooksPage() {
           ))}
           {(!webhooks || webhooks.length === 0) && (
             <Card className="text-center py-12">
-              <p className="text-muted-foreground">No webhook endpoints configured.</p>
-              <Button className="mt-4" onClick={() => setShowCreate(true)}>Add your first endpoint</Button>
+              <p className="text-muted-foreground">{t.webhooksPage.noEndpoints}</p>
+              <Button className="mt-4" onClick={() => setShowCreate(true)}>{t.webhooksPage.addFirstEndpoint}</Button>
             </Card>
           )}
         </div>
@@ -123,6 +125,7 @@ export default function WebhooksPage() {
 
 function CreateWebhookModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
+  const { t } = useLang();
   const [form, setForm] = useState({
     url: '',
     events: 'campaign.*',
@@ -167,11 +170,11 @@ function CreateWebhookModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <Card className="w-full max-w-md" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold mb-4">Add Webhook Endpoint</h2>
+        <h2 className="text-lg font-semibold mb-4">{t.webhooksPage.addWebhookEndpoint}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-400">{error}</div>}
           <div>
-            <label className="block text-sm font-medium mb-1">Endpoint URL</label>
+            <label className="block text-sm font-medium mb-1">{t.webhooksPage.endpointUrlLabel}</label>
             <input
               type="url"
               value={form.url}
@@ -182,7 +185,7 @@ function CreateWebhookModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Events (comma-separated)</label>
+            <label className="block text-sm font-medium mb-1">{t.webhooksPage.eventsCommaSeparated}</label>
             <input
               type="text"
               value={form.events}

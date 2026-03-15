@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAssistantActions } from '@/hooks/use-assistant';
+import { useLang } from '@/app/providers';
 import {
   Search, LayoutDashboard, Megaphone, Bot, BarChart3, Palette,
   Globe, Plug, Webhook, Settings, Zap, Plus, Play, Pause, ScanSearch, FileText,
@@ -27,6 +28,7 @@ export function CommandPalette() {
   const listRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { open, sendMessage } = useAssistantActions();
+  const { t } = useLang();
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -81,26 +83,26 @@ export function CommandPalette() {
 
   const commands: CommandItem[] = useMemo(() => [
     // Navigation
-    { id: 'nav-overview', label: 'Dashboard Overview', icon: LayoutDashboard, action: () => navigate('/dashboard'), category: 'navigation', keywords: ['home', 'command center'] },
-    { id: 'nav-campaigns', label: 'Campaigns', icon: Megaphone, action: () => navigate('/dashboard/campaigns'), category: 'navigation', keywords: ['ads', 'ppc'] },
-    { id: 'nav-agents', label: 'AI Agents', icon: Bot, action: () => navigate('/dashboard/agents'), category: 'navigation', keywords: ['swarm', 'seo', 'ad'] },
-    { id: 'nav-analytics', label: 'Analytics', icon: BarChart3, action: () => navigate('/dashboard/analytics'), category: 'navigation', keywords: ['data', 'metrics', 'revenue'] },
-    { id: 'nav-creatives', label: 'Creatives', icon: Palette, action: () => navigate('/dashboard/creatives'), category: 'navigation', keywords: ['design', 'assets'] },
-    { id: 'nav-aeo', label: 'AEO — AI Visibility', icon: Globe, action: () => navigate('/dashboard/aeo'), category: 'navigation', keywords: ['citations', 'chatgpt', 'perplexity'] },
-    { id: 'nav-integrations', label: 'Integrations', icon: Plug, action: () => navigate('/dashboard/integrations'), category: 'navigation', keywords: ['connect', 'platforms'] },
-    { id: 'nav-webhooks', label: 'Webhooks', icon: Webhook, action: () => navigate('/dashboard/webhooks'), category: 'navigation', keywords: ['events', 'endpoints'] },
-    { id: 'nav-settings', label: 'Settings', icon: Settings, action: () => navigate('/dashboard/settings'), category: 'navigation', keywords: ['account', 'subscription', 'profile'] },
+    { id: 'nav-overview', label: t.commandPalette.navOverview, icon: LayoutDashboard, action: () => navigate('/dashboard'), category: 'navigation', keywords: ['home', 'command center'] },
+    { id: 'nav-campaigns', label: t.commandPalette.navCampaigns, icon: Megaphone, action: () => navigate('/dashboard/campaigns'), category: 'navigation', keywords: ['ads', 'ppc'] },
+    { id: 'nav-agents', label: t.commandPalette.navAgents, icon: Bot, action: () => navigate('/dashboard/agents'), category: 'navigation', keywords: ['swarm', 'seo', 'ad'] },
+    { id: 'nav-analytics', label: t.commandPalette.navAnalytics, icon: BarChart3, action: () => navigate('/dashboard/analytics'), category: 'navigation', keywords: ['data', 'metrics', 'revenue'] },
+    { id: 'nav-creatives', label: t.commandPalette.navCreatives, icon: Palette, action: () => navigate('/dashboard/creatives'), category: 'navigation', keywords: ['design', 'assets'] },
+    { id: 'nav-aeo', label: t.commandPalette.navAeo, icon: Globe, action: () => navigate('/dashboard/aeo'), category: 'navigation', keywords: ['citations', 'chatgpt', 'perplexity'] },
+    { id: 'nav-integrations', label: t.commandPalette.navIntegrations, icon: Plug, action: () => navigate('/dashboard/integrations'), category: 'navigation', keywords: ['connect', 'platforms'] },
+    { id: 'nav-webhooks', label: t.commandPalette.navWebhooks, icon: Webhook, action: () => navigate('/dashboard/webhooks'), category: 'navigation', keywords: ['events', 'endpoints'] },
+    { id: 'nav-settings', label: t.commandPalette.navSettings, icon: Settings, action: () => navigate('/dashboard/settings'), category: 'navigation', keywords: ['account', 'subscription', 'profile'] },
     // Actions
-    { id: 'act-create-campaign', label: 'Create Campaign', description: 'Launch a new ad campaign', icon: Plus, action: () => navigate('/dashboard/campaigns?create=true'), category: 'action', keywords: ['new', 'launch'] },
-    { id: 'act-seo-audit', label: 'Run SEO Audit', description: 'Trigger a technical SEO analysis', icon: ScanSearch, action: () => askAI('Run a quick SEO audit'), category: 'action', keywords: ['scan', 'technical'] },
-    { id: 'act-aeo-scan', label: 'Run AEO Citation Scan', description: 'Scan AI platforms for brand mentions', icon: Globe, action: () => askAI('Run an AEO citation scan'), category: 'action', keywords: ['citations', 'visibility'] },
-    { id: 'act-report', label: 'Generate Report', description: 'Create a downloadable performance report', icon: FileText, action: () => askAI('Generate an executive summary report'), category: 'action', keywords: ['export', 'pdf'] },
+    { id: 'act-create-campaign', label: t.commandPalette.actCreateCampaign, description: t.commandPalette.actCreateCampaignDesc, icon: Plus, action: () => navigate('/dashboard/campaigns?create=true'), category: 'action', keywords: ['new', 'launch'] },
+    { id: 'act-seo-audit', label: t.commandPalette.actSeoAudit, description: t.commandPalette.actSeoAuditDesc, icon: ScanSearch, action: () => askAI('Run a quick SEO audit'), category: 'action', keywords: ['scan', 'technical'] },
+    { id: 'act-aeo-scan', label: t.commandPalette.actAeoScan, description: t.commandPalette.actAeoScanDesc, icon: Globe, action: () => askAI('Run an AEO citation scan'), category: 'action', keywords: ['citations', 'visibility'] },
+    { id: 'act-report', label: t.commandPalette.actReport, description: t.commandPalette.actReportDesc, icon: FileText, action: () => askAI('Generate an executive summary report'), category: 'action', keywords: ['export', 'pdf'] },
     // AI shortcuts
-    { id: 'ai-performance', label: 'How are my campaigns doing?', icon: Bot, action: () => askAI('How are my campaigns performing this month?'), category: 'ai', keywords: ['performance', 'stats'] },
-    { id: 'ai-agents', label: "What's the agent status?", icon: Bot, action: () => askAI("What's the status of all my agents?"), category: 'ai', keywords: ['health', 'fleet'] },
-    { id: 'ai-seo', label: 'SEO performance overview', icon: Bot, action: () => askAI('Give me an overview of my SEO performance'), category: 'ai', keywords: ['organic', 'rankings'] },
-    { id: 'ai-recommend', label: 'What should I do next?', icon: Bot, action: () => askAI('Based on my current data, what actions do you recommend?'), category: 'ai', keywords: ['suggest', 'next steps'] },
-  ], [askAI, navigate]);
+    { id: 'ai-performance', label: t.commandPalette.aiPerformance, icon: Bot, action: () => askAI('How are my campaigns performing this month?'), category: 'ai', keywords: ['performance', 'stats'] },
+    { id: 'ai-agents', label: t.commandPalette.aiAgents, icon: Bot, action: () => askAI("What's the status of all my agents?"), category: 'ai', keywords: ['health', 'fleet'] },
+    { id: 'ai-seo', label: t.commandPalette.aiSeo, icon: Bot, action: () => askAI('Give me an overview of my SEO performance'), category: 'ai', keywords: ['organic', 'rankings'] },
+    { id: 'ai-recommend', label: t.commandPalette.aiRecommend, icon: Bot, action: () => askAI('Based on my current data, what actions do you recommend?'), category: 'ai', keywords: ['suggest', 'next steps'] },
+  ], [askAI, navigate, t]);
 
   // Filter commands
   const filtered = useMemo(() => {
@@ -158,15 +160,15 @@ export function CommandPalette() {
 
   if (showShortcuts) {
     const shortcuts = [
-      { keys: ['⌘', 'K'], label: 'Open command palette' },
-      { keys: ['?'], label: 'Show keyboard shortcuts' },
-      { keys: ['G', 'D'], label: 'Go to Dashboard' },
-      { keys: ['G', 'C'], label: 'Go to Campaigns' },
-      { keys: ['G', 'A'], label: 'Go to Agents' },
-      { keys: ['G', 'N'], label: 'Go to Analytics' },
-      { keys: ['G', 'I'], label: 'Go to Integrations' },
-      { keys: ['G', 'S'], label: 'Go to Settings' },
-      { keys: ['Esc'], label: 'Close overlay / panel' },
+      { keys: ['⌘', 'K'], label: t.commandPalette.openCommandPalette },
+      { keys: ['?'], label: t.commandPalette.showKeyboardShortcuts },
+      { keys: ['G', 'D'], label: t.commandPalette.goToDashboard },
+      { keys: ['G', 'C'], label: t.commandPalette.goToCampaigns },
+      { keys: ['G', 'A'], label: t.commandPalette.goToAgents },
+      { keys: ['G', 'N'], label: t.commandPalette.goToAnalytics },
+      { keys: ['G', 'I'], label: t.commandPalette.goToIntegrations },
+      { keys: ['G', 'S'], label: t.commandPalette.goToSettings },
+      { keys: ['Esc'], label: t.commandPalette.closeOverlay },
     ];
     return (
       <>
@@ -174,7 +176,7 @@ export function CommandPalette() {
         <div className="fixed inset-0 z-[61] flex items-center justify-center px-4">
           <div className="w-full max-w-sm rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl overflow-hidden animate-fade-in">
             <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-              <h3 className="text-sm font-semibold">Keyboard Shortcuts</h3>
+              <h3 className="text-sm font-semibold">{t.commandPalette.keyboardShortcuts}</h3>
               <kbd className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">?</kbd>
             </div>
             <div className="p-4 space-y-2.5">
@@ -215,7 +217,7 @@ export function CommandPalette() {
               type="text"
               value={query}
               onChange={(e: { target: { value: string } }) => setQuery(e.target.value)}
-              placeholder="Type a command or search..."
+              placeholder={t.commandPalette.placeholder}
               className="flex-1 bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
             />
             <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
@@ -227,14 +229,14 @@ export function CommandPalette() {
           <div ref={listRef} className="max-h-80 overflow-y-auto py-2">
             {flatFiltered.length === 0 && (
               <div className="px-4 py-8 text-center">
-                <p className="text-sm text-muted-foreground">No results for &ldquo;{query}&rdquo;</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Try a different keyword or ask NexusAI</p>
+                <p className="text-sm text-muted-foreground">{t.commandPalette.noResults} &ldquo;{query}&rdquo;</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">{t.commandPalette.tryDifferent}</p>
               </div>
             )}
 
             {grouped.navigation.length > 0 && (
               <div>
-                <p className="px-4 py-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">Navigate</p>
+                <p className="px-4 py-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">{t.commandPalette.navigate}</p>
                 {grouped.navigation.map((cmd: CommandItem) => {
                   flatIndex++;
                   const idx = flatIndex;
@@ -259,7 +261,7 @@ export function CommandPalette() {
 
             {grouped.action.length > 0 && (
               <div>
-                <p className="px-4 py-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mt-1">Quick Actions</p>
+                <p className="px-4 py-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mt-1">{t.commandPalette.quickActions}</p>
                 {grouped.action.map((cmd: CommandItem) => {
                   flatIndex++;
                   const idx = flatIndex;
@@ -287,7 +289,7 @@ export function CommandPalette() {
 
             {grouped.ai.length > 0 && (
               <div>
-                <p className="px-4 py-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mt-1">Ask NexusAI</p>
+                <p className="px-4 py-1.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase mt-1">{t.commandPalette.askNexusAI}</p>
                 {grouped.ai.map((cmd: CommandItem) => {
                   flatIndex++;
                   const idx = flatIndex;
@@ -314,9 +316,9 @@ export function CommandPalette() {
           {/* Footer */}
           <div className="flex items-center justify-between border-t border-border px-4 py-2 text-[10px] text-muted-foreground">
             <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1"><kbd className="rounded bg-secondary px-1 py-0.5 font-mono">↑↓</kbd> Navigate</span>
-              <span className="flex items-center gap-1"><kbd className="rounded bg-secondary px-1 py-0.5 font-mono">↵</kbd> Select</span>
-              <span className="flex items-center gap-1"><kbd className="rounded bg-secondary px-1 py-0.5 font-mono">Esc</kbd> Close</span>
+              <span className="flex items-center gap-1"><kbd className="rounded bg-secondary px-1 py-0.5 font-mono">↑↓</kbd> {t.commandPalette.footerNavigate}</span>
+              <span className="flex items-center gap-1"><kbd className="rounded bg-secondary px-1 py-0.5 font-mono">↵</kbd> {t.commandPalette.footerSelect}</span>
+              <span className="flex items-center gap-1"><kbd className="rounded bg-secondary px-1 py-0.5 font-mono">Esc</kbd> {t.commandPalette.footerClose}</span>
             </div>
             <div className="flex items-center gap-1">
               <Command size={10} /> <span>K</span>

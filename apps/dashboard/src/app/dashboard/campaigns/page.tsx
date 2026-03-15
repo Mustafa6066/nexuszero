@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 import { formatCurrency } from '@/lib/utils';
 import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
+import { useLang } from '@/app/providers';
 
 const PLATFORMS = ['google_ads', 'meta_ads', 'tiktok_ads', 'linkedin_ads'] as const;
 const STATUSES = ['active', 'paused', 'draft', 'completed'] as const;
@@ -15,6 +16,7 @@ export default function CampaignsPage() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { t } = useLang();
   const [filter, setFilter] = useState<string>('all');
   const [showCreate, setShowCreate] = useState(false);
 
@@ -40,12 +42,12 @@ export default function CampaignsPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Campaigns</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage your advertising campaigns across all platforms.</p>
+          <h1 className="text-2xl font-bold">{t.campaignsPage.heading}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t.campaignsPage.manageSubtitle}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => router.push('/dashboard/campaigns/compare')}>Compare</Button>
-          <Button onClick={() => setShowCreate(true)}>+ New Campaign</Button>
+          <Button variant="outline" onClick={() => router.push('/dashboard/campaigns/compare')}>{t.campaignsPage.compare}</Button>
+          <Button onClick={() => setShowCreate(true)}>+ {t.campaignsPage.newCampaign}</Button>
         </div>
       </div>
 
@@ -58,7 +60,7 @@ export default function CampaignsPage() {
               filter === status ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             }`}
           >
-            {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
+            {status === 'all' ? t.campaignsPage.filterAll : status.charAt(0).toUpperCase() + status.slice(1)}
           </button>
         ))}
       </div>
@@ -93,40 +95,40 @@ export default function CampaignsPage() {
 
               <div className="mt-4 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Daily Budget</p>
+                  <p className="text-xs text-muted-foreground">{t.campaignsPage.dailyBudget}</p>
                   <p className="text-sm font-medium">{formatCurrency((campaign.budget as any)?.dailyBudget ?? 0)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Total Spend</p>
+                  <p className="text-xs text-muted-foreground">{t.campaignsPage.totalSpend}</p>
                   <p className="text-sm font-medium">{formatCurrency(campaign.spend ?? 0)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Impressions</p>
+                  <p className="text-xs text-muted-foreground">{t.campaignsPage.impressions}</p>
                   <p className="text-sm font-medium">{(campaign.impressions ?? 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">CTR</p>
+                  <p className="text-xs text-muted-foreground">{t.campaignsPage.ctr}</p>
                   <p className="text-sm font-medium">{((campaign.ctr ?? 0) * 100).toFixed(2)}%</p>
                 </div>
               </div>
 
               <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(`/dashboard/campaigns/${campaign.id}`)}>Edit</Button>
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(`/dashboard/campaigns/${campaign.id}`)}>{t.common.edit}</Button>
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => { if (confirm(`Delete "${campaign.name}"? This cannot be undone.`)) deleteMutation.mutate(campaign.id); }}
+                  onClick={() => { if (confirm(t.campaignsPage.deleteConfirm)) deleteMutation.mutate(campaign.id); }}
                   disabled={deleteMutation.isPending}
                 >
-                  Delete
+                  {t.common.delete}
                 </Button>
               </div>
             </Card>
           ))}
           {(!campaigns || campaigns.length === 0) && (
             <Card className="col-span-full text-center py-12">
-              <p className="text-muted-foreground">No campaigns found.</p>
-              <Button className="mt-4" onClick={() => setShowCreate(true)}>Create your first campaign</Button>
+              <p className="text-muted-foreground">{t.campaignsPage.noCampaigns}</p>
+              <Button className="mt-4" onClick={() => setShowCreate(true)}>{t.campaignsPage.createFirst}</Button>
             </Card>
           )}
         </div>
@@ -139,6 +141,7 @@ export default function CampaignsPage() {
 
 function CreateCampaignModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
+  const { t } = useLang();
   const [form, setForm] = useState({ name: '', platform: 'google_ads', daily_budget: '', objective: 'conversions' });
   const [error, setError] = useState<string | null>(null);
 
@@ -176,11 +179,11 @@ function CreateCampaignModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <Card className="w-full max-w-md" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold mb-4">Create Campaign</h2>
+        <h2 className="text-lg font-semibold mb-4">{t.campaignsPage.createTitle}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-400">{error}</div>}
           <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
+            <label className="block text-sm font-medium mb-1">{t.campaignsPage.name}</label>
             <input
               type="text"
               value={form.name}
@@ -190,7 +193,7 @@ function CreateCampaignModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Platform</label>
+            <label className="block text-sm font-medium mb-1">{t.campaignsPage.platform}</label>
             <select
               value={form.platform}
               onChange={(e) => setForm({ ...form, platform: e.target.value })}
@@ -202,7 +205,7 @@ function CreateCampaignModal({ onClose }: { onClose: () => void }) {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Daily Budget ($)</label>
+            <label className="block text-sm font-medium mb-1">{t.campaignsPage.dailyBudget} ($)</label>
             <input
               type="number"
               step="0.01"
@@ -214,9 +217,9 @@ function CreateCampaignModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="flex gap-2 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>{t.common.cancel}</Button>
             <Button type="submit" className="flex-1" disabled={createMutation.isPending}>
-              {createMutation.isPending ? 'Creating...' : 'Create'}
+              {createMutation.isPending ? t.campaignsPage.creating : t.common.create}
             </Button>
           </div>
         </form>

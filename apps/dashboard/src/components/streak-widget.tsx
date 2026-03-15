@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Flame, Trophy, TrendingUp } from 'lucide-react';
+import { useLang } from '@/app/providers';
 
 const RANKS = [
   { key: 'recruit', label: 'Recruit', min: 0, color: 'text-zinc-400', bg: 'bg-zinc-500/10' },
@@ -27,6 +28,15 @@ export function StreakWidget() {
     queryFn: () => api.getMyStreak(),
     staleTime: 60_000,
   });
+  const { t } = useLang();
+
+  const rankLabels: Record<string, string> = {
+    recruit: t.streakWidget.recruit,
+    operator: t.streakWidget.operator,
+    strategist: t.streakWidget.strategist,
+    commander: t.streakWidget.commander,
+    nexus_elite: t.streakWidget.nexusElite,
+  };
 
   if (isLoading || !streak) {
     return (
@@ -50,14 +60,14 @@ export function StreakWidget() {
             <Trophy size={16} className={rankInfo.color} />
           </div>
           <div>
-            <p className={`text-xs font-bold uppercase tracking-wider ${rankInfo.color}`}>{rankInfo.label}</p>
-            <p className="text-[10px] text-muted-foreground">Login Rank</p>
+            <p className={`text-xs font-bold uppercase tracking-wider ${rankInfo.color}`}>{rankLabels[rankInfo.key] ?? rankInfo.label}</p>
+            <p className="text-[10px] text-muted-foreground">{t.streakWidget.rank}</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
           <Flame size={18} className={currentStreak > 0 ? 'text-orange-400' : 'text-muted-foreground'} />
           <span className="text-lg font-bold tabular-nums">{currentStreak}</span>
-          <span className="text-xs text-muted-foreground">day{currentStreak !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-muted-foreground">{t.streakWidget.dayStreak}</span>
         </div>
       </div>
 
@@ -65,7 +75,7 @@ export function StreakWidget() {
         <div>
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] text-muted-foreground">
-              Next: <span className={nextRank.color}>{nextRank.label}</span>
+              Next: <span className={nextRank.color}>{rankLabels[nextRank.key] ?? nextRank.label}</span>
             </span>
             <span className="text-[10px] text-muted-foreground tabular-nums">
               {currentStreak}/{nextRank.min} days

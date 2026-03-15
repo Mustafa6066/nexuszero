@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
+import { useLang } from '@/app/providers';
 
 const FORMAT_LABELS: Record<string, string> = {
   display_banner: 'Display Banner',
@@ -55,6 +56,7 @@ export default function CreativesPage() {
   const [filter, setFilter] = useState<string>('all');
   const [showGenerate, setShowGenerate] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const { t } = useLang();
 
   const FORMAT_TO_TYPE: Record<string, string> = {
     display_banner: 'image',
@@ -81,10 +83,10 @@ export default function CreativesPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Creatives</h1>
-          <p className="text-sm text-muted-foreground mt-1">AI-generated ad creatives and performance data.</p>
+          <h1 className="text-2xl font-bold">{t.creativesPage.heading}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t.creativesPage.creativesSubtitle}</p>
         </div>
-        <Button onClick={() => setShowGenerate(true)}>+ Generate Creative</Button>
+        <Button onClick={() => setShowGenerate(true)}>{t.creativesPage.generateCreative}</Button>
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -148,12 +150,12 @@ export default function CreativesPage() {
                 {creative.brandScore > 0 && (
                   <div className="mt-3 grid grid-cols-2 gap-2 text-center">
                     <div>
-                      <p className="text-xs text-muted-foreground">Brand Score</p>
+                      <p className="text-xs text-muted-foreground">{t.creativesPage.brandScore}</p>
                       <p className="text-sm font-medium">{Math.round(creative.brandScore)}</p>
                     </div>
                     {creative.predictedCtr != null && (
                       <div>
-                        <p className="text-xs text-muted-foreground">Predicted CTR</p>
+                        <p className="text-xs text-muted-foreground">{t.creativesPage.predictedCtr}</p>
                         <p className="text-sm font-medium">{creative.predictedCtr.toFixed(1)}%</p>
                       </div>
                     )}
@@ -164,8 +166,8 @@ export default function CreativesPage() {
           ))}
           {(!creatives || creatives.length === 0) && (
             <Card className="col-span-full text-center py-12">
-              <p className="text-muted-foreground">No creatives found.</p>
-              <Button className="mt-4" onClick={() => setShowGenerate(true)}>Generate your first creative</Button>
+              <p className="text-muted-foreground">{t.creativesPage.noCreativesFound}</p>
+              <Button className="mt-4" onClick={() => setShowGenerate(true)}>{t.creativesPage.generateFirst}</Button>
             </Card>
           )}
         </div>

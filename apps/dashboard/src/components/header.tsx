@@ -2,10 +2,12 @@
 
 import { Bell, Search, User } from 'lucide-react';
 import { useAuthStore, useDashboardStore } from '@/lib/store';
+import { useLang } from '@/app/providers';
 
 export function Header() {
   const { user } = useAuthStore();
   const { sidebarOpen } = useDashboardStore();
+  const { t } = useLang();
 
   return (
     <header className={`fixed top-0 right-0 z-30 h-16 border-b border-border bg-card/80 backdrop-blur-sm transition-all duration-300 ${sidebarOpen ? 'left-64' : 'left-16'}`}>
@@ -14,7 +16,7 @@ export function Header() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
           <input
             type="text"
-            placeholder="Search campaigns, agents, analytics..."
+            placeholder={t.header.searchPlaceholder}
             className="w-full rounded-lg border border-border bg-secondary/50 py-2 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>

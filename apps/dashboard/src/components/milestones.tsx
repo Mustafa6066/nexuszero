@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Trophy, Flame, Rocket, Target, Star, Zap, TrendingUp } from 'lucide-react';
+import { useLang } from '@/app/providers';
 
 interface Milestone {
   id: string;
@@ -96,6 +97,7 @@ function computeMilestones(
 }
 
 export function MilestonesPanel() {
+  const { t } = useLang();
   const { data: agents } = useQuery({
     queryKey: ['agents'],
     queryFn: () => api.getAgents(),
@@ -161,7 +163,7 @@ export function MilestonesPanel() {
       <div className="px-5 py-3.5 border-b border-border/30 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Trophy size={14} className="text-amber-400" />
-          <h3 className="text-sm font-semibold">Milestones</h3>
+          <h3 className="text-sm font-semibold">{t.milestones.heading}</h3>
         </div>
         <span className="text-xs text-muted-foreground font-medium">
           {achieved}/{milestones.length} achieved

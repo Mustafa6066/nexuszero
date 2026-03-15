@@ -8,11 +8,13 @@ import { AreaChartWidget, BarChartWidget, DonutChartWidget } from '@/components/
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils';
 import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
 import { CompoundInsightsPanel } from '@/components/compound-insights-panel';
+import { useLang } from '@/app/providers';
 
 const PERIODS = ['7d', '30d', '90d'] as const;
 
 export default function AnalyticsPage() {
   const [period, setPeriod] = useState<string>('30d');
+  const { t } = useLang();
 
   const { data: summary } = useQuery({
     queryKey: ['analytics', 'summary'],
@@ -61,8 +63,8 @@ export default function AnalyticsPage() {
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Analytics</h1>
-          <p className="text-sm text-muted-foreground mt-1">Deep performance analytics across all campaigns and channels.</p>
+          <h1 className="text-2xl font-bold">{t.analyticsPage.heading}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t.analyticsPage.deepSubtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {PERIODS.map((p) => (
@@ -88,18 +90,18 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">Revenue Trend</h3>
+          <h3 className="mb-4 text-sm font-medium text-muted-foreground">{t.analyticsPage.revenueTrend}</h3>
           <AreaChartWidget data={revenueData} dataKey="revenue" color="#10b981" />
         </Card>
         <Card>
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">CTR Trend (%)</h3>
+          <h3 className="mb-4 text-sm font-medium text-muted-foreground">{t.analyticsPage.ctrTrend}</h3>
           <AreaChartWidget data={ctrData} dataKey="ctr" color="#8b5cf6" />
         </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">Conversion Funnel</h3>
+          <h3 className="mb-4 text-sm font-medium text-muted-foreground">{t.analyticsPage.conversionFunnel}</h3>
           {funnelData.length > 0 ? (
             <>
               <DonutChartWidget data={funnelData} />
@@ -113,11 +115,11 @@ export default function AnalyticsPage() {
               </div>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">No funnel data available</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{t.analyticsPage.noFunnelData}</p>
           )}
         </Card>
         <Card>
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">Forecasts (Current vs Predicted)</h3>
+          <h3 className="mb-4 text-sm font-medium text-muted-foreground">{t.analyticsPage.forecastsCurrentVsPredicted}</h3>
           {forecastBars.length > 0 ? (
             <BarChartWidget
               data={forecastBars}
@@ -128,7 +130,7 @@ export default function AnalyticsPage() {
               xAxisKey="name"
             />
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">No forecast data available</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{t.analyticsPage.noForecastData}</p>
           )}
         </Card>
       </div>

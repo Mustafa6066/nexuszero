@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 import { formatCurrency } from '@/lib/utils';
 import { ArrowLeft } from 'lucide-react';
+import { useLang } from '@/app/providers';
 
 const PLATFORMS = ['google_ads', 'meta_ads', 'tiktok_ads', 'linkedin_ads'] as const;
 
@@ -16,6 +17,7 @@ export default function CampaignDetailPage() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useLang();
 
   const { data: campaign, isLoading } = useQuery({
     queryKey: ['campaign', id],
@@ -86,9 +88,9 @@ export default function CampaignDetailPage() {
     return (
       <div className="space-y-6">
         <Card className="text-center py-12">
-          <p className="text-muted-foreground">Campaign not found.</p>
+          <p className="text-muted-foreground">{t.campaignDetail.campaignNotFound}</p>
           <Button className="mt-4" variant="outline" onClick={() => router.push('/dashboard/campaigns')}>
-            Back to Campaigns
+            {t.campaignDetail.backToCampaigns}
           </Button>
         </Card>
       </div>
@@ -113,7 +115,7 @@ export default function CampaignDetailPage() {
           {campaign.status}
         </Badge>
         {!editing && (
-          <Button variant="outline" onClick={startEditing}>Edit</Button>
+          <Button variant="outline" onClick={startEditing}>{t.campaignDetail.editCampaign}</Button>
         )}
       </div>
 
@@ -121,10 +123,10 @@ export default function CampaignDetailPage() {
 
       {editing ? (
         <Card>
-          <h3 className="text-sm font-semibold mb-4">Edit Campaign</h3>
+          <h3 className="text-sm font-semibold mb-4">{t.campaignDetail.editCampaign}</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Name</label>
+              <label className="block text-sm font-medium mb-1">{t.campaignDetail.name}</label>
               <input
                 type="text"
                 value={form.name ?? ''}
@@ -133,7 +135,7 @@ export default function CampaignDetailPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Platform</label>
+              <label className="block text-sm font-medium mb-1">{t.campaignDetail.platform}</label>
               <select
                 value={form.platform ?? ''}
                 onChange={(e) => setForm({ ...form, platform: e.target.value })}
@@ -158,7 +160,7 @@ export default function CampaignDetailPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Daily Budget ($)</label>
+              <label className="block text-sm font-medium mb-1">{t.campaignDetail.dailyBudget} ($)</label>
               <input
                 type="number"
                 step="0.01"
@@ -169,9 +171,9 @@ export default function CampaignDetailPage() {
               />
             </div>
             <div className="flex gap-2 pt-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => { setEditing(false); setError(null); }}>Cancel</Button>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => { setEditing(false); setError(null); }}>{t.campaignDetail.cancel}</Button>
               <Button className="flex-1" onClick={handleSave} disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+                {updateMutation.isPending ? t.campaignDetail.saving : t.campaignDetail.save}
               </Button>
             </div>
           </div>
@@ -182,11 +184,11 @@ export default function CampaignDetailPage() {
             <h3 className="text-sm font-semibold mb-4">Performance</h3>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
-                <p className="text-xs text-muted-foreground">Daily Budget</p>
+                <p className="text-xs text-muted-foreground">{t.campaignDetail.dailyBudget}</p>
                 <p className="text-lg font-semibold">{formatCurrency((campaign.budget as any)?.dailyBudget ?? 0)}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Total Spend</p>
+                <p className="text-xs text-muted-foreground">{t.campaignDetail.spend}</p>
                 <p className="text-lg font-semibold">{formatCurrency(campaign.spend ?? 0)}</p>
               </div>
               <div>
@@ -204,19 +206,19 @@ export default function CampaignDetailPage() {
             <h3 className="text-sm font-semibold mb-4">Engagement</h3>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
-                <p className="text-xs text-muted-foreground">Impressions</p>
+                <p className="text-xs text-muted-foreground">{t.campaignDetail.impressions}</p>
                 <p className="text-lg font-semibold">{(campaign.impressions ?? 0).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Clicks</p>
+                <p className="text-xs text-muted-foreground">{t.campaignDetail.clicks}</p>
                 <p className="text-lg font-semibold">{(campaign.clicks ?? 0).toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">CTR</p>
+                <p className="text-xs text-muted-foreground">{t.campaignDetail.ctr}</p>
                 <p className="text-lg font-semibold">{((campaign.ctr ?? 0) * 100).toFixed(2)}%</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Conversions</p>
+                <p className="text-xs text-muted-foreground">{t.campaignDetail.conversions}</p>
                 <p className="text-lg font-semibold">{(campaign.conversions ?? 0).toLocaleString()}</p>
               </div>
             </div>

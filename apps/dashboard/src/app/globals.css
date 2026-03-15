@@ -281,3 +281,12 @@ body {
   0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.3); }
   50% { box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
 }
+
+/* ─── RTL support ─── */
+[dir="rtl"] .marquee-track {
+  animation-direction: reverse;
+}
+
+[dir="rtl"] {
+  font-family: 'Noto Sans Arabic', 'Segoe UI', -apple-system, sans-serif;
+}

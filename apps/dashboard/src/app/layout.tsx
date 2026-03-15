@@ -39,12 +39,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       const stored = localStorage.getItem('nz-theme');
       const theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
       document.documentElement.classList.toggle('light', theme === 'light');
+      // Restore locale direction
+      var locale = localStorage.getItem('nz-locale');
+      if (locale === 'ar') { document.documentElement.dir = 'rtl'; document.documentElement.lang = 'ar'; }
     } catch {}
   })();`;
 
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" dir="ltr" className="dark" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-screen bg-background antialiased">

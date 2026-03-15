@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Bell, Bot, AlertTriangle, CheckCircle, Info, X, ChevronRight, Zap, Lightbulb } from 'lucide-react';
 import { useAssistantStore } from '@/lib/assistant-store';
+import { useLang } from '@/app/providers';
+import type { Translations } from '@/lib/i18n/en';
 
 interface Notification {
   id: string;
@@ -16,7 +18,7 @@ interface Notification {
   read: boolean;
 }
 
-function generateNotifications(agents: any[], stats: any, intelligence: any): Notification[] {
+function generateNotifications(agents: any[], stats: any, intelligence: any, t: Translations): Notification[] {
   const notifications: Notification[] = [];
   const now = Date.now();
 
@@ -28,7 +30,7 @@ function generateNotifications(agents: any[], stats: any, intelligence: any): No
       id: 'digest-today',
       type: 'ai_digest',
       priority: 'info',
-      title: 'Daily AI Digest',
+      title: t.notificationTray.dailyAIDigest,
       body: `Your agents completed ${totalTasks} tasks today with a ${(successRate * 100).toFixed(0)}% success rate.`,
       timestamp: now,
       read: false,
@@ -42,8 +44,8 @@ function generateNotifications(agents: any[], stats: any, intelligence: any): No
       id: `error-${agent.id}`,
       type: 'alert',
       priority: 'critical',
-      title: `${(agent.type ?? 'Agent').replace('_', ' ')} Error`,
-      body: `Agent is in error state. Consider restarting.`,
+      title: `${(agent.type ?? 'Agent').replace('_', ' ')} ${t.notificationTray.agentError}`,
+      body: t.notificationTray.agentErrorDesc,
       timestamp: agent.lastHeartbeat ? new Date(agent.lastHeartbeat).getTime() : now,
       read: false,
     });
@@ -55,7 +57,7 @@ function generateNotifications(agents: any[], stats: any, intelligence: any): No
       id: 'low-success',
       type: 'alert',
       priority: 'advisory',
-      title: 'Low Success Rate',
+      title: t.notificationTray.lowSuccessRate,
       body: `Today's success rate is ${(successRate * 100).toFixed(0)}%, below the 80% threshold.`,
       timestamp: now,
       read: false,
@@ -69,8 +71,8 @@ function generateNotifications(agents: any[], stats: any, intelligence: any): No
       id: 'active-agents',
       type: 'activity',
       priority: 'info',
-      title: 'Agents Working',
-      body: `${activeAgents.length} agent${activeAgents.length > 1 ? 's are' : ' is'} actively processing tasks.`,
+      title: t.notificationTray.agentsWorking,
+      body: t.notificationTray.agentsWorkingDesc(activeAgents.length),
       timestamp: now,
       read: false,
     });
@@ -84,7 +86,7 @@ function generateNotifications(agents: any[], stats: any, intelligence: any): No
         id: `health-${i}`,
         type: 'health',
         priority: 'advisory',
-        title: 'Health Warning',
+        title: t.notificationTray.healthWarning,
         body: warning,
         timestamp: now,
         read: false,
@@ -149,6 +151,7 @@ export function NotificationTray() {
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const trayRef = useRef<HTMLDivElement>(null);
   const assistantStore = useAssistantStore();
+  const { t } = useLang();
 
   const { data: agents } = useQuery({
     queryKey: ['agents'],
@@ -169,8 +172,8 @@ export function NotificationTray() {
   });
 
   const notifications = useMemo(
-    () => generateNotifications(agents ?? [], stats, intelligence),
-    [agents, stats, intelligence],
+    () => generateNotifications(agents ?? [], stats, intelligence, t),
+    [agents, stats, intelligence, t],
   );
   const unreadCount = useMemo(
     () => notifications.filter((n) => !readIds.has(n.id)).length,
@@ -213,7 +216,7 @@ export function NotificationTray() {
         <div className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-border/50 bg-card shadow-2xl shadow-black/30 animate-in fade-in slide-in-from-top-2 duration-150 sm:w-96">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
-            <h3 className="text-sm font-semibold">Notifications</h3>
+            <h3 className="text-sm font-semibold">{t.notificationTray.title}</h3>
             <button
               onClick={() => setIsOpen(false)}
               className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-secondary transition-colors text-muted-foreground"
@@ -227,7 +230,7 @@ export function NotificationTray() {
             {notifications.length === 0 ? (
               <div className="py-8 text-center">
                 <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">All clear! No notifications.</p>
+                <p className="text-sm text-muted-foreground">{t.notificationTray.noNotifications}</p>
               </div>
             ) : (
               <div className="divide-y divide-border/30">

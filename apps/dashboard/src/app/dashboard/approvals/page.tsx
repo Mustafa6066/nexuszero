@@ -7,18 +7,32 @@ import { Card, Button, Badge } from '@/components/ui';
 import { useRole } from '@/hooks/use-role';
 import { ShieldCheck, ShieldAlert, Clock, CheckCircle, XCircle, Bot } from 'lucide-react';
 import { DashboardSectionBoundary } from '@/components/dashboard-section-boundary';
+import { useLang } from '@/app/providers';
 
-const AUTONOMY_LABELS: Record<string, { label: string; description: string; icon: typeof ShieldCheck }> = {
-  manual: { label: 'Full Manual', description: 'Agents recommend — you approve every action before execution.', icon: ShieldCheck },
-  guardrailed: { label: 'Guardrailed', description: 'Agents auto-execute within safe bounds. Large changes require approval.', icon: ShieldAlert },
-  autonomous: { label: 'Full Autonomy', description: 'Agents execute all recommendations. Review in weekly digest.', icon: Bot },
+const AUTONOMY_ICONS: Record<string, typeof ShieldCheck> = {
+  manual: ShieldCheck,
+  guardrailed: ShieldAlert,
+  autonomous: Bot,
 };
 
 export default function ApprovalsPage() {
   const queryClient = useQueryClient();
   const { canAdmin, isOwner } = useRole();
+  const { t } = useLang();
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [error, setError] = useState<string | null>(null);
+
+  const autonomyLabels: Record<string, { label: string; description: string; icon: typeof ShieldCheck }> = {
+    manual: { label: t.approvalsPage.fullManual, description: t.approvalsPage.fullManualDesc, icon: ShieldCheck },
+    guardrailed: { label: t.approvalsPage.guardrailed, description: t.approvalsPage.guardrailedDesc, icon: ShieldAlert },
+    autonomous: { label: t.approvalsPage.fullAutonomy, description: t.approvalsPage.fullAutonomyDesc, icon: Bot },
+  };
+
+  const filterLabels: Record<string, string> = {
+    pending: t.approvalsPage.pending,
+    approved: t.approvalsPage.approved,
+    rejected: t.approvalsPage.rejected,
+  };
 
   const { data: approvals, isLoading } = useQuery({
     queryKey: ['approvals', filter],
@@ -53,17 +67,17 @@ export default function ApprovalsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Approval Queue</h1>
-        <p className="text-sm text-muted-foreground mt-1">Review and approve agent-proposed changes before execution.</p>
+        <h1 className="text-2xl font-bold">{t.approvalsPage.heading}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t.approvalsPage.approvalSubtitle}</p>
       </div>
 
       {error && <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-400">{error}</div>}
 
       {/* Autonomy Level Selector */}
       <Card>
-        <h3 className="text-sm font-semibold mb-4">Autonomy Level</h3>
+        <h3 className="text-sm font-semibold mb-4">{t.approvalsPage.autonomyLevel}</h3>
         <div className="grid gap-3 sm:grid-cols-3">
-          {Object.entries(AUTONOMY_LABELS).map(([key, { label, description, icon: Icon }]) => (
+          {Object.entries(autonomyLabels).map(([key, { label, description, icon: Icon }]) => (
             <button
               key={key}
               onClick={() => isOwner && autonomyMutation.mutate(key)}
@@ -77,13 +91,13 @@ export default function ApprovalsPage() {
               <div className="flex items-center gap-2 mb-2">
                 <Icon size={16} className={currentLevel === key ? 'text-primary' : 'text-muted-foreground'} />
                 <span className="text-sm font-semibold">{label}</span>
-                {currentLevel === key && <Badge variant="success">Active</Badge>}
+                {currentLevel === key && <Badge variant="success">{t.approvalsPage.active}</Badge>}
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
             </button>
           ))}
         </div>
-        {!isOwner && <p className="mt-3 text-xs text-muted-foreground">Only the workspace owner can change the autonomy level.</p>}
+        {!isOwner && <p className="mt-3 text-xs text-muted-foreground">{t.approvalsPage.ownerOnly}</p>}
       </Card>
 
       {/* Filter Tabs */}
@@ -101,7 +115,7 @@ export default function ApprovalsPage() {
             {s === 'pending' && <Clock size={12} className="inline mr-1" />}
             {s === 'approved' && <CheckCircle size={12} className="inline mr-1" />}
             {s === 'rejected' && <XCircle size={12} className="inline mr-1" />}
-            {s.charAt(0).toUpperCase() + s.slice(1)}
+            {filterLabels[s]}
           </button>
         ))}
       </div>
@@ -113,9 +127,9 @@ export default function ApprovalsPage() {
         ) : !approvals?.length ? (
           <Card className="text-center py-12">
             <CheckCircle className="w-10 h-10 text-green-400 mx-auto mb-3" />
-            <p className="text-sm font-medium">No {filter} approvals</p>
+            <p className="text-sm font-medium">{t.approvalsPage.noPendingApprovals}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {filter === 'pending' ? 'All agent actions are clear. Nothing waiting for review.' : `No ${filter} items to show.`}
+              {filter === 'pending' ? t.approvalsPage.allClearApprovals : `${filter} ${t.approvalsPage.noItemsToShow}`}
             </p>
           </Card>
         ) : (
@@ -150,7 +164,7 @@ export default function ApprovalsPage() {
                       onClick={() => approveMutation.mutate(item.id)}
                       disabled={approveMutation.isPending}
                     >
-                      <CheckCircle size={12} className="mr-1" /> Approve
+                      <CheckCircle size={12} className="mr-1" /> {t.approvalsPage.approve}
                     </Button>
                     <Button
                       size="sm"
@@ -158,7 +172,7 @@ export default function ApprovalsPage() {
                       onClick={() => rejectMutation.mutate(item.id)}
                       disabled={rejectMutation.isPending}
                     >
-                      <XCircle size={12} className="mr-1" /> Reject
+                      <XCircle size={12} className="mr-1" /> {t.approvalsPage.reject}
                     </Button>
                   </div>
                 )}

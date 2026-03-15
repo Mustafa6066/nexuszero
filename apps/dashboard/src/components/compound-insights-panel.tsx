@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Lightbulb, TrendingUp, Users, Palette, Shuffle, Calendar, AlertTriangle, ChevronRight } from 'lucide-react';
+import { useLang } from '@/app/providers';
 
 const TYPE_CONFIG: Record<string, { icon: typeof Lightbulb; color: string; bg: string }> = {
   performance_pattern: { icon: TrendingUp, color: 'text-green-400', bg: 'bg-green-500/10' },
@@ -29,6 +30,7 @@ function ConfidenceBar({ value }: { value: number }) {
 }
 
 export function CompoundInsightsPanel() {
+  const { t } = useLang();
   const { data: insights = [], isLoading } = useQuery({
     queryKey: ['compound-insights'],
     queryFn: () => api.getCompoundInsights(),
@@ -47,8 +49,8 @@ export function CompoundInsightsPanel() {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card/30 p-8 text-center">
         <Lightbulb size={28} className="mx-auto text-muted-foreground/30 mb-2" />
-        <p className="text-sm text-muted-foreground">No compound insights available yet.</p>
-        <p className="text-xs text-muted-foreground/60 mt-1">Insights are generated as your agents collect cross-channel data.</p>
+        <p className="text-sm text-muted-foreground">{t.compoundInsights.noInsights}</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">{t.compoundInsights.noInsightsDesc}</p>
       </div>
     );
   }
@@ -58,9 +60,9 @@ export function CompoundInsightsPanel() {
       <div className="px-5 py-3.5 border-b border-border/30 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Lightbulb size={14} className="text-amber-400" />
-          <h3 className="text-sm font-semibold">Compound Insights</h3>
+          <h3 className="text-sm font-semibold">{t.compoundInsights.heading}</h3>
         </div>
-        <span className="text-xs text-muted-foreground">{insights.length} active</span>
+        <span className="text-xs text-muted-foreground">{insights.length} {t.compoundInsights.active}</span>
       </div>
       <div className="divide-y divide-border/20">
         {insights.slice(0, 8).map((insight: any) => {
@@ -80,7 +82,7 @@ export function CompoundInsightsPanel() {
               </div>
               <div className="ml-11 space-y-1.5">
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                  <span>Confidence</span>
+                  <span>{t.compoundInsights.confidence}</span>
                   <div className="flex-1 max-w-[120px]">
                     <ConfidenceBar value={insight.confidence ?? 0} />
                   </div>

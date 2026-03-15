@@ -3,13 +3,54 @@
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { SessionProvider, useSession } from 'next-auth/react';
 import type { Session } from 'next-auth';
-import { useState, useEffect, useRef, createContext, useContext } from 'react';
+import { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { en, ar, RTL_LOCALES } from '@/lib/i18n';
+import type { Locale, Translations } from '@/lib/i18n';
 
 // ─── Theme ───────────────────────────────────────────────────────────────────
 type Theme = 'dark' | 'light';
 const ThemeContext = createContext<{ theme: Theme; toggle: () => void }>({ theme: 'dark', toggle: () => {} });
 export function useTheme() { return useContext(ThemeContext); }
+
+// ─── Language ────────────────────────────────────────────────────────────────
+const dictionaries: Record<Locale, Translations> = { en, ar };
+const LangContext = createContext<{ locale: Locale; t: Translations; setLocale: (l: Locale) => void }>({
+  locale: 'en', t: en, setLocale: () => {},
+});
+export function useLang() { return useContext(LangContext); }
+
+function resolveBrowserLocale(): Locale {
+  if (typeof window === 'undefined') return 'en';
+  const stored = localStorage.getItem('nz-locale') as Locale | null;
+  if (stored === 'en' || stored === 'ar') return stored;
+  return 'en';
+}
+
+function LangProvider({ children }: { children: React.ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>('en');
+
+  useEffect(() => {
+    setLocaleState(resolveBrowserLocale());
+  }, []);
+
+  useEffect(() => {
+    const isRtl = RTL_LOCALES.includes(locale);
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  const setLocale = useCallback((l: Locale) => {
+    setLocaleState(l);
+    localStorage.setItem('nz-locale', l);
+  }, []);
+
+  return (
+    <LangContext.Provider value={{ locale, t: dictionaries[locale], setLocale }}>
+      {children}
+    </LangContext.Provider>
+  );
+}
 
 function resolveBrowserTheme(): Theme {
   if (typeof window === 'undefined') return 'dark';
@@ -86,13 +127,15 @@ export function Providers({ children, session }: { children: React.ReactNode; se
   }));
 
   return (
-    <ThemeProvider>
-      <SessionProvider session={session}>
-        <QueryClientProvider client={queryClient}>
-          <ApiAuthSync />
-          {children}
-        </QueryClientProvider>
-      </SessionProvider>
-    </ThemeProvider>
+    <LangProvider>
+      <ThemeProvider>
+        <SessionProvider session={session}>
+          <QueryClientProvider client={queryClient}>
+            <ApiAuthSync />
+            {children}
+          </QueryClientProvider>
+        </SessionProvider>
+      </ThemeProvider>
+    </LangProvider>
   );
 }

@@ -6,6 +6,7 @@ import { Card, Badge, Button, MetricCard } from '@/components/ui';
 import { BarChartWidget } from '@/components/charts';
 import { TierGateOverlay } from '@/components/tier-gate-overlay';
 import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
+import { useLang } from '@/app/providers';
 
 const PLATFORM_COLORS: Record<string, string> = {
   chatgpt: '#10a37f',
@@ -18,6 +19,7 @@ const PLATFORM_COLORS: Record<string, string> = {
 
 export default function AEOPage() {
   const queryClient = useQueryClient();
+  const { t } = useLang();
 
   const { data: citations, isLoading: citationsLoading } = useQuery({
     queryKey: ['aeo', 'citations'],
@@ -63,24 +65,24 @@ export default function AEOPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">AI Engine Optimization</h1>
-          <p className="text-sm text-muted-foreground mt-1">Track and optimize your brand&apos;s visibility across AI platforms.</p>
+          <h1 className="text-2xl font-bold">{t.aeoPage.heading}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t.aeoPage.aeoSubtitle}</p>
         </div>
         <Button onClick={() => scanMutation.mutate()} disabled={scanMutation.isPending}>
-          {scanMutation.isPending ? 'Scanning...' : 'Run Citation Scan'}
+          {scanMutation.isPending ? t.aeoPage.scanningDots : t.aeoPage.runCitationScan}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Total Citations" value={String(totalCitations)} />
-        <MetricCard title="Positive Mentions" value={String(positiveCitations)} changeType="positive" change={totalCitations > 0 ? `${((positiveCitations / totalCitations) * 100).toFixed(0)}% positive` : undefined} />
-        <MetricCard title="Avg Visibility Score" value={`${avgVisibility}%`} />
-        <MetricCard title="Tracked Entities" value={String(entities?.length ?? 0)} />
+        <MetricCard title={t.aeoPage.totalCitations} value={String(totalCitations)} />
+        <MetricCard title={t.aeoPage.positiveMentions} value={String(positiveCitations)} changeType="positive" change={totalCitations > 0 ? `${((positiveCitations / totalCitations) * 100).toFixed(0)}% positive` : undefined} />
+        <MetricCard title={t.aeoPage.avgVisibilityScore} value={`${avgVisibility}%`} />
+        <MetricCard title={t.aeoPage.trackedEntities} value={String(entities?.length ?? 0)} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">Visibility by Platform</h3>
+          <h3 className="mb-4 text-sm font-medium text-muted-foreground">{t.aeoPage.visibilityByPlatform}</h3>
           {visibilityByPlatform.length > 0 ? (
             <BarChartWidget
               data={visibilityByPlatform}
@@ -88,12 +90,12 @@ export default function AEOPage() {
               xAxisKey="name"
             />
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">No visibility data yet</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{t.aeoPage.noVisibilityData}</p>
           )}
         </Card>
 
         <Card>
-          <h3 className="mb-4 text-sm font-medium text-muted-foreground">Entity Profiles</h3>
+          <h3 className="mb-4 text-sm font-medium text-muted-foreground">{t.aeoPage.entityProfiles}</h3>
           <div className="space-y-3">
             {(entities ?? []).slice(0, 8).map((entity: any) => (
               <div key={entity.id} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
@@ -110,14 +112,14 @@ export default function AEOPage() {
               </div>
             ))}
             {(!entities || entities.length === 0) && (
-              <p className="text-sm text-muted-foreground text-center py-4">No entities tracked yet</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t.aeoPage.noEntitiesTracked}</p>
             )}
           </div>
         </Card>
       </div>
 
       <Card>
-        <h3 className="mb-4 text-sm font-medium text-muted-foreground">Recent Citations</h3>
+        <h3 className="mb-4 text-sm font-medium text-muted-foreground">{t.aeoPage.recentCitations}</h3>
         {citationsLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -163,7 +165,7 @@ export default function AEOPage() {
               </div>
             ))}
             {(!citations || citations.length === 0) && (
-              <p className="text-sm text-muted-foreground text-center py-8">No citations found. Run a scan to discover mentions.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">{t.aeoPage.noCitationsFound}</p>
             )}
           </div>
         )}

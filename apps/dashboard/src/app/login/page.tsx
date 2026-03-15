@@ -5,9 +5,12 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Zap } from 'lucide-react';
+import { useLang } from '@/app/providers';
+import { LanguageToggle } from '@/components/language-toggle';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useLang();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +29,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (result?.error) {
-      setError('Invalid email or password');
+      setError(t.login.invalidCredentials);
     } else {
       router.push('/dashboard');
     }
@@ -40,8 +43,13 @@ export default function LoginPage() {
 
       {/* Back to home */}
       <Link href="/" className="absolute top-6 left-6 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-        ← Back
+        {t.common.back}
       </Link>
+
+      {/* Language toggle */}
+      <div className="absolute top-6 right-6">
+        <LanguageToggle />
+      </div>
 
       {/* Card */}
       <div className="relative w-full max-w-sm mx-4 animate-fade-up">
@@ -51,8 +59,8 @@ export default function LoginPage() {
             <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
               <Zap size={22} className="text-primary" />
             </div>
-            <h1 className="text-xl font-bold gradient-text">NexusZero</h1>
-            <p className="text-xs text-muted-foreground mt-1">Command Center Access</p>
+            <h1 className="text-xl font-bold gradient-text">{t.login.heading}</h1>
+            <p className="text-xs text-muted-foreground mt-1">{t.login.subtitle}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -63,26 +71,26 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-1.5">
-              <label htmlFor="email" className="block text-xs font-medium text-muted-foreground">Email</label>
+              <label htmlFor="email" className="block text-xs font-medium text-muted-foreground">{t.login.emailLabel}</label>
               <input
                 id="email"
                 name="email"
                 type="email"
                 className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-colors placeholder:text-muted-foreground/50"
-                placeholder="you@company.com"
+                placeholder={t.login.emailPlaceholder}
                 required
                 autoComplete="email"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="password" className="block text-xs font-medium text-muted-foreground">Password</label>
+              <label htmlFor="password" className="block text-xs font-medium text-muted-foreground">{t.login.passwordLabel}</label>
               <input
                 id="password"
                 name="password"
                 type="password"
                 className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-colors placeholder:text-muted-foreground/50"
-                placeholder="••••••••"
+                placeholder={t.login.passwordPlaceholder}
                 required
                 autoComplete="current-password"
               />
@@ -94,14 +102,14 @@ export default function LoginPage() {
               className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/85 transition-all hover:scale-[1.02] active:scale-100 disabled:opacity-60 disabled:pointer-events-none flex items-center justify-center gap-2 mt-2"
             >
               {loading && <Loader2 size={14} className="animate-spin" />}
-              {loading ? 'Signing in…' : 'Enter Command Center'}
+              {loading ? t.login.signingIn : t.login.submitButton}
             </button>
           </form>
 
           <p className="text-center text-xs text-muted-foreground/60 mt-6">
-            Don&apos;t have an account?{' '}
+            {t.login.noAccount}{' '}
             <Link href="/register" className="text-primary hover:text-primary/80 font-medium transition-colors">
-              Sign up
+              {t.common.signUp}
             </Link>
           </p>
         </div>
