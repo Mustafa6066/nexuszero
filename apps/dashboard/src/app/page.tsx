@@ -240,26 +240,28 @@ export default async function LandingPage() {
       <div className="fixed inset-0 aurora-bg pointer-events-none" />
 
       {/* ── Nav ── */}
-      <nav className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-6 px-5 py-2.5 glass-nav rounded-full">
-        <span className="font-bold text-sm tracking-tight gradient-text">NexusZero</span>
+      <nav className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-3xl flex items-center justify-between gap-3 px-4 sm:px-5 py-2.5 glass-nav rounded-full">
+        <span className="font-bold text-sm tracking-tight gradient-text shrink-0">NexusZero</span>
         <div className="hidden md:flex items-center gap-5 text-xs text-muted-foreground">
           <a href="#agents" className="hover:text-foreground transition-colors">Agents</a>
           <a href="#platform" className="hover:text-foreground transition-colors">Platform</a>
           <a href="#how" className="hover:text-foreground transition-colors">How it works</a>
         </div>
-        <LandingThemeToggle />
-        <Link
-          href="/login"
-          className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary/85 transition-colors"
-        >
-          Sign in
-        </Link>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <LandingThemeToggle />
+          <Link
+            href="/login"
+            className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary/85 transition-colors whitespace-nowrap"
+          >
+            Sign in
+          </Link>
+        </div>
       </nav>
 
       {/* ══════════════════════════════════════════
           HERO
       ══════════════════════════════════════════ */}
-      <section className="relative flex flex-col items-center justify-center min-h-screen px-6 pt-28 pb-20 text-center">
+      <section className="relative flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 pt-24 sm:pt-28 pb-16 sm:pb-20 text-center">
 
         {/* Ambient orbs */}
         <div className="absolute orb-indigo top-0 -left-60 opacity-60 pointer-events-none" />
@@ -276,7 +278,7 @@ export default async function LandingPage() {
 
         {/* Headline */}
         <h1
-          className="animate-fade-up text-5xl sm:text-6xl lg:text-[4.5rem] font-bold tracking-tight leading-[1.06] mb-6 max-w-4xl"
+          className="animate-fade-up text-3xl sm:text-5xl md:text-6xl lg:text-[4.5rem] font-bold tracking-tight leading-[1.08] mb-6 max-w-4xl"
           style={{ animationDelay: '0.1s', opacity: 0 }}
         >
           The autonomous<br />
@@ -323,9 +325,9 @@ export default async function LandingPage() {
             { label: 'SERP positions',       value: '94.3%' },
             { label: 'Tasks automated',      value: '48,291' },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-card/70 backdrop-blur-sm px-5 py-5 text-center">
-              <p className="text-xl sm:text-2xl font-bold tabular-nums">{value}</p>
-              <p className="text-[11px] text-muted-foreground mt-1">{label}</p>
+            <div key={label} className="bg-card/70 backdrop-blur-sm px-3 sm:px-5 py-4 sm:py-5 text-center">
+              <p className="text-lg sm:text-2xl font-bold tabular-nums">{value}</p>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1">{label}</p>
             </div>
           ))}
         </div>
@@ -351,7 +353,7 @@ export default async function LandingPage() {
               </div>
             </div>
             {/* Dashboard grid */}
-            <div className="p-4 grid grid-cols-12 gap-3">
+            <div className="p-3 sm:p-4 grid grid-cols-4 sm:grid-cols-12 gap-2 sm:gap-3">
               {/* Stat cards */}
               {[
                 { label: 'Active Campaigns', val: '142',    sub: '+12 today',       c: 'text-primary' },
@@ -359,32 +361,32 @@ export default async function LandingPage() {
                 { label: 'SERP Coverage',     val: '94.3%', sub: '+3.1 pts',        c: 'text-emerald-500' },
                 { label: 'Tasks Automated',   val: '8,291', sub: '+847 today',      c: 'text-emerald-400' },
               ].map(s => (
-                <div key={s.label} className="col-span-3 rounded-xl border border-border/40 bg-background/30 p-3">
-                  <p className="text-[10px] text-muted-foreground">{s.label}</p>
-                  <p className="text-lg font-bold mt-1 tabular-nums">{s.val}</p>
-                  <p className={`text-[10px] mt-1 ${s.c}`}>{s.sub}</p>
+                <div key={s.label} className="col-span-1 sm:col-span-3 rounded-xl border border-border/40 bg-background/30 p-2 sm:p-3">
+                  <p className="text-[8px] sm:text-[10px] text-muted-foreground leading-tight">{s.label}</p>
+                  <p className="text-sm sm:text-lg font-bold mt-0.5 sm:mt-1 tabular-nums">{s.val}</p>
+                  <p className={`text-[8px] sm:text-[10px] mt-0.5 sm:mt-1 ${s.c}`}>{s.sub}</p>
                 </div>
               ))}
               {/* Agent status */}
-              <div className="col-span-5 rounded-xl border border-border/40 bg-background/30 p-3.5">
-                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Agent Status</p>
+              <div className="col-span-2 sm:col-span-5 rounded-xl border border-border/40 bg-background/30 p-2.5 sm:p-3.5">
+                <p className="text-[8px] sm:text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 sm:mb-3">Agent Status</p>
                 {[
                   { name: 'SEO Agent',  tasks: '23 active', dot: 'bg-primary' },
                   { name: 'Ad Agent',   tasks: '12 active', dot: 'bg-green-500' },
                   { name: 'AEO Agent',  tasks: '8 active',  dot: 'bg-emerald-500' },
                   { name: 'Data Nexus', tasks: '47 events', dot: 'bg-amber-400' },
                 ].map(a => (
-                  <div key={a.name} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0">
+                  <div key={a.name} className="flex items-center gap-1.5 sm:gap-2 py-1 sm:py-1.5 border-b border-border/30 last:border-0">
                     <div className={`h-1.5 w-1.5 rounded-full ${a.dot} flex-shrink-0`} />
-                    <span className="text-[11px] flex-1 text-foreground/70">{a.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{a.tasks}</span>
-                    <span className="text-[9px] text-emerald-400 font-medium">Running</span>
+                    <span className="text-[9px] sm:text-[11px] flex-1 text-foreground/70 truncate">{a.name}</span>
+                    <span className="text-[8px] sm:text-[10px] text-muted-foreground whitespace-nowrap">{a.tasks}</span>
+                    <span className="text-[8px] sm:text-[9px] text-emerald-400 font-medium">Running</span>
                   </div>
                 ))}
               </div>
               {/* Mini chart */}
-              <div className="col-span-7 rounded-xl border border-border/40 bg-background/30 p-3.5">
-                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Revenue Impact (30 days)</p>
+              <div className="col-span-2 sm:col-span-7 rounded-xl border border-border/40 bg-background/30 p-2.5 sm:p-3.5">
+                <p className="text-[8px] sm:text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-2 sm:mb-3">Revenue Impact (30 days)</p>
                 <div className="flex items-end gap-[3px] h-14">
                   {[35,48,42,65,58,72,68,80,76,88,82,95,90,100,94,97,85,92,96,100].map((h, i) => (
                     <div
@@ -437,7 +439,7 @@ export default async function LandingPage() {
       {/* ══════════════════════════════════════════
           AGENTS
       ══════════════════════════════════════════ */}
-      <section id="agents" className="relative px-6 py-28 max-w-6xl mx-auto">
+      <section id="agents" className="relative px-4 sm:px-6 py-16 sm:py-28 max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-3">The Agent Swarm</p>
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">Four specialists. One mission.</h2>
@@ -491,7 +493,7 @@ export default async function LandingPage() {
       {/* ══════════════════════════════════════════
           CAPABILITIES
       ══════════════════════════════════════════ */}
-      <section id="platform" className="relative px-6 py-28 border-y border-border/40 bg-secondary/10">
+      <section id="platform" className="relative px-4 sm:px-6 py-16 sm:py-28 border-y border-border/40 bg-secondary/10">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-3">Platform Architecture</p>
@@ -518,7 +520,7 @@ export default async function LandingPage() {
       {/* ══════════════════════════════════════════
           HOW IT WORKS
       ══════════════════════════════════════════ */}
-      <section id="how" className="relative px-6 py-28 max-w-4xl mx-auto">
+      <section id="how" className="relative px-4 sm:px-6 py-16 sm:py-28 max-w-4xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-3">Workflow</p>
           <h2 className="text-3xl sm:text-5xl font-bold tracking-tight">From signal to autonomous action</h2>
@@ -550,11 +552,11 @@ export default async function LandingPage() {
       {/* ══════════════════════════════════════════
           CTA
       ══════════════════════════════════════════ */}
-      <section className="relative px-6 py-28 text-center">
+      <section className="relative px-4 sm:px-6 py-16 sm:py-28 text-center">
         <div className="max-w-2xl mx-auto">
           {/* Gradient border card */}
           <div className="relative p-px rounded-3xl bg-gradient-to-br from-primary/45 via-primary/15 to-accent/25">
-            <div className="rounded-[calc(1.5rem-1px)] bg-card/90 backdrop-blur-sm px-10 py-14 relative overflow-hidden">
+            <div className="rounded-[calc(1.5rem-1px)] bg-card/90 backdrop-blur-sm px-6 sm:px-10 py-10 sm:py-14 relative overflow-hidden">
               <div className="absolute inset-0 aurora-bg opacity-35 pointer-events-none" />
               <div className="relative">
                 <p className="text-xs font-semibold tracking-widest text-primary uppercase mb-4">Deploy now</p>
@@ -581,8 +583,8 @@ export default async function LandingPage() {
       {/* ══════════════════════════════════════════
           FOOTER
       ══════════════════════════════════════════ */}
-      <footer className="border-t border-border/40 px-6 py-14">
-        <div className="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-10">
+      <footer className="border-t border-border/40 px-4 sm:px-6 py-10 sm:py-14">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8 sm:gap-10">
 
           {/* Brand */}
           <div className="col-span-2 sm:col-span-1">
