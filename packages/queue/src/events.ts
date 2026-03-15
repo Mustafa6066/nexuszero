@@ -27,6 +27,10 @@ export type InterAgentEventType =
   | 'compatibility.health_degraded'
   | 'compatibility.schema_drift_detected'
   | 'compatibility.onboarding_completed'
+  | 'aeo.probe_completed'
+  | 'cms.change_proposed'
+  | 'cms.change_pushed'
+  | 'seo.competitor_analyzed'
   | 'orchestrator.task_assigned'
   | 'orchestrator.task_completed'
   | 'orchestrator.task_failed';

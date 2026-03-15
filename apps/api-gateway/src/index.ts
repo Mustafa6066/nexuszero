@@ -20,6 +20,7 @@ import { approvalRoutes } from './routes/approvals.js';
 import { alertRoutes } from './routes/alerts.js';
 import { streakRoutes } from './routes/streaks.js';
 import { compoundInsightsRoutes } from './routes/compound-insights.js';
+import { cmsRoutes } from './routes/cms.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { tenantMiddleware } from './middleware/tenant.js';

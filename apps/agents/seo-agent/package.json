@@ -14,6 +14,7 @@
     "@nexuszero/shared": "workspace:*",
     "@nexuszero/db": "workspace:*",
     "@nexuszero/queue": "workspace:*",
+    "@nexuszero/renderer": "workspace:*",
     "@anthropic-ai/sdk": "^0.24.0",
     "drizzle-orm": "^0.30.10",
     "ioredis": "^5.4.1"

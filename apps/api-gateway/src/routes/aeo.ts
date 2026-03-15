@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { withTenantDb, aeoCitations, entityProfiles, aiVisibilityScores } from '@nexuszero/db';
+import { withTenantDb, aeoCitations, entityProfiles, aiVisibilityScores, getEntityGraph } from '@nexuszero/db';
 import { AppError, ERROR_CODES } from '@nexuszero/shared';
 import { publishAgentTask } from '@nexuszero/queue';
 import { eq, and, desc, sql } from 'drizzle-orm';
@@ -108,6 +108,16 @@ app.post('/optimize-schema', async (c) => {
   });
 
   return c.json({ taskId, status: 'queued', message: 'Schema optimization task queued' }, 202);
+});
+
+// GET /aeo/graph/:entityId — get entity knowledge graph
+app.get('/graph/:entityId', async (c) => {
+  const tenantId = c.get('tenantId');
+  const entityId = c.req.param('entityId');
+  const depth = Math.min(5, Math.max(1, parseInt(c.req.query('depth') || '2', 10)));
+
+  const graph = await getEntityGraph(tenantId, entityId, depth);
+  return c.json({ entityId, depth, relations: graph });
 });
 
 export { app as aeoRoutes };

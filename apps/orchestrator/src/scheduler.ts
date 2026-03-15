@@ -37,6 +37,11 @@ export class Scheduler {
       cron.schedule('0 8,20 * * *', safe('scheduleAeoCitationScan', () => this.scheduleAeoCitationScan()), { timezone: 'UTC' }),
     );
 
+    // AEO live probe — every 4 hours (growth+ only)
+    this.jobs.push(
+      cron.schedule('0 */4 * * *', safe('scheduleAeoProbe', () => this.scheduleAeoProbe()), { timezone: 'UTC' }),
+    );
+
     // Data analysis & reporting — daily at midnight
     this.jobs.push(
       cron.schedule('0 0 * * *', safe('scheduleDailyAnalysis', () => this.scheduleDailyAnalysis()), { timezone: 'UTC' }),
@@ -52,7 +57,7 @@ export class Scheduler {
       cron.schedule('0 7 * * *', safe('dailyOrbitDigest', () => runDailyDigest().then(() => {})), { timezone: 'UTC' }),
     );
 
-    console.log(JSON.stringify({ level: 'info', msg: 'Scheduler started', jobs: 7 }));
+    console.log(JSON.stringify({ level: 'info', msg: 'Scheduler started', jobs: 8 }));
   }
 
   stop() {
@@ -128,6 +133,22 @@ export class Scheduler {
           agentType: 'aeo',
           type: 'scan_citations',
           priority: 'low',
+          input: { scheduled: true },
+        });
+      }
+    }
+  }
+
+  private async scheduleAeoProbe() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      if (tenant.plan === 'growth' || tenant.plan === 'enterprise') {
+        await publishAgentTask({
+          id: randomUUID(),
+          tenantId: tenant.id,
+          agentType: 'aeo',
+          type: 'aeo_probe',
+          priority: 'medium',
           input: { scheduled: true },
         });
       }

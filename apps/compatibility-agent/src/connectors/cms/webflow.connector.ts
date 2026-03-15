@@ -76,4 +76,46 @@ export class WebflowConnector extends BaseConnector {
       body: script,
     });
   }
+
+  /** Update a page's SEO settings and open graph data */
+  async updatePage(
+    accessToken: string,
+    pageId: string,
+    data: { title?: string; description?: string; slug?: string; openGraph?: Record<string, unknown> },
+  ) {
+    return this.request(`/pages/${pageId}`, accessToken, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  /** Update a collection item (e.g., blog post, product) */
+  async updateCollectionItem(
+    accessToken: string,
+    collectionId: string,
+    itemId: string,
+    data: { fieldData: Record<string, unknown>; isArchived?: boolean; isDraft?: boolean },
+  ) {
+    return this.request(`/collections/${collectionId}/items/${itemId}`, accessToken, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  /** Add custom code to specific page head */
+  async addCustomCode(
+    accessToken: string,
+    pageId: string,
+    code: { headCode?: string; footerCode?: string },
+  ) {
+    return this.request(`/pages/${pageId}/custom_code`, accessToken, {
+      method: 'PUT',
+      body: {
+        scripts: {
+          ...(code.headCode ? { head: code.headCode } : {}),
+          ...(code.footerCode ? { footer: code.footerCode } : {}),
+        },
+      },
+    });
+  }
 }

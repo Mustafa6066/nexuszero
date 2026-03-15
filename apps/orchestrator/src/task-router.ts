@@ -248,6 +248,20 @@ export class TaskRouter {
           input: signal.data,
         });
       },
+      'aeo.probe_completed': async () => {
+        // Trigger visibility scoring after probes complete
+        await this.routeTask({
+          id: randomUUID(),
+          tenantId: signal.tenantId,
+          type: 'ai_visibility_scoring',
+          priority: 'medium',
+          input: signal.data,
+        });
+      },
+      'cms.change_proposed': async () => {
+        // Log proposed CMS changes; auto-approve safe actions or queue for review
+        console.log(`CMS change proposed for tenant ${signal.tenantId}:`, signal.data);
+      },
     };
 
     const handler = signalHandlers[signal.type];

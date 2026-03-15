@@ -102,4 +102,50 @@ export class WordPressConnector extends BaseConnector {
       accessToken,
     );
   }
+
+  /** Update a post */
+  async updatePost(
+    accessToken: string,
+    siteId: string,
+    postId: string,
+    data: { title?: string; content?: string; excerpt?: string; meta?: Record<string, unknown> },
+  ) {
+    return this.request(
+      `https://public-api.wordpress.com/wp/v2/sites/${siteId}/posts/${postId}`,
+      accessToken,
+      { method: 'POST', body: data },
+    );
+  }
+
+  /** Update a page */
+  async updatePage(
+    accessToken: string,
+    siteId: string,
+    pageId: string,
+    data: { title?: string; content?: string; excerpt?: string; meta?: Record<string, unknown> },
+  ) {
+    return this.request(
+      `https://public-api.wordpress.com/wp/v2/sites/${siteId}/pages/${pageId}`,
+      accessToken,
+      { method: 'POST', body: data },
+    );
+  }
+
+  /** Inject a script into the site head (via custom HTML widget or head injection plugin) */
+  async injectHeadScript(
+    accessToken: string,
+    siteId: string,
+    script: string,
+  ) {
+    // Uses the WP.com custom CSS/head endpoint for .com sites
+    // For self-hosted, this would use the wp_head action via REST API
+    return this.request(
+      `https://public-api.wordpress.com/wp/v2/sites/${siteId}/settings`,
+      accessToken,
+      {
+        method: 'POST',
+        body: { head_tags: script },
+      },
+    );
+  }
 }

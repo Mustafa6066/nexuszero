@@ -34,6 +34,8 @@ export const KAFKA_TOPICS = {
   INTEGRATION_EVENTS: 'integration.events',
   /** Integration health events */
   INTEGRATION_HEALTH: 'integration.health',
+  /** CMS change events */
+  CMS_EVENTS: 'cms.events',
 
   /** Per-tenant event topic */
   tenantEvents: (tenantId: string) => `events.${tenantId}`,
@@ -55,6 +57,7 @@ export const QUEUE_NAMES = {
   COMPATIBILITY_TASKS: 'compatibility-tasks',
   COMPATIBILITY_HEALTH: 'compatibility-health',
   COMPATIBILITY_ONBOARDING: 'compatibility-onboarding',
+  CMS_TASKS: 'cms-tasks',
 
   /** Get tenant-scoped queue name (use '.' — BullMQ forbids ':' in names) */
   forTenant: (baseQueue: string, tenantId: string) => `${baseQueue}.${tenantId}`,
@@ -93,6 +96,13 @@ export const EVENT_TYPES = {
   AEO_CITATION_DETECTED: 'aeo.citation_detected',
   AEO_VISIBILITY_CHANGED: 'aeo.visibility_changed',
   AEO_ENTITY_UPDATED: 'aeo.entity_updated',
+  AEO_PROBE_COMPLETED: 'aeo.probe_completed',
+
+  // CMS events
+  CMS_CHANGE_PROPOSED: 'cms.change_proposed',
+  CMS_CHANGE_PUSHED: 'cms.change_pushed',
+  CMS_CHANGE_APPROVED: 'cms.change_approved',
+  CMS_CHANGE_REJECTED: 'cms.change_rejected',
 
   // Onboarding
   ONBOARDING_STARTED: 'onboarding.started',

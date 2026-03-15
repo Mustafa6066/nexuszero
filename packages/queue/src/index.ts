@@ -12,3 +12,7 @@ export type {
   InterAgentEventType, InterAgentEvent, TaskPayload, TaskResult,
   WebhookDeliveryPayload, OnboardingPayload,
 } from './events.js';
+export {
+  proposeCmsChange, approveCmsChange, rejectCmsChange,
+  type CmsChangeRequest, type CmsChangeScope,
+} from './cms-propose.js';

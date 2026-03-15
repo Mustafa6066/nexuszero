@@ -69,6 +69,22 @@ services:
       timeout: 5s
       retries: 5
 
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.49.0-noble
+    restart: unless-stopped
+    command: npx -y playwright run-server --port 3900 --host 0.0.0.0
+    ports:
+      - '3900:3900'
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:3900/json || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
   postgres_data:
   redis_data:

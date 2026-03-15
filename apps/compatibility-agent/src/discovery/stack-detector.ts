@@ -12,6 +12,14 @@ import { detectAdPixels } from './ad-pixel-detector.js';
 import { detectCrm } from './crm-detector.js';
 import { analyzeDns } from './dns-analyzer.js';
 
+let renderPage: ((url: string, options?: any) => Promise<any>) | null = null;
+try {
+  const renderer = await import('@nexuszero/renderer');
+  renderPage = renderer.renderPage;
+} catch {
+  // Renderer not available — SPA fallback disabled
+}
+
 // ── SSRF protection ────────────────────────────────────────────────────────
 
 /** Returns true if the raw IP string falls in a private/reserved range. */
@@ -90,7 +98,23 @@ export async function detectTechStack(url: string): Promise<StackDetectionResult
   const normalizedUrl = normalizeUrl(url);
 
   // Fetch the page HTML
-  const html = await fetchPageHtml(normalizedUrl);
+  let html = await fetchPageHtml(normalizedUrl);
+
+  // SPA fallback: if HTML is mostly empty/minimal, try rendering with Playwright
+  if (html && isSpaShell(html) && renderPage) {
+    try {
+      const rendered = await renderPage(normalizedUrl, {
+        timeout: 20_000,
+        blockResources: ['image', 'media', 'font'],
+      });
+      if (rendered.html && rendered.html.length > (html?.length || 0)) {
+        html = rendered.html;
+      }
+    } catch (e) {
+      console.warn('[stack-detector] SPA render fallback failed:', (e as Error).message);
+    }
+  }
+
   if (!html) {
     return {
       detections: [],
@@ -196,4 +220,17 @@ function normalizeUrl(url: string): string {
   }
   // Remove trailing slash
   return normalized.replace(/\/+$/, '');
+}
+
+/** Detect if HTML is a minimal SPA shell (mostly empty body with JS bundles) */
+function isSpaShell(html: string): boolean {
+  // Strip scripts and styles, then check text content length
+  const stripped = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  // If text content is very short but HTML is substantial, likely SPA
+  return stripped.length < 200 && html.length > 500;
 }

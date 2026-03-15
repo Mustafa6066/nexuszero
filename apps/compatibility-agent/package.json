@@ -13,6 +13,7 @@
     "@hono/node-server": "^1.11.0",
     "@nexuszero/db": "workspace:*",
     "@nexuszero/queue": "workspace:*",
+    "@nexuszero/renderer": "workspace:*",
     "@nexuszero/shared": "workspace:*",
     "bullmq": "^5.7.0",
     "cheerio": "^1.0.0",

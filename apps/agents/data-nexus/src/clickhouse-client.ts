@@ -75,6 +75,30 @@ export async function initClickHouseTables(): Promise<void> {
       ORDER BY (tenant_id, detected_at)
     `,
   });
+
+  await ch.command({
+    query: `
+      CREATE TABLE IF NOT EXISTS aeo_probe_results (
+        tenant_id UUID,
+        entity_name String,
+        query String,
+        provider LowCardinality(String),
+        model String,
+        response_text String,
+        citations Array(String),
+        brand_mentioned UInt8,
+        brand_cited UInt8,
+        competitor_urls Array(String),
+        sentiment Float32,
+        latency_ms UInt32,
+        tokens_used UInt32,
+        cached UInt8,
+        probed_at DateTime
+      ) ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(toDate(probed_at))
+      ORDER BY (tenant_id, entity_name, provider, probed_at)
+    `,
+  });
 }
 
 /** Query daily aggregated metrics for a tenant */
@@ -296,4 +320,46 @@ export async function closeClickHouseClient(): Promise<void> {
     await client.close();
     client = null;
   }
+}
+
+/** Insert a probe result into ClickHouse analytics */
+export async function insertProbeResult(data: {
+  tenantId: string;
+  entityName: string;
+  query: string;
+  provider: string;
+  model: string;
+  responseText: string;
+  citations: string[];
+  brandMentioned: boolean;
+  brandCited: boolean;
+  competitorUrls: string[];
+  sentiment: number;
+  latencyMs: number;
+  tokensUsed: number;
+  cached: boolean;
+}): Promise<void> {
+  const ch = getClickHouseClient();
+
+  await ch.insert({
+    table: 'aeo_probe_results',
+    values: [{
+      tenant_id: data.tenantId,
+      entity_name: data.entityName,
+      query: data.query,
+      provider: data.provider,
+      model: data.model,
+      response_text: data.responseText.slice(0, 10_000),
+      citations: data.citations,
+      brand_mentioned: data.brandMentioned ? 1 : 0,
+      brand_cited: data.brandCited ? 1 : 0,
+      competitor_urls: data.competitorUrls,
+      sentiment: data.sentiment,
+      latency_ms: data.latencyMs,
+      tokens_used: data.tokensUsed,
+      cached: data.cached ? 1 : 0,
+      probed_at: new Date().toISOString().replace('T', ' ').replace('Z', ''),
+    }],
+    format: 'JSONEachRow',
+  });
 }

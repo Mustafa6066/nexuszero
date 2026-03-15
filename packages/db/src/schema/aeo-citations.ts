@@ -1,4 +1,5 @@
 import { pgTable, uuid, varchar, text, real, integer, timestamp, jsonb, boolean, pgEnum } from 'drizzle-orm/pg-core';
+import { vector } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants.js';
 
 export const aiPlatformEnum = pgEnum('ai_platform', ['chatgpt', 'perplexity', 'google_ai_overview', 'gemini', 'bing_copilot', 'claude']);
@@ -29,6 +30,7 @@ export const entityProfiles = pgTable('entity_profiles', {
   schemaMarkupStatus: schemaMarkupStatusEnum('schema_markup_status').notNull().default('missing'),
   optimizedSchema: jsonb('optimized_schema'),
   attributes: jsonb('attributes'),
+  embedding: vector('embedding', { dimensions: 1536 }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

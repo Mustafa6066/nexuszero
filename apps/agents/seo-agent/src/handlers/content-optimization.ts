@@ -1,7 +1,11 @@
 import type { Job } from 'bullmq';
 import { getCurrentTenantId } from '@nexuszero/shared';
-import { withTenantDb, agentActions } from '@nexuszero/db';
+import { withTenantDb, agentActions, integrations } from '@nexuszero/db';
+import { eq, and, inArray } from 'drizzle-orm';
+import { proposeCmsChange } from '@nexuszero/queue';
 import { llmOptimizeContent } from '../llm.js';
+
+const CMS_PLATFORMS = ['wordpress', 'webflow', 'shopify', 'contentful'] as const;
 
 export class ContentOptimizationHandler {
   async execute(input: any, job: Job): Promise<any> {
@@ -24,6 +28,41 @@ export class ContentOptimizationHandler {
       url,
       market: input.market,
     });
+
+    // Propose CMS meta change if tenant has a CMS integration
+    try {
+      const cmsIntegration = await withTenantDb(tenantId, async (db) => {
+        const [i] = await db.select().from(integrations)
+          .where(and(
+            eq(integrations.tenantId, tenantId),
+            eq(integrations.status, 'connected'),
+            inArray(integrations.platform, [...CMS_PLATFORMS]),
+          ))
+          .limit(1);
+        return i;
+      });
+
+      if (cmsIntegration && optimization.metaTitle) {
+        await proposeCmsChange({
+          tenantId,
+          integrationId: cmsIntegration.id,
+          platform: cmsIntegration.platform,
+          resourceType: 'page',
+          resourceId: url || 'homepage',
+          scope: 'meta',
+          proposedBy: job.data.agentId || 'seo-agent',
+          beforeState: { title },
+          afterState: {
+            metaTitle: optimization.metaTitle,
+            metaDescription: optimization.metaDescription,
+          },
+          changeDescription: `SEO-optimized meta tags for "${url || 'page'}" targeting ${targetKeywords.length} keywords`,
+          correlationId: job.id,
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to propose CMS change:', (e as Error).message);
+    }
 
     // Log agent action
     try {

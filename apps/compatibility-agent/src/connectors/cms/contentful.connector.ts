@@ -75,6 +75,44 @@ export class ContentfulConnector extends BaseConnector {
     );
   }
 
+  /** Update an entry (requires version for optimistic locking) */
+  async updateEntry(
+    accessToken: string,
+    spaceId: string,
+    entryId: string,
+    data: { fields: Record<string, unknown> },
+    version: number,
+    environmentId = 'master',
+  ) {
+    return this.request(
+      `/spaces/${spaceId}/environments/${environmentId}/entries/${entryId}`,
+      accessToken,
+      {
+        method: 'PUT',
+        headers: { 'X-Contentful-Version': String(version) },
+        body: data,
+      },
+    );
+  }
+
+  /** Publish an entry */
+  async publishEntry(
+    accessToken: string,
+    spaceId: string,
+    entryId: string,
+    version: number,
+    environmentId = 'master',
+  ) {
+    return this.request(
+      `/spaces/${spaceId}/environments/${environmentId}/entries/${entryId}/published`,
+      accessToken,
+      {
+        method: 'PUT',
+        headers: { 'X-Contentful-Version': String(version) },
+      },
+    );
+  }
+
   protected override extractRateLimitInfo(headers: Record<string, string>) {
     // Contentful uses X-Contentful-RateLimit-Second-Remaining
     const secondRemaining = headers['x-contentful-ratelimit-second-remaining'];

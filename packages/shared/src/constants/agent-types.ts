@@ -10,12 +10,13 @@ export const AGENT_TYPE_DEFINITIONS: Record<AgentType, {
 }> = {
   seo: {
     label: 'SEO Agent',
-    description: 'Keyword research, content pipeline, technical SEO, backlink strategy',
+    description: 'Keyword research, content pipeline, technical SEO, backlink strategy, CMS publishing',
     taskTypes: [
       'keyword_research', 'competitor_analysis', 'intent_classification', 'gap_analysis',
       'brief_generation', 'article_writing', 'metadata_optimization', 'content_scheduling',
       'cms_publishing', 'site_crawl', 'core_web_vitals', 'schema_markup', 'indexation_check',
       'prospect_finding', 'outreach_generation', 'link_monitoring',
+      'technical_seo_deep', 'competitor_seo_analysis',
     ],
     queuePrefix: 'seo-tasks',
   },
@@ -52,10 +53,11 @@ export const AGENT_TYPE_DEFINITIONS: Record<AgentType, {
   },
   aeo: {
     label: 'AEO Agent',
-    description: 'AI citation tracking, entity optimization, AI visibility scoring',
+    description: 'AI citation tracking, entity optimization, AI visibility scoring, live LLM probing',
     taskTypes: [
       'citation_tracking', 'entity_optimization', 'ai_visibility_scoring',
       'schema_for_ai', 'competitor_ai_analysis',
+      'aeo_probe', 'build_entity_graph',
     ],
     queuePrefix: 'aeo-tasks',
   },

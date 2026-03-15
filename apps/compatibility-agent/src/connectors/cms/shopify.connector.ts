@@ -86,6 +86,51 @@ export class ShopifyConnector extends BaseConnector {
     });
   }
 
+  /** Update a product */
+  async updateProduct(
+    shop: string,
+    accessToken: string,
+    productId: string,
+    data: { title?: string; body_html?: string; tags?: string; metafields_global_title_tag?: string; metafields_global_description_tag?: string },
+  ) {
+    return this.shopifyRequest(shop, `/products/${productId}.json`, accessToken, {
+      method: 'PUT',
+      body: { product: { id: productId, ...data } },
+    });
+  }
+
+  /** Update a page */
+  async updatePage(
+    shop: string,
+    accessToken: string,
+    pageId: string,
+    data: { title?: string; body_html?: string; metafield?: { namespace: string; key: string; value: string; type: string } },
+  ) {
+    return this.shopifyRequest(shop, `/pages/${pageId}.json`, accessToken, {
+      method: 'PUT',
+      body: { page: { id: pageId, ...data } },
+    });
+  }
+
+  /** Update or create a metafield (for structured data injection) */
+  async updateMetafield(
+    shop: string,
+    accessToken: string,
+    metafield: {
+      namespace: string;
+      key: string;
+      value: string;
+      type: string;
+      owner_resource: string;
+      owner_id: string;
+    },
+  ) {
+    return this.shopifyRequest(shop, '/metafields.json', accessToken, {
+      method: 'POST',
+      body: { metafield },
+    });
+  }
+
   protected override extractRateLimitInfo(headers: Record<string, string>) {
     // Shopify uses X-Shopify-Shop-Api-Call-Limit: "32/40"
     const callLimit = headers['x-shopify-shop-api-call-limit'];
