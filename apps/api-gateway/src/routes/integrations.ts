@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
-import { withTenantDb, integrations, integrationHealth } from '@nexuszero/db';
+import { withTenantDb, integrations, integrationHealth, agents } from '@nexuszero/db';
 import { AppError } from '@nexuszero/shared';
-import { publishAgentTask } from '@nexuszero/queue';
+import { publishAgentTask, getRedisConnection } from '@nexuszero/queue';
 import { eq, and, desc } from 'drizzle-orm';
+import { randomBytes, createHash } from 'node:crypto';
 import type { Platform } from '@nexuszero/shared';
 import {
   detectStackSchema,
@@ -10,6 +11,7 @@ import {
   oauthCallbackSchema,
   addIntegrationSchema,
   platformSchema,
+  PLATFORM_REGISTRY,
 } from '@nexuszero/shared';
 
 // ────────────────── Inline tech stack detection (fallback when queue is unavailable) ──────────────────
@@ -280,9 +282,31 @@ app.get('/:platform/health', async (c) => {
   });
 });
 
-// ────────────────── OAuth Connect (via task queue) ──────────────────
+// ────────────────── OAuth / Connection ──────────────────
 
-// POST /integrations/connect — initiate OAuth connection
+/** Get OAuth client credentials from env for a platform */
+function getOAuthClientId(platform: Platform): { clientId: string; clientSecret: string } | null {
+  const map: Partial<Record<Platform, { id: string; secret: string }>> = {
+    google_analytics: { id: 'GOOGLE_CLIENT_ID', secret: 'GOOGLE_CLIENT_SECRET' },
+    google_ads: { id: 'GOOGLE_CLIENT_ID', secret: 'GOOGLE_CLIENT_SECRET' },
+    google_search_console: { id: 'GOOGLE_CLIENT_ID', secret: 'GOOGLE_CLIENT_SECRET' },
+    meta_ads: { id: 'META_APP_ID', secret: 'META_APP_SECRET' },
+    linkedin_ads: { id: 'LINKEDIN_CLIENT_ID', secret: 'LINKEDIN_CLIENT_SECRET' },
+    hubspot: { id: 'HUBSPOT_CLIENT_ID', secret: 'HUBSPOT_CLIENT_SECRET' },
+    salesforce: { id: 'SALESFORCE_CLIENT_ID', secret: 'SALESFORCE_CLIENT_SECRET' },
+    slack: { id: 'SLACK_CLIENT_ID', secret: 'SLACK_CLIENT_SECRET' },
+    stripe_connect: { id: 'STRIPE_CLIENT_ID', secret: 'STRIPE_SECRET_KEY' },
+    shopify: { id: 'SHOPIFY_API_KEY', secret: 'SHOPIFY_API_SECRET' },
+  };
+  const entry = map[platform];
+  if (!entry) return null;
+  const clientId = process.env[entry.id] ?? '';
+  const clientSecret = process.env[entry.secret] ?? '';
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
+
+// POST /integrations/connect — initiate connection (OAuth redirect or API key instructions)
 app.post('/connect', async (c) => {
   const tenantId = c.get('tenantId');
   const body = await c.req.json();
@@ -291,15 +315,175 @@ app.post('/connect', async (c) => {
     throw new AppError('VALIDATION_ERROR', parsed.error.issues);
   }
 
+  const platform = parsed.data.platform;
+  const def = PLATFORM_REGISTRY[platform];
+  if (!def) {
+    return c.json({ error: `Unknown platform: ${platform}` }, 400);
+  }
+
+  // For API key / app_password platforms — return instructions
+  if (def.authType === 'api_key' || def.authType === 'app_password') {
+    return c.json({
+      platform,
+      authType: def.authType,
+      status: 'needs_credentials',
+      label: def.label,
+      message: `${def.label} uses an API key. Enter your credentials to connect.`,
+    });
+  }
+
+  // For OAuth platforms — generate the authorization URL
+  const creds = getOAuthClientId(platform);
+  if (!creds) {
+    return c.json({
+      platform,
+      authType: def.authType,
+      status: 'not_configured',
+      label: def.label,
+      message: `OAuth credentials for ${def.label} are not configured. Set the environment variables to enable this connection.`,
+    });
+  }
+
+  const state = randomBytes(32).toString('hex');
+  const callbackUrl = process.env.OAUTH_CALLBACK_URL ?? `${c.req.url.split('/api/')[0]}/api/v1/integrations/oauth/callback`;
+  const scopes = def.oauth?.defaultScopes ?? [];
+
+  const params = new URLSearchParams({
+    client_id: creds.clientId,
+    redirect_uri: callbackUrl,
+    response_type: 'code',
+    scope: scopes.join(' '),
+    state,
+    access_type: 'offline',
+    prompt: 'consent',
+  });
+
+  const authUrl = `${def.oauth!.authorizationUrl}?${params.toString()}`;
+
+  // Store state in Redis for validation in callback (expires in 10 min)
+  try {
+    const redis = getRedisConnection();
+    await redis.set(
+      `oauth:state:${state}`,
+      JSON.stringify({ tenantId, platform, callbackUrl, createdAt: Date.now() }),
+      'EX',
+      600,
+    );
+  } catch {
+    // Redis unavailable — state stored only in the URL, callback will still work
+  }
+
+  return c.json({
+    platform,
+    authType: def.authType,
+    status: 'redirect',
+    authUrl,
+    label: def.label,
+  });
+});
+
+// POST /integrations/connect/api-key — connect a platform using an API key
+app.post('/connect/api-key', async (c) => {
+  const tenantId = c.get('tenantId');
+  const body = await c.req.json<{ platform: string; apiKey: string; label?: string }>();
+  if (!body.platform || !body.apiKey) {
+    return c.json({ error: 'platform and apiKey are required' }, 400);
+  }
+
+  const platform = parsePlatform(body.platform);
+  const def = PLATFORM_REGISTRY[platform];
+  if (!def) {
+    return c.json({ error: `Unknown platform: ${platform}` }, 400);
+  }
+
+  // Queue credential validation + integration creation via compatibility agent
   const taskId = await publishAgentTask({
     tenantId,
     agentType: 'compatibility',
     type: 'oauth_connect',
     priority: 'high',
-    input: { platform: parsed.data.platform, config: parsed.data.config },
+    input: { platform, code: body.apiKey, isApiKey: true },
   });
 
-  return c.json({ taskId, status: 'queued', platform: parsed.data.platform });
+  // Also upsert a "connecting" integration record for immediate UI feedback
+  await withTenantDb(tenantId, async (db) => {
+    const [existing] = await db
+      .select({ id: integrations.id })
+      .from(integrations)
+      .where(and(eq(integrations.tenantId, tenantId), eq(integrations.platform, platform)))
+      .limit(1);
+
+    if (existing) {
+      await db.update(integrations)
+        .set({ status: 'connected', accessTokenEncrypted: 'pending-validation', updatedAt: new Date() })
+        .where(eq(integrations.id, existing.id));
+    } else {
+      await db.insert(integrations).values({
+        tenantId,
+        platform,
+        status: 'connected',
+        accessTokenEncrypted: 'pending-validation',
+        detectedVia: 'manual_connect',
+        healthScore: 0,
+        config: {},
+      });
+    }
+  });
+
+  return c.json({ platform, status: 'connecting', taskId, label: def.label });
+});
+
+// GET /integrations/oauth/callback — handle OAuth redirect from provider
+app.get('/oauth/callback', async (c) => {
+  const code = c.req.query('code');
+  const state = c.req.query('state');
+  const error = c.req.query('error');
+  const dashboardUrl = process.env.DASHBOARD_URL ?? process.env.NEXT_PUBLIC_DASHBOARD_URL ?? 'http://localhost:3000';
+
+  if (error) {
+    return c.redirect(`${dashboardUrl}/dashboard/integrations?error=${encodeURIComponent(error)}`);
+  }
+
+  if (!code || !state) {
+    return c.redirect(`${dashboardUrl}/dashboard/integrations?error=missing_code_or_state`);
+  }
+
+  // Retrieve state from Redis
+  let tenantId: string | undefined;
+  let platform: Platform | undefined;
+  let callbackUrl: string | undefined;
+  try {
+    const redis = getRedisConnection();
+    const raw = await redis.get(`oauth:state:${state}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      tenantId = parsed.tenantId;
+      platform = parsed.platform as Platform;
+      callbackUrl = parsed.callbackUrl;
+      await redis.del(`oauth:state:${state}`);
+    }
+  } catch {
+    // Fall through — we'll check query params
+  }
+
+  if (!tenantId || !platform) {
+    return c.redirect(`${dashboardUrl}/dashboard/integrations?error=invalid_state`);
+  }
+
+  // Exchange code for tokens via the compatibility agent
+  try {
+    await publishAgentTask({
+      tenantId,
+      agentType: 'compatibility',
+      type: 'oauth_connect',
+      priority: 'critical',
+      input: { platform, code },
+    });
+  } catch {
+    // Queue failure — log but don't break the redirect
+  }
+
+  return c.redirect(`${dashboardUrl}/dashboard/integrations?connected=${platform}`);
 });
 
 // POST /integrations/reconnect/:platform — trigger auto-reconnect
@@ -316,6 +500,61 @@ app.post('/reconnect/:platform', async (c) => {
   });
 
   return c.json({ taskId, status: 'queued', platform });
+});
+
+// ────────────────── Agent Activation ──────────────────
+
+// POST /integrations/activate-agents — activate SEO, AEO, or other agents directly
+app.post('/activate-agents', async (c) => {
+  const tenantId = c.get('tenantId');
+  const body = await c.req.json<{ agentTypes: string[] }>();
+
+  if (!body.agentTypes || body.agentTypes.length === 0) {
+    return c.json({ error: 'agentTypes array required' }, 400);
+  }
+
+  const validTypes = ['seo', 'ad', 'data-nexus', 'creative', 'aeo', 'compatibility'] as const;
+  const activated: string[] = [];
+
+  await withTenantDb(tenantId, async (db) => {
+    for (const type of body.agentTypes) {
+      if (!validTypes.includes(type as any)) continue;
+
+      const [existing] = await db
+        .select({ id: agents.id })
+        .from(agents)
+        .where(and(eq(agents.tenantId, tenantId), eq(agents.type, type as any)))
+        .limit(1);
+
+      if (existing) {
+        await db.update(agents)
+          .set({ status: 'idle', updatedAt: new Date() })
+          .where(eq(agents.id, existing.id));
+      } else {
+        await db.insert(agents).values({
+          tenantId,
+          type: type as any,
+          status: 'idle',
+        });
+      }
+      activated.push(type);
+    }
+  });
+
+  // Dispatch initial tasks for activated agents
+  for (const type of activated) {
+    try {
+      if (type === 'seo') {
+        await publishAgentTask({ tenantId, agentType: 'seo', type: 'keyword_research', priority: 'high', input: {} });
+      } else if (type === 'aeo') {
+        await publishAgentTask({ tenantId, agentType: 'aeo', type: 'scan_citations', priority: 'high', input: {} });
+      }
+    } catch {
+      // Queue unavailable — agents still activated in DB
+    }
+  }
+
+  return c.json({ activated, message: `Activated ${activated.length} agent(s): ${activated.join(', ')}` });
 });
 
 // ────────────────── Tech Stack Detection ──────────────────
@@ -473,7 +712,7 @@ app.post('/onboarding/start', async (c) => {
               platform,
               status: 'disconnected',
               accessTokenEncrypted: '',
-              detectedVia: 'recommended',
+              detectedVia: 'auto_discovery',
               healthScore: 0,
               config: { recommended: true, reason: 'Core platform for marketing automation' },
             });

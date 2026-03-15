@@ -265,12 +265,14 @@ class ApiClient {
   getIntegration(platform: string) { return this.get<any>(`/integrations/${platform}`); }
   disconnectIntegration(platform: string) { return this.delete(`/integrations/${platform}`); }
   connectIntegration(platform: string, config?: any) { return this.post<any>('/integrations/connect', { platform, config }); }
+  connectApiKey(platform: string, apiKey: string) { return this.post<any>('/integrations/connect/api-key', { platform, apiKey }); }
   reconnectIntegration(platform: string) { return this.post<any>(`/integrations/reconnect/${platform}`); }
   getIntegrationHealth(platform: string) { return this.get<any[]>(`/integrations/${platform}/health`); }
   getIntegrationHealthSummary() { return this.get<any>('/integrations/health/summary'); }
   detectTechStack(websiteUrl: string) { return this.post<any>('/integrations/detect', { websiteUrl }); }
   startOnboarding(websiteUrl: string) { return this.post<any>('/integrations/onboarding/start', { websiteUrl }); }
   completeOnboarding() { return this.post<any>('/integrations/onboarding/complete'); }
+  activateAgents(agentTypes: string[]) { return this.post<any>('/integrations/activate-agents', { agentTypes }); }
 
   // Assistant
   getAssistantSessions() { return this.get<any[]>('/assistant/sessions'); }

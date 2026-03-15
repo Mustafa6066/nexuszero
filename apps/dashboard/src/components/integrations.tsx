@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 
@@ -51,9 +51,71 @@ function HealthBar({ score }: { score: number | null }) {
   );
 }
 
+/** Handle the connect response — redirect for OAuth, show prompt for API key */
+function handleConnectResponse(response: any, setApiKeyTarget: (v: { platform: string; label: string } | null) => void) {
+  if (!response) return;
+  if (response.status === 'redirect' && response.authUrl) {
+    window.location.href = response.authUrl;
+    return;
+  }
+  if (response.status === 'needs_credentials') {
+    setApiKeyTarget({ platform: response.platform, label: response.label ?? response.platform });
+    return;
+  }
+  if (response.status === 'not_configured') {
+    alert(response.message || `OAuth credentials for ${response.label ?? response.platform} are not configured.`);
+  }
+}
+
+/** API Key Input Modal */
+function ApiKeyModal({ target, onClose, onSubmit, isPending }: {
+  target: { platform: string; label: string };
+  onClose: () => void;
+  onSubmit: (platform: string, apiKey: string) => void;
+  isPending: boolean;
+}) {
+  const [apiKey, setApiKey] = useState('');
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+        <h3 className="text-lg font-semibold">Connect {target.label}</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Enter your API key to connect {target.label} to NexusZero.
+        </p>
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder="Paste your API key here"
+          className="mt-4 w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          autoFocus
+        />
+        <div className="mt-4 flex gap-2 justify-end">
+          <button onClick={onClose} className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-secondary/60">
+            Cancel
+          </button>
+          <button
+            onClick={() => { if (apiKey.trim()) onSubmit(target.platform, apiKey.trim()); }}
+            disabled={isPending || !apiKey.trim()}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {isPending ? 'Connecting…' : 'Connect'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function IntegrationGrid() {
   const queryClient = useQueryClient();
   const { status } = useSession();
+  const searchParams = useSearchParams();
+  const [apiKeyTarget, setApiKeyTarget] = useState<{ platform: string; label: string } | null>(null);
+
+  const connectedParam = searchParams.get('connected');
+  const errorParam = searchParams.get('error');
+
   const { data: integrations, isLoading } = useQuery({
     queryKey: ['integrations'],
     queryFn: () => api.getIntegrations(),
@@ -74,7 +136,19 @@ export function IntegrationGrid() {
 
   const connectMutation = useMutation({
     mutationFn: (platform: string) => api.connectIntegration(platform),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations'] }),
+    onSuccess: (data: any) => {
+      handleConnectResponse(data, setApiKeyTarget);
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+    },
+  });
+
+  const apiKeyMutation = useMutation({
+    mutationFn: ({ platform, apiKey }: { platform: string; apiKey: string }) =>
+      api.post<any>('/integrations/connect/api-key', { platform, apiKey }),
+    onSuccess: () => {
+      setApiKeyTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+    },
   });
 
   const sortedIntegrations = useMemo(() => {
@@ -95,26 +169,47 @@ export function IntegrationGrid() {
 
   if (!integrations?.length) {
     return (
-      <Card className="text-center py-12 space-y-4">
-        <p className="text-muted-foreground">No integrations connected yet.</p>
-        <p className="text-sm text-muted-foreground">Start onboarding to detect and connect your tools, or connect platforms manually.</p>
-        <div className="flex flex-wrap justify-center gap-2 pt-2">
-          {(['google_analytics', 'google_search_console', 'google_ads', 'meta_ads'] as const).map((platform) => (
-            <button
-              key={platform}
-              onClick={() => connectMutation.mutate(platform)}
-              disabled={connectMutation.isPending}
-              className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
-            >
-              Connect {PLATFORM_LABELS[platform] ?? platform}
-            </button>
-          ))}
-        </div>
-      </Card>
+      <>
+        <Card className="text-center py-12 space-y-4">
+          <p className="text-muted-foreground">No integrations connected yet.</p>
+          <p className="text-sm text-muted-foreground">Start onboarding to detect and connect your tools, or connect platforms manually.</p>
+          <div className="flex flex-wrap justify-center gap-2 pt-2">
+            {(['google_analytics', 'google_search_console', 'google_ads', 'meta_ads'] as const).map((platform) => (
+              <button
+                key={platform}
+                onClick={() => connectMutation.mutate(platform)}
+                disabled={connectMutation.isPending}
+                className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+              >
+                Connect {PLATFORM_LABELS[platform] ?? platform}
+              </button>
+            ))}
+          </div>
+        </Card>
+        {apiKeyTarget && (
+          <ApiKeyModal
+            target={apiKeyTarget}
+            onClose={() => setApiKeyTarget(null)}
+            onSubmit={(platform, apiKey) => apiKeyMutation.mutate({ platform, apiKey })}
+            isPending={apiKeyMutation.isPending}
+          />
+        )}
+      </>
     );
   }
 
   return (
+    <>
+    {connectedParam && (
+      <div className="mb-4 rounded-md bg-green-500/10 border border-green-500/20 p-3 text-sm text-green-400">
+        Successfully connected {PLATFORM_LABELS[connectedParam] ?? connectedParam}! The integration is being validated.
+      </div>
+    )}
+    {errorParam && (
+      <div className="mb-4 rounded-md bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">
+        Connection failed: {errorParam}
+      </div>
+    )}
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {sortedIntegrations.map((integration: any) => (
         <Card key={integration.id} className="flex flex-col gap-3">
@@ -182,12 +277,22 @@ export function IntegrationGrid() {
         </Card>
       ))}
     </div>
+    {apiKeyTarget && (
+      <ApiKeyModal
+        target={apiKeyTarget}
+        onClose={() => setApiKeyTarget(null)}
+        onSubmit={(platform, apiKey) => apiKeyMutation.mutate({ platform, apiKey })}
+        isPending={apiKeyMutation.isPending}
+      />
+    )}
+    </>
   );
 }
 
 export function OnboardingWizard() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const [apiKeyTarget, setApiKeyTarget] = useState<{ platform: string; label: string } | null>(null);
 
   const { data: tenant } = useQuery({
     queryKey: ['tenant', 'me'],
@@ -222,9 +327,29 @@ export function OnboardingWizard() {
 
   const connectMutation = useMutation({
     mutationFn: (platform: string) => api.connectIntegration(platform),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
+      handleConnectResponse(data, setApiKeyTarget);
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
       queryClient.invalidateQueries({ queryKey: ['integrations', 'connection-workspace'] });
+    },
+  });
+
+  const apiKeyMutation = useMutation({
+    mutationFn: ({ platform, apiKey }: { platform: string; apiKey: string }) =>
+      api.post<any>('/integrations/connect/api-key', { platform, apiKey }),
+    onSuccess: () => {
+      setApiKeyTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'connection-workspace'] });
+    },
+  });
+
+  const activateAgentsMutation = useMutation({
+    mutationFn: (agentTypes: string[]) =>
+      api.post<any>('/integrations/activate-agents', { agentTypes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
     },
   });
 
@@ -256,12 +381,20 @@ export function OnboardingWizard() {
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button onClick={() => router.push('/dashboard/onboarding')}>Resume onboarding</Button>
           <Button variant="outline" onClick={() => router.push('/dashboard/scanner')}>Open deep scan</Button>
+          <Button
+            variant="outline"
+            onClick={() => activateAgentsMutation.mutate(['seo', 'aeo'])}
+            disabled={activateAgentsMutation.isPending}
+          >
+            {activateAgentsMutation.isPending ? 'Activating…' : 'Activate SEO & AEO Agents'}
+          </Button>
         </div>
       </Card>
     );
   }
 
   return (
+    <>
     <Card className="space-y-5 rounded-[1.6rem] border-border/60 bg-card/70">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
@@ -443,6 +576,57 @@ export function OnboardingWizard() {
           </div>
         </div>
       </div>
+
+      {/* Agent Activation Section */}
+      <div className="border-t border-border/40 pt-4 mt-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold">Activate AI Agents</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              SEO and AEO agents can work immediately using your website content — no integrations required.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => activateAgentsMutation.mutate(['seo'])}
+              disabled={activateAgentsMutation.isPending}
+            >
+              Activate SEO
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => activateAgentsMutation.mutate(['aeo'])}
+              disabled={activateAgentsMutation.isPending}
+            >
+              Activate AEO
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => activateAgentsMutation.mutate(['seo', 'aeo', 'data-nexus', 'ad', 'creative'])}
+              disabled={activateAgentsMutation.isPending}
+            >
+              Activate All
+            </Button>
+          </div>
+        </div>
+        {activateAgentsMutation.isSuccess && (
+          <div className="mt-2 rounded-md bg-green-500/10 border border-green-500/20 p-2 text-xs text-green-400">
+            {(activateAgentsMutation.data as any)?.message ?? 'Agents activated successfully.'}
+          </div>
+        )}
+      </div>
     </Card>
+
+    {apiKeyTarget && (
+      <ApiKeyModal
+        target={apiKeyTarget}
+        onClose={() => setApiKeyTarget(null)}
+        onSubmit={(platform, apiKey) => apiKeyMutation.mutate({ platform, apiKey })}
+        isPending={apiKeyMutation.isPending}
+      />
+    )}
+    </>
   );
 }
