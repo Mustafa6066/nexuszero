@@ -1,7 +1,11 @@
 /**
  * Onboarding Engine — State machine that drives the onboarding flow.
  * Tracks which step a tenant is on and transitions them through:
- *  initiated → detecting → connecting → activating → live
+ *  initiated → detecting → analyzing → connecting → activating → live
+ *
+ * Now supports universal onboarding for ANY platform:
+ *  - 'analyzing' state: AI is analyzing unknown platforms to generate blueprints
+ *  - Dynamic platforms are tracked alongside native platforms
  */
 
 import { eq, and } from 'drizzle-orm';
@@ -10,16 +14,20 @@ import type { Platform, OnboardingSession } from '@nexuszero/shared';
 import { detectTechStack } from '../discovery/stack-detector.js';
 import { generateAuthUrl } from '../oauth/oauth-manager.js';
 
-export type OnboardingState = 'initiated' | 'detecting' | 'connecting' | 'activating' | 'live';
+export type OnboardingState = 'initiated' | 'detecting' | 'analyzing' | 'connecting' | 'activating' | 'live';
 
 export interface OnboardingContext {
   tenantId: string;
   websiteUrl: string;
   detectedPlatforms: Platform[];
+  /** Dynamic (AI-discovered) platforms not in the native registry */
+  dynamicPlatforms: string[];
   connectedPlatforms: Platform[];
   failedPlatforms: Platform[];
   currentState: OnboardingState;
   startedAt: Date;
+  /** Track which platforms were onboarded via AI vs native connectors */
+  onboardingMethod: Map<string, 'native' | 'dynamic'>;
 }
 
 const onboardingSessions = new Map<string, OnboardingContext>();
@@ -33,10 +41,12 @@ export async function initiateOnboarding(
     tenantId,
     websiteUrl,
     detectedPlatforms: [],
+    dynamicPlatforms: [],
     connectedPlatforms: [],
     failedPlatforms: [],
     currentState: 'initiated',
     startedAt: new Date(),
+    onboardingMethod: new Map(),
   };
 
   onboardingSessions.set(tenantId, context);
@@ -93,13 +103,17 @@ export async function generateConnectionUrls(
 }
 
 /** Record that a platform was successfully connected */
-export async function markPlatformConnected(tenantId: string, platform: Platform): Promise<void> {
+export async function markPlatformConnected(tenantId: string, platform: Platform, method?: 'native' | 'dynamic'): Promise<void> {
   const ctx = await getOrRecoverContext(tenantId);
   if (!ctx.connectedPlatforms.includes(platform)) {
     ctx.connectedPlatforms.push(platform);
   }
   // Remove from failed if it was retried successfully
   ctx.failedPlatforms = ctx.failedPlatforms.filter((p) => p !== platform);
+  // Track onboarding method
+  if (method) {
+    ctx.onboardingMethod.set(platform, method);
+  }
 }
 
 /** Record that a platform connection failed */
@@ -107,6 +121,27 @@ export async function markPlatformFailed(tenantId: string, platform: Platform): 
   const ctx = await getOrRecoverContext(tenantId);
   if (!ctx.failedPlatforms.includes(platform)) {
     ctx.failedPlatforms.push(platform);
+  }
+}
+
+/** Transition to analyzing state (AI is analyzing unknown platforms) */
+export async function transitionToAnalyzing(tenantId: string): Promise<OnboardingSession> {
+  const ctx = await getOrRecoverContext(tenantId);
+  ctx.currentState = 'analyzing';
+
+  const db = getDb();
+  await db.update(tenants)
+    .set({ onboardingState: 'analyzing' as any })
+    .where(eq(tenants.id, tenantId));
+
+  return toSession(ctx);
+}
+
+/** Add a dynamic platform to the onboarding context */
+export async function addDynamicPlatform(tenantId: string, platformId: string): Promise<void> {
+  const ctx = await getOrRecoverContext(tenantId);
+  if (!ctx.dynamicPlatforms.includes(platformId)) {
+    ctx.dynamicPlatforms.push(platformId);
   }
 }
 
@@ -175,10 +210,12 @@ async function getOrRecoverContext(tenantId: string): Promise<OnboardingContext>
     tenantId,
     websiteUrl: (tenant as any).domain ?? '',
     detectedPlatforms,
+    dynamicPlatforms: [],
     connectedPlatforms,
     failedPlatforms,
     currentState: ((tenant as any).onboardingState ?? 'initiated') as OnboardingState,
     startedAt: new Date((tenant as any).createdAt ?? Date.now()),
+    onboardingMethod: new Map(),
   };
 
   onboardingSessions.set(tenantId, ctx);

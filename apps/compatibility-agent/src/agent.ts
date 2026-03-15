@@ -19,6 +19,19 @@ import { processOAuthCallback, connectApiKeyPlatforms } from './onboarding/paral
 import { runInstantAudit } from './onboarding/instant-audit.js';
 import { planAgentActivation, activateAgents } from './onboarding/agent-activator.js';
 
+// Universal Onboarding (AI-powered)
+import {
+  runUniversalOnboarding,
+  previewPlatform,
+  getDynamicConnector,
+} from './onboarding/universal-onboarding.js';
+import type { PlatformOnboardingRequest } from './onboarding/universal-onboarding.js';
+
+// Platform Intelligence
+import { analyzePlatform } from './intelligence/platform-analyzer.js';
+import type { AnalysisRequest } from './intelligence/platform-analyzer.js';
+import { getBlueprint, searchBlueprints, listBlueprints } from './intelligence/platform-knowledge.js';
+
 // OAuth
 import { generateAuthUrl, exchangeCode, completeOAuthFlow } from './oauth/oauth-manager.js';
 import { refreshExpiringTokens } from './oauth/token-refresher.js';
@@ -112,6 +125,20 @@ export class CompatibilityWorker extends BaseAgentWorker {
       // ── Strategy ──
       case 'strategy_generate':
         return this.handleStrategyGenerate(tenantId, payload, job);
+
+      // ── Universal Onboarding (AI-powered) ──
+      case 'universal_onboard':
+        return this.handleUniversalOnboard(tenantId, payload, job);
+      case 'platform_analyze':
+        return this.handlePlatformAnalyze(tenantId, payload, job);
+      case 'platform_preview':
+        return this.handlePlatformPreview(tenantId, payload, job);
+      case 'dynamic_connect':
+        return this.handleDynamicConnect(tenantId, payload, job);
+      case 'dynamic_health_check':
+        return this.handleDynamicHealthCheck(tenantId, payload, job);
+      case 'knowledge_search':
+        return this.handleKnowledgeSearch(tenantId, payload, job);
 
       // ── Tool migration (future) ──
       case 'tool_migration':
@@ -531,5 +558,207 @@ export class CompatibilityWorker extends BaseAgentWorker {
       recommendations,
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  // ────────────────────── Universal Onboarding (AI-powered) ──────────────────────
+
+  /**
+   * Full universal onboarding — can onboard ANY platform, known or unknown.
+   * Uses LLM to analyze unknown platforms and generate connection blueprints.
+   */
+  private async handleUniversalOnboard(
+    tenantId: string,
+    payload: Record<string, unknown>,
+    job: Job<TaskPayload>,
+  ): Promise<Record<string, unknown>> {
+    const websiteUrl = payload.websiteUrl as string | undefined;
+    const rawPlatforms = payload.platforms as Array<Record<string, unknown>> | undefined;
+
+    if (!rawPlatforms || rawPlatforms.length === 0) {
+      throw new Error('At least one platform is required for universal_onboard');
+    }
+
+    await job.updateProgress(10);
+
+    const platforms: PlatformOnboardingRequest[] = rawPlatforms.map((p) => ({
+      platformName: String(p.platformName ?? p.name ?? ''),
+      platformUrl: p.platformUrl as string | undefined ?? p.url as string | undefined,
+      docsUrl: p.docsUrl as string | undefined,
+      credentials: (p.credentials ?? {}) as Record<string, string>,
+      context: p.context as string | undefined,
+    }));
+
+    await job.updateProgress(20);
+
+    const result = await runUniversalOnboarding({ tenantId, websiteUrl, platforms });
+
+    await job.updateProgress(90);
+
+    // Activate agents based on new connections
+    const db = getDb();
+    const connectedRows = await db
+      .select({ platform: integrationsTable.platform })
+      .from(integrationsTable)
+      .where(and(eq(integrationsTable.tenantId, tenantId), eq(integrationsTable.status, 'connected')));
+    const connectedPlatforms = connectedRows.map((r) => r.platform as Platform);
+    await activateAgents(tenantId, connectedPlatforms);
+
+    await job.updateProgress(100);
+
+    return {
+      ...result,
+      results: result.results.map((r) => ({
+        platformId: r.platformId,
+        platformName: r.platformName,
+        status: r.status,
+        isNative: r.isNative,
+        error: r.error,
+        integrationId: r.integrationId,
+        connectionStrategy: r.connectionStrategy,
+        diagnosis: r.diagnosis,
+      })),
+    };
+  }
+
+  /** Analyze a platform with AI — produces a PlatformBlueprint without connecting */
+  private async handlePlatformAnalyze(
+    _tenantId: string,
+    payload: Record<string, unknown>,
+    job: Job<TaskPayload>,
+  ): Promise<Record<string, unknown>> {
+    const req: AnalysisRequest = {
+      platformName: String(payload.platformName ?? payload.name ?? ''),
+      platformUrl: payload.platformUrl as string | undefined ?? payload.url as string | undefined,
+      docsUrl: payload.docsUrl as string | undefined,
+      context: payload.context as string | undefined,
+    };
+
+    if (!req.platformName) throw new Error('platformName is required for platform_analyze');
+
+    await job.updateProgress(20);
+    const blueprint = await analyzePlatform(req);
+    await job.updateProgress(100);
+
+    return blueprint as unknown as Record<string, unknown>;
+  }
+
+  /** Preview a platform — analyze and generate connection strategy without connecting */
+  private async handlePlatformPreview(
+    _tenantId: string,
+    payload: Record<string, unknown>,
+    job: Job<TaskPayload>,
+  ): Promise<Record<string, unknown>> {
+    const req: AnalysisRequest = {
+      platformName: String(payload.platformName ?? payload.name ?? ''),
+      platformUrl: payload.platformUrl as string | undefined ?? payload.url as string | undefined,
+      docsUrl: payload.docsUrl as string | undefined,
+      context: payload.context as string | undefined,
+    };
+
+    if (!req.platformName) throw new Error('platformName is required for platform_preview');
+
+    await job.updateProgress(20);
+    const preview = await previewPlatform(req);
+    await job.updateProgress(100);
+
+    return {
+      blueprint: preview.blueprint,
+      connectionStrategy: preview.connectionStrategy,
+      isNative: preview.isNative,
+    } as unknown as Record<string, unknown>;
+  }
+
+  /** Connect to a dynamic (previously analyzed) platform */
+  private async handleDynamicConnect(
+    tenantId: string,
+    payload: Record<string, unknown>,
+    job: Job<TaskPayload>,
+  ): Promise<Record<string, unknown>> {
+    const platformId = String(payload.platformId ?? '');
+    const credentials = (payload.credentials ?? {}) as Record<string, string>;
+
+    if (!platformId) throw new Error('platformId is required for dynamic_connect');
+
+    const blueprint = await getBlueprint(platformId);
+    if (!blueprint) throw new Error(`No blueprint found for platform "${platformId}". Run platform_analyze first.`);
+
+    await job.updateProgress(20);
+
+    const result = await runUniversalOnboarding({
+      tenantId,
+      platforms: [{
+        platformName: blueprint.platformName,
+        credentials,
+      }],
+    });
+
+    await job.updateProgress(100);
+
+    return {
+      platformId,
+      result: result.results[0] ?? { status: 'failed', error: 'No result' },
+      summary: result.summary,
+    };
+  }
+
+  /** Health check a dynamic connector */
+  private async handleDynamicHealthCheck(
+    tenantId: string,
+    payload: Record<string, unknown>,
+    job: Job<TaskPayload>,
+  ): Promise<Record<string, unknown>> {
+    const platformId = String(payload.platformId ?? '');
+    if (!platformId) throw new Error('platformId required for dynamic_health_check');
+
+    const connector = getDynamicConnector(platformId);
+    if (!connector) throw new Error(`No active dynamic connector for "${platformId}"`);
+
+    const integration = await getIntegrationByPlatform(tenantId, platformId as Platform);
+    if (!integration) throw new Error(`No integration found for ${platformId}`);
+
+    const tokens = await retrieveTokens(integration.id);
+    if (!tokens) throw new Error(`No tokens found for ${platformId}`);
+
+    await job.updateProgress(50);
+    const health = await connector.healthCheck(tokens.accessToken);
+    await job.updateProgress(100);
+
+    return {
+      platformId,
+      healthy: health.healthy,
+      latencyMs: health.latencyMs,
+      error: health.error,
+      checkedAt: health.checkedAt.toISOString(),
+    };
+  }
+
+  /** Search the platform knowledge base */
+  private async handleKnowledgeSearch(
+    _tenantId: string,
+    payload: Record<string, unknown>,
+    job: Job<TaskPayload>,
+  ): Promise<Record<string, unknown>> {
+    const query = payload.query as string | undefined;
+
+    await job.updateProgress(50);
+
+    if (query) {
+      const results = await searchBlueprints(query);
+      await job.updateProgress(100);
+      return {
+        query,
+        results: results.map((r) => ({
+          platformId: r.platformId,
+          platformName: r.platformName,
+          category: r.category,
+          authMethod: r.authMethod,
+          confidence: r.confidence,
+        })),
+      };
+    }
+
+    const all = await listBlueprints();
+    await job.updateProgress(100);
+    return { results: all };
   }
 }

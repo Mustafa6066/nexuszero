@@ -26,6 +26,11 @@ import { getHealthSummary, getHealthLogs } from './health/health-reporter.js';
 import { getAllCircuitStatuses } from './healing/circuit-state-manager.js';
 import { getRedisConnection } from '@nexuszero/queue';
 
+// Universal onboarding handlers
+import { runUniversalOnboarding, previewPlatform } from './onboarding/universal-onboarding.js';
+import { analyzePlatform } from './intelligence/platform-analyzer.js';
+import { getBlueprint, searchBlueprints, listBlueprints } from './intelligence/platform-knowledge.js';
+
 import {
   // Connector registration
   registerConnector,
@@ -191,6 +196,56 @@ export function createApp(): Hono {
   app.get('/circuits', (c) => {
     const statuses = getAllCircuitStatuses();
     return c.json(statuses);
+  });
+
+  // ── Universal Onboarding Routes (AI-powered) ────────────────────────────
+
+  // Analyze any platform — returns a PlatformBlueprint
+  app.post('/platform/analyze', async (c) => {
+    const body = await c.req.json<{ platformName: string; platformUrl?: string; docsUrl?: string; context?: string }>();
+    if (!body.platformName) return c.json({ error: 'platformName required' }, 400);
+    const blueprint = await analyzePlatform(body);
+    return c.json(blueprint);
+  });
+
+  // Preview a platform — analyze + generate connection strategy without connecting
+  app.post('/platform/preview', async (c) => {
+    const body = await c.req.json<{ platformName: string; platformUrl?: string; docsUrl?: string; context?: string }>();
+    if (!body.platformName) return c.json({ error: 'platformName required' }, 400);
+    const preview = await previewPlatform(body);
+    return c.json(preview);
+  });
+
+  // Universal onboard — connect ANY platform(s) for a tenant
+  app.post('/onboard/universal', async (c) => {
+    const body = await c.req.json<{
+      tenantId: string;
+      websiteUrl?: string;
+      platforms: Array<{ platformName: string; platformUrl?: string; docsUrl?: string; credentials: Record<string, string>; context?: string }>;
+    }>();
+    if (!body.tenantId) return c.json({ error: 'tenantId required' }, 400);
+    if (!body.platforms || body.platforms.length === 0) return c.json({ error: 'At least one platform required' }, 400);
+    const result = await runUniversalOnboarding(body);
+    return c.json(result);
+  });
+
+  // Get a stored blueprint
+  app.get('/platform/blueprint/:platformId', async (c) => {
+    const platformId = c.req.param('platformId');
+    const blueprint = await getBlueprint(platformId);
+    if (!blueprint) return c.json({ error: 'Blueprint not found' }, 404);
+    return c.json(blueprint);
+  });
+
+  // Search platform knowledge base
+  app.get('/platform/search', async (c) => {
+    const query = c.req.query('q');
+    if (query) {
+      const results = await searchBlueprints(query);
+      return c.json({ query, results });
+    }
+    const all = await listBlueprints();
+    return c.json({ results: all });
   });
 
   return app;

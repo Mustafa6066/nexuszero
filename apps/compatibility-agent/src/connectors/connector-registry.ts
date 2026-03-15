@@ -1,10 +1,12 @@
 /**
  * Connector Registry — singleton factory for platform connectors.
  * Returns the appropriate connector instance for any supported platform.
+ * Now also supports dynamic connectors for AI-discovered platforms.
  */
 
 import type { Platform } from '@nexuszero/shared';
 import { BaseConnector } from './base-connector.js';
+import { DynamicConnector } from './dynamic/dynamic-connector.js';
 import { GoogleAnalyticsConnector } from './analytics/google-analytics.connector.js';
 import { MixpanelConnector } from './analytics/mixpanel.connector.js';
 import { AmplitudeConnector } from './analytics/amplitude.connector.js';
@@ -22,8 +24,11 @@ import { SlackConnector } from './messaging/slack.connector.js';
 import { SendGridConnector } from './messaging/sendgrid.connector.js';
 import { StripeConnector } from './payments/stripe.connector.js';
 
-/** Singleton instances of all connectors */
+/** Singleton instances of all native connectors */
 const connectors: Map<Platform, BaseConnector> = new Map();
+
+/** Dynamic connectors created from AI-generated blueprints */
+const dynamicConnectors: Map<string, DynamicConnector> = new Map();
 
 function initConnectors(): void {
   if (connectors.size > 0) return;
@@ -67,16 +72,36 @@ export function getAllConnectors(): Map<Platform, BaseConnector> {
   return connectors;
 }
 
-/** Check if a platform has a registered connector */
+/** Check if a platform has a registered connector (native or dynamic) */
 export function hasConnector(platform: Platform): boolean {
   initConnectors();
-  return connectors.has(platform);
+  return connectors.has(platform) || dynamicConnectors.has(platform as string);
 }
 
 /** Register (or override) a connector for a specific platform */
 export function registerConnector(platform: Platform, connector: BaseConnector): void {
   initConnectors();
   connectors.set(platform, connector);
+}
+
+/** Register a dynamic connector */
+export function registerDynamicConnector(platformId: string, connector: DynamicConnector): void {
+  dynamicConnectors.set(platformId, connector);
+}
+
+/** Get a dynamic connector by platform ID */
+export function getDynamicConnector(platformId: string): DynamicConnector | undefined {
+  return dynamicConnectors.get(platformId);
+}
+
+/** Get all dynamic connectors (for health sweeps) */
+export function getAllDynamicConnectors(): Map<string, DynamicConnector> {
+  return dynamicConnectors;
+}
+
+/** Check if a platform ID is a dynamic (AI-discovered) connector */
+export function isDynamicPlatform(platformId: string): boolean {
+  return dynamicConnectors.has(platformId);
 }
 
 // Re-export all connector classes
@@ -96,3 +121,4 @@ export { ShopifyConnector } from './cms/shopify.connector.js';
 export { SlackConnector } from './messaging/slack.connector.js';
 export { SendGridConnector } from './messaging/sendgrid.connector.js';
 export { StripeConnector } from './payments/stripe.connector.js';
+export { DynamicConnector } from './dynamic/dynamic-connector.js';
