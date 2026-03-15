@@ -175,6 +175,15 @@ function detectTechFromHtml(html: string): DetectedTechnology[] {
   if (html.includes('google-site-verification')) gsc += 0.5;
   add('google_search_console', gsc, 'Google Search Console verification');
 
+  // ── SPA / Framework detection ──
+  // These don't map to integrations directly, but help identify dynamic-loading sites
+  // where scripts are injected at runtime and won't appear in initial HTML
+
+  // Vercel Analytics / Speed Insights
+  if (html.includes('vercel-analytics') || html.includes('va.vercel-scripts.com') || html.includes('vitals.vercel-insights.com')) {
+    add('google_analytics', 0.3, 'Vercel Analytics detected — may also have GA loaded dynamically');
+  }
+
   return detections.sort((a, b) => b.confidence - a.confidence);
 }
 

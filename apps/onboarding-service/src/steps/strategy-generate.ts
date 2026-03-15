@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { getDb, tenants, campaigns } from '@nexuszero/db';
+import { getDb, tenants, campaigns, entityProfiles } from '@nexuszero/db';
 import { eq } from 'drizzle-orm';
 import { publishAgentTask } from '@nexuszero/queue';
 
@@ -50,6 +50,29 @@ export class StrategyGenerateStep {
     // Queue AEO entity setup if applicable
     let aeoTaskId: string | null = null;
     if (tenant.plan !== 'launchpad') {
+      // Auto-create a default entity profile so the AEO agent has something to work with
+      const existingEntities = await db.select({ id: entityProfiles.id })
+        .from(entityProfiles)
+        .where(eq(entityProfiles.tenantId, tenantId))
+        .limit(1);
+
+      if (existingEntities.length === 0) {
+        const settings = (tenant.settings || {}) as Record<string, unknown>;
+        await db.insert(entityProfiles).values({
+          tenantId,
+          entityName: tenant.name,
+          entityType: 'Organization',
+          description: tenant.domain
+            ? `${tenant.name} — ${tenant.domain}`
+            : tenant.name,
+          attributes: {
+            domain: tenant.domain,
+            industry: settings.industry ?? null,
+            autoCreated: true,
+          },
+        });
+      }
+
       aeoTaskId = randomUUID();
       await publishAgentTask({
         id: aeoTaskId,

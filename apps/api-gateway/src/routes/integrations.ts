@@ -126,6 +126,23 @@ function detectTechStackInline(html: string): Detection[] {
   if (html.includes('google-site-verification')) gsc += 0.5;
   add('google_search_console', gsc, 'Google site verification meta tag');
 
+  // ── SPA / Framework detection (helps identify dynamic-loading sites) ──
+
+  // Next.js / Vercel
+  if (html.includes('__next') || html.includes('_next/static') || html.includes('__NEXT_DATA__')) {
+    d.push({ platform: 'google_analytics' as Platform, confidence: 0, evidence: 'Next.js app detected — scripts may load dynamically via <Script> component' });
+  }
+
+  // Vercel Analytics
+  if (html.includes('vercel-analytics') || html.includes('va.vercel-scripts.com') || html.includes('vitals.vercel-insights.com')) {
+    add('google_analytics', 0.4, 'Vercel Analytics/Speed Insights detected');
+  }
+
+  // Nuxt.js
+  if (html.includes('__nuxt') || html.includes('_nuxt/')) {
+    d.push({ platform: 'google_analytics' as Platform, confidence: 0, evidence: 'Nuxt.js app detected — scripts may load dynamically' });
+  }
+
   return d;
 }
 
@@ -320,6 +337,17 @@ app.post('/detect', async (c) => {
 
   const detections = detectTechStackInline(html);
 
+  const isSpa = html.includes('__next') || html.includes('__NEXT_DATA__') || html.includes('_next/static') ||
+    html.includes('__nuxt') || html.includes('_nuxt/') ||
+    html.includes('ng-version') || html.includes('__SVELTE__') || html.includes('data-reactroot') ||
+    html.includes('id="app"') || html.includes('id="root"');
+
+  const detectedFramework = html.includes('__next') || html.includes('__NEXT_DATA__') ? 'Next.js'
+    : html.includes('__nuxt') ? 'Nuxt.js'
+    : html.includes('ng-version') ? 'Angular'
+    : html.includes('__SVELTE__') ? 'SvelteKit'
+    : null;
+
   // Optionally queue a deeper background analysis
   try {
     await publishAgentTask({
@@ -333,7 +361,20 @@ app.post('/detect', async (c) => {
     // Queue unavailable — inline results are sufficient
   }
 
-  return c.json({ detections, platforms: detections.map((d) => d.platform), status: 'completed' });
+  return c.json({
+    detections,
+    platforms: detections.map((d) => d.platform),
+    status: 'completed',
+    isSpa,
+    detectedFramework,
+    ...(detections.length === 0
+      ? {
+          message: isSpa
+            ? `${detectedFramework ?? 'SPA'} detected — tracking scripts are loaded dynamically. Connect platforms manually or use the deep scanner.`
+            : 'No tracking tags detected. Connect platforms manually or use the deep scanner.',
+        }
+      : {}),
+  });
 });
 
 // ────────────────── Onboarding ──────────────────
@@ -395,14 +436,70 @@ app.post('/onboarding/start', async (c) => {
     // Queue unavailable — inline results are sufficient
   }
 
+  // Detect if this is a known SPA framework so the frontend can show better guidance
+  const isSpa = html
+    ? (html.includes('__next') || html.includes('__NEXT_DATA__') || html.includes('_next/static') ||
+       html.includes('__nuxt') || html.includes('_nuxt/') ||
+       html.includes('ng-version') || html.includes('__SVELTE__') || html.includes('data-reactroot') ||
+       html.includes('id="app"') || html.includes('id="root"'))
+    : false;
+
+  const detectedFramework = html
+    ? (html.includes('__next') || html.includes('__NEXT_DATA__') ? 'Next.js'
+      : html.includes('__nuxt') ? 'Nuxt.js'
+      : html.includes('ng-version') ? 'Angular'
+      : html.includes('__SVELTE__') ? 'SvelteKit'
+      : null)
+    : null;
+
+  // When no tracking tags found, seed commonly-needed platforms as disconnected
+  // so the user can manually connect them from the integrations page
+  if (detections.length === 0) {
+    const recommendedPlatforms: Platform[] = [
+      'google_analytics', 'google_search_console', 'google_ads', 'meta_ads',
+    ];
+    try {
+      await withTenantDb(tenantId, async (db) => {
+        for (const platform of recommendedPlatforms) {
+          const existing = await db
+            .select({ id: integrations.id })
+            .from(integrations)
+            .where(and(eq(integrations.tenantId, tenantId), eq(integrations.platform, platform)))
+            .limit(1);
+
+          if (existing.length === 0) {
+            await db.insert(integrations).values({
+              tenantId,
+              platform,
+              status: 'disconnected',
+              accessTokenEncrypted: '',
+              detectedVia: 'recommended',
+              healthScore: 0,
+              config: { recommended: true, reason: 'Core platform for marketing automation' },
+            });
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Failed to seed recommended integrations:', err instanceof Error ? err.message : String(err));
+    }
+  }
+
   return c.json({
     detections,
     platforms,
     status: 'completed',
+    isSpa,
+    detectedFramework,
     ...(detections.length === 0 && !html
       ? { message: 'Could not fetch website HTML. The site may be blocking automated requests or require authentication.' }
       : detections.length === 0 && html
-      ? { message: 'No tracking tags detected in page HTML. The site may be a single-page app (SPA) that loads scripts dynamically. You can still connect integrations manually.' }
+      ? {
+          message: isSpa
+            ? `${detectedFramework ?? 'SPA'} detected — tracking scripts load dynamically and aren't visible in initial HTML. We've added recommended platforms you can connect manually below.`
+            : 'No tracking tags detected in page HTML. We\'ve added recommended platforms you can connect manually below.',
+          recommendedPlatforms: ['google_analytics', 'google_search_console', 'google_ads', 'meta_ads'],
+        }
       : {}),
   });
 });

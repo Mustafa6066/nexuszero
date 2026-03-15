@@ -95,9 +95,21 @@ export function IntegrationGrid() {
 
   if (!integrations?.length) {
     return (
-      <Card className="text-center py-12">
+      <Card className="text-center py-12 space-y-4">
         <p className="text-muted-foreground">No integrations connected yet.</p>
-        <p className="text-sm text-muted-foreground mt-1">Start onboarding to detect and connect your tools.</p>
+        <p className="text-sm text-muted-foreground">Start onboarding to detect and connect your tools, or connect platforms manually.</p>
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
+          {(['google_analytics', 'google_search_console', 'google_ads', 'meta_ads'] as const).map((platform) => (
+            <button
+              key={platform}
+              onClick={() => connectMutation.mutate(platform)}
+              disabled={connectMutation.isPending}
+              className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+            >
+              Connect {PLATFORM_LABELS[platform] ?? platform}
+            </button>
+          ))}
+        </div>
       </Card>
     );
   }
@@ -226,6 +238,9 @@ export function OnboardingWizard() {
 
   const detections = (detectMutation.data as any)?.detections ?? [];
   const hasDetections = detections.length > 0;
+  const isSpa = (detectMutation.data as any)?.isSpa ?? false;
+  const detectedFramework = (detectMutation.data as any)?.detectedFramework ?? null;
+  const recommendedPlatforms = (detectMutation.data as any)?.recommendedPlatforms as string[] | undefined;
   const disconnectedIntegrations = (integrations ?? []).filter((integration: any) => integration.status === 'disconnected');
   const degradedIntegrations = (integrations ?? []).filter((integration: any) => ['degraded', 'error'].includes(integration.status));
 
@@ -317,12 +332,36 @@ export function OnboardingWizard() {
           {detectMutation.isSuccess && !hasDetections && (
             <div className="space-y-3">
               <div className="rounded-md bg-yellow-500/10 border border-yellow-500/20 p-4 text-sm">
-                <p className="font-medium text-yellow-300">No new integrations auto-detected</p>
+                <p className="font-medium text-yellow-300">
+                  {isSpa
+                    ? `${detectedFramework ?? 'SPA'} detected — scripts load dynamically`
+                    : 'No new integrations auto-detected'}
+                </p>
                 <p className="text-muted-foreground mt-1">
                   {(detectMutation.data as any)?.message ||
-                    "This site may be a single-page app (SPA), use server-side rendering, or block automated scanning. You can still queue integrations manually or use the deep scanner for more detail."}
+                    "No tracking tags detected in page HTML. You can still connect integrations manually below."}
                 </p>
               </div>
+
+              {/* Manual connect buttons for recommended platforms */}
+              {recommendedPlatforms && recommendedPlatforms.length > 0 && (
+                <div className="rounded-xl border border-primary/15 bg-primary/5 p-4">
+                  <p className="text-sm font-medium mb-3">Connect manually</p>
+                  <div className="flex flex-wrap gap-2">
+                    {recommendedPlatforms.map((platform: string) => (
+                      <button
+                        key={platform}
+                        type="button"
+                        onClick={() => connectMutation.mutate(platform)}
+                        disabled={connectMutation.isPending}
+                        className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+                      >
+                        Connect {PLATFORM_LABELS[platform] ?? platform}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button

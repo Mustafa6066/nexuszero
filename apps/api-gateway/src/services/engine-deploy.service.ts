@@ -144,7 +144,7 @@ export async function deployEngine(
         ad: 'optimize_bids',
         creative: 'generate_creative',
         'data-nexus': 'build_dashboard',
-        aeo: 'citation_scan',
+        aeo: 'scan_citations',
         compatibility: 'health_check',
       };
 
@@ -169,12 +169,13 @@ export async function deployEngine(
     await publishAgentTask({
       tenantId,
       agentType: 'seo',
-      type: 'generate_strategy',
+      type: 'keyword_research',
       priority: 'medium',
       input: {
         websiteUrl: request.websiteUrl,
         tier: request.tier,
         companyName: request.companyName,
+        industry: request.companyName,
       },
     });
     updateStep(4, 'completed', 'Strategy generation queued');
