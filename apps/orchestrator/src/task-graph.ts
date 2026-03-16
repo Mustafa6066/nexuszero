@@ -260,4 +260,121 @@ export class TaskGraphExecutor {
     const delayMs = Math.min(25 * (attempt + 1), 125);
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
+
+  /**
+   * Inject new nodes into a running task graph (Dynamic DAG Re-Wiring).
+   * Used by the orchestrator to dynamically create new tasks in response
+   * to signals (e.g., anomaly_escalated triggers creative + ad pivot tasks).
+   *
+   * Atomically appends nodes to the graph. Any nodes whose dependencies are
+   * already satisfied will be dispatched immediately.
+   */
+  async injectNodes(
+    graphId: string,
+    tenantId: string,
+    newNodes: TaskGraphNode[],
+    priority: TaskPriority = 'high',
+  ): Promise<{ injected: number; immediatelyReady: TaskGraphNode[] }> {
+    const key = `taskgraph:${graphId}`;
+    const redisClient = getRedis();
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await this.clearWatch(redisClient);
+      let isWatching = false;
+
+      try {
+        await redisClient.watch(key);
+        isWatching = true;
+        const raw = await redisClient.get(key);
+
+        if (!raw) {
+          // Graph expired — create a new sub-graph with these nodes
+          isWatching = false;
+          await this.clearWatch(redisClient);
+          const subGraphId = await this.executeGraph(tenantId, newNodes, priority);
+          console.log(`Graph ${graphId} expired; created sub-graph ${subGraphId} with ${newNodes.length} injected nodes`);
+          return { injected: newNodes.length, immediatelyReady: newNodes.filter(n => n.dependsOn.length === 0) };
+        }
+
+        let graph: TaskGraphState;
+        try {
+          graph = JSON.parse(raw) as TaskGraphState;
+        } catch {
+          isWatching = false;
+          await this.clearWatch(redisClient);
+          throw new Error(`Task graph ${graphId} is corrupted`);
+        }
+
+        // Append new nodes to the DAG
+        graph.nodes.push(...newNodes);
+
+        // Find nodes that are immediately ready (all deps already completed)
+        const readyNodes = newNodes.filter((node) => {
+          if (graph.dispatchedTasks.includes(node.taskId)) return false;
+          return node.dependsOn.every((dep) => graph.completedTasks.includes(dep));
+        });
+
+        if (readyNodes.length > 0) {
+          graph.dispatchedTasks = [...new Set([...graph.dispatchedTasks, ...readyNodes.map(n => n.taskId)])];
+        }
+
+        const multi = redisClient.multi();
+        multi.set(key, JSON.stringify(graph), 'EX', 86400);
+        const execResult = await multi.exec();
+
+        if (execResult) {
+          isWatching = false;
+
+          // Dispatch immediately-ready nodes
+          const db = getDb();
+          for (const node of readyNodes) {
+            const agentType = TASK_TO_AGENT_MAP[node.type];
+            if (!agentType) continue;
+
+            await db.insert(agentTasks).values({
+              id: node.taskId,
+              tenantId,
+              type: node.type,
+              priority,
+              status: 'queued',
+              input: node.input,
+              dependsOn: node.dependsOn,
+            }).onConflictDoNothing();
+
+            try {
+              await publishAgentTask({
+                id: node.taskId,
+                tenantId,
+                agentType,
+                type: node.type,
+                priority,
+                input: { ...node.input, graphId },
+              });
+            } catch (error) {
+              await db.update(agentTasks)
+                .set({
+                  status: 'pending',
+                  error: error instanceof Error ? error.message : String(error),
+                  updatedAt: new Date(),
+                })
+                .where(eq(agentTasks.id, node.taskId));
+            }
+          }
+
+          console.log(`Graph ${graphId}: injected ${newNodes.length} nodes, ${readyNodes.length} immediately dispatched`);
+          return { injected: newNodes.length, immediatelyReady: readyNodes };
+        }
+      } finally {
+        if (isWatching) {
+          await this.clearWatch(redisClient);
+        }
+      }
+
+      if (attempt < 4) {
+        await this.waitForRetrySlot(attempt);
+      }
+    }
+
+    throw new Error(`Failed to inject nodes into graph ${graphId} after multiple retries`);
+  }
 }

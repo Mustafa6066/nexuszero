@@ -3,10 +3,13 @@ import { getDb, tenants, agents, oauthTokens } from '@nexuszero/db';
 import { eq } from 'drizzle-orm';
 import { publishOnboardingStep, publishWebhookEvent, publishAgentTask, publishAuditEvent } from '@nexuszero/queue';
 import { KAFKA_TOPICS } from '@nexuszero/shared';
+import { randomUUID } from 'node:crypto';
 
 /** Valid state transitions */
 const STATE_TRANSITIONS: Record<OnboardingState, OnboardingState[]> = {
-  created: ['oauth_connecting'],
+  created: ['shadow_auditing'],
+  shadow_auditing: ['shadow_complete', 'failed'],
+  shadow_complete: ['oauth_connecting'],
   oauth_connecting: ['oauth_connected', 'failed'],
   oauth_connected: ['auditing'],
   auditing: ['audit_complete', 'failed'],
@@ -21,9 +24,9 @@ const STATE_TRANSITIONS: Record<OnboardingState, OnboardingState[]> = {
 };
 
 const ORDERED_STATES: OnboardingState[] = [
-  'created', 'oauth_connecting', 'oauth_connected', 'auditing',
-  'audit_complete', 'provisioning', 'provisioned', 'strategy_generating',
-  'strategy_ready', 'going_live', 'active',
+  'created', 'shadow_auditing', 'shadow_complete', 'oauth_connecting',
+  'oauth_connected', 'auditing', 'audit_complete', 'provisioning',
+  'provisioned', 'strategy_generating', 'strategy_ready', 'going_live', 'active',
 ];
 
 export class OnboardingStateMachine {
@@ -62,11 +65,11 @@ export class OnboardingStateMachine {
       throw new Error(`Cannot start onboarding from state: ${tenant.onboardingState}`);
     }
 
-    // Queue the first step: OAuth connect
-    await this.transitionTo('oauth_connecting');
+    // Queue the first step: Shadow Audit (runs before OAuth, before user interaction)
+    await this.transitionTo('shadow_auditing');
     await publishOnboardingStep({
       tenantId: this.tenantId,
-      step: 'oauth_connect',
+      step: 'shadow_audit',
       config,
     });
   }
@@ -85,6 +88,28 @@ export class OnboardingStateMachine {
     const db = getDb();
 
     switch (step) {
+      case 'shadow_audit':
+        await this.transitionTo('shadow_complete');
+        // Auto-dispatch read-only safe agents immediately — user gets value before OAuth
+        await this.dispatchSafeAgentTasks(result);
+        // Auto-advance to firmographic enrichment
+        await publishOnboardingStep({
+          tenantId: this.tenantId,
+          step: 'firmographic_enrichment',
+          config: { ...result },
+        });
+        break;
+
+      case 'firmographic_enrichment':
+        // Firmographic enrichment done — advance to OAuth connecting
+        await this.transitionTo('oauth_connecting');
+        await publishOnboardingStep({
+          tenantId: this.tenantId,
+          step: 'oauth_connect',
+          config: { ...result },
+        });
+        break;
+
       case 'oauth_connect':
         await this.transitionTo('oauth_connected');
         // Auto-advance to audit
@@ -195,5 +220,41 @@ export class OnboardingStateMachine {
     });
 
     console.log(`Tenant ${this.tenantId}: ${currentState} -> ${newState}`);
+  }
+
+  /**
+   * Dispatch read-only "safe" agent tasks immediately after shadow audit.
+   * Gives the user value in their Opportunity Snapshot before they even connect OAuth.
+   */
+  private async dispatchSafeAgentTasks(auditResult: Record<string, unknown>) {
+    const domain = auditResult.domain as string | undefined;
+    if (!domain) return;
+
+    try {
+      // SEO audit — read-only, safe to run immediately
+      await publishAgentTask({
+        id: randomUUID(),
+        tenantId: this.tenantId,
+        agentType: 'seo',
+        type: 'seo_audit',
+        priority: 'medium',
+        input: { domain, isPreOnboardingAudit: true, scheduled: false },
+      });
+
+      // AEO visibility probe — read-only, safe to run immediately
+      await publishAgentTask({
+        id: randomUUID(),
+        tenantId: this.tenantId,
+        agentType: 'aeo',
+        type: 'ai_visibility_scoring',
+        priority: 'low',
+        input: { domain, isPreOnboardingAudit: true },
+      });
+
+      console.log(`Tenant ${this.tenantId}: dispatched safe pre-onboarding agents (SEO + AEO)`);
+    } catch (err) {
+      // Non-fatal — these are bonus tasks, don't block onboarding
+      console.warn(`Tenant ${this.tenantId}: failed to dispatch safe agents:`, (err as Error).message);
+    }
   }
 }

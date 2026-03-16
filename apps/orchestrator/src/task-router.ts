@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { publishAgentTask } from '@nexuszero/queue';
 import { getDb, withTenantDb, agentTasks, tenants } from '@nexuszero/db';
-import { TASK_TO_AGENT_MAP, TASK_PRIORITY_DEFAULTS, PLAN_AGENT_LIMITS, AppError, ERROR_CODES } from '@nexuszero/shared';
+import { TASK_TO_AGENT_MAP, TASK_PRIORITY_DEFAULTS, PLAN_AGENT_LIMITS, AppError, ERROR_CODES, dispatchNotification, buildAnomalyNotification } from '@nexuszero/shared';
 import type { TaskPriority } from '@nexuszero/shared';
 import { eq, and, asc, sql } from 'drizzle-orm';
+import { TaskGraphExecutor } from './task-graph.js';
 
 async function dispatchTask(task: {
   id: string;
@@ -204,7 +205,8 @@ export class TaskRouter {
   }
 
   /**
-   * Handle inter-agent signals — coordinate between agents
+   * Handle inter-agent signals — coordinate between agents.
+   * Enhanced with dynamic DAG re-wiring for anomaly response.
    */
   async onAgentSignal(signal: { tenantId: string; agentId: string; type: string; data: any }) {
     const signalHandlers: Record<string, () => Promise<void>> = {
@@ -229,14 +231,98 @@ export class TaskRouter {
         });
       },
       'anomaly_detected': async () => {
-        // High priority — route to data-nexus for investigation
-        await this.routeTask({
-          id: randomUUID(),
-          tenantId: signal.tenantId,
-          type: 'investigate_anomaly',
-          priority: 'high',
-          input: signal.data,
+        // Dynamic DAG: build a reactive response graph based on severity
+        const severity = signal.data?.severity ?? 'medium';
+        const investigateId = randomUUID();
+        const alertId = randomUUID();
+
+        const nodes: { taskId: string; type: string; input: any; dependsOn: string[] }[] = [
+          // Root: investigate the anomaly
+          {
+            taskId: investigateId,
+            type: 'investigate_anomaly',
+            input: { ...signal.data, originSignal: 'anomaly_detected' },
+            dependsOn: [],
+          },
+          // Always: alert the user after investigation
+          {
+            taskId: alertId,
+            type: 'alert_management',
+            input: { ...signal.data, investigateTaskId: investigateId },
+            dependsOn: [investigateId],
+          },
+        ];
+
+        // High/critical: pause affected campaign + generate replacement creatives
+        if (severity === 'high' || severity === 'critical') {
+          nodes.push({
+            taskId: randomUUID(),
+            type: 'budget_allocation',
+            input: { action: 'pause_anomalous', campaignId: signal.data?.campaignId, ...signal.data },
+            dependsOn: [investigateId],
+          });
+          nodes.push({
+            taskId: randomUUID(),
+            type: 'copy_generation',
+            input: { reason: 'anomaly_replacement', campaignId: signal.data?.campaignId, ...signal.data },
+            dependsOn: [investigateId],
+          });
+        }
+
+        const graphExecutor = new TaskGraphExecutor();
+        await graphExecutor.executeGraph(signal.tenantId, nodes, 'critical');
+
+        // Push real-time notification to Slack/Teams
+        dispatchNotification(signal.tenantId, buildAnomalyNotification(
+          signal.data?.metric ?? 'Unknown metric',
+          severity === 'critical' ? 'critical' : 'warning',
+          `Anomaly detected${signal.data?.campaignId ? ` in campaign ${signal.data.campaignId}` : ''}. Investigation DAG launched with ${nodes.length} tasks.`,
+          signal.data?.dashboardUrl,
+        )).catch((err) => {
+          console.warn('Failed to dispatch anomaly notification:', (err as Error).message);
         });
+      },
+      'anomaly_escalated': async () => {
+        // Data Nexus completed investigation and determined a pivot is needed.
+        // Inject creative + ad tasks into the existing graph if we have a graphId,
+        // otherwise route as standalone tasks.
+        const graphId = signal.data?.graphId;
+        const pivotActions = signal.data?.pivotActions ?? ['generate_creative', 'adjust_bids'];
+
+        if (graphId) {
+          const graphExecutor = new TaskGraphExecutor();
+          const pivotNodes = pivotActions.map((action: string) => ({
+            taskId: randomUUID(),
+            type: action === 'generate_creative' ? 'copy_generation' : 'bid_optimization',
+            input: { ...signal.data, reason: 'anomaly_pivot' },
+            dependsOn: [],
+          }));
+
+          await graphExecutor.injectNodes(graphId, signal.tenantId, pivotNodes, 'high');
+        } else {
+          // Fallback: dispatch as individual tasks
+          for (const action of pivotActions) {
+            await this.routeTask({
+              id: randomUUID(),
+              tenantId: signal.tenantId,
+              type: action === 'generate_creative' ? 'copy_generation' : 'bid_optimization',
+              priority: 'high',
+              input: { ...signal.data, reason: 'anomaly_pivot' },
+            });
+          }
+        }
+      },
+      'creative_critiqued': async () => {
+        // Critic evaluated a creative — route to performance prediction if passed
+        if (signal.data?.verdict === 'pass') {
+          await this.routeTask({
+            id: randomUUID(),
+            tenantId: signal.tenantId,
+            type: 'predict_performance',
+            priority: 'low',
+            input: signal.data,
+          });
+        }
       },
       'aeo_citation_found': async () => {
         // Update SEO strategy based on AI citation findings

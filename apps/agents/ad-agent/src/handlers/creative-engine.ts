@@ -13,6 +13,7 @@ import {
 } from '@nexuszero/shared';
 import { publishAgentSignal } from '@nexuszero/queue';
 import { llmGenerateAdCopy, llmAnalyze } from '../llm.js';
+import { CreativeCritic, type CriticEvaluation } from './creative-critic.js';
 import { eq, and, inArray } from 'drizzle-orm';
 
 type CreativeEngineInput = {
@@ -33,6 +34,8 @@ type CreativeEngineInput = {
 };
 
 export class CreativeEngine {
+  private critic = new CreativeCritic();
+
   async generate(input: any, job: Job): Promise<any> {
     const tenantId = getCurrentTenantId();
     const normalized = this.normalizeInput(input as CreativeEngineInput);
@@ -42,10 +45,60 @@ export class CreativeEngine {
 
     const generatedVariants = await this.generateVariants(normalized);
     const limitedVariants = generatedVariants.slice(0, normalized.variantCount);
-    const primaryVariant = limitedVariants[0] ?? this.buildFallbackVariant(normalized, 0);
+
+    await job.updateProgress(50);
+
+    // ── LLM-as-a-Judge: Critic evaluation ────────────────────────────
+    const criticContext = {
+      creativeType: normalized.type,
+      platform: normalized.platform,
+      brandGuidelines: normalized.brandGuidelines,
+      historicalAvgCtr: input.historicalAvgCtr as number | undefined,
+    };
+
+    const evaluatedVariants: { variant: Record<string, unknown>; evaluation: CriticEvaluation }[] = [];
+    const MAX_REGENERATION_ATTEMPTS = 2;
+
+    for (let i = 0; i < limitedVariants.length; i++) {
+      let variant = limitedVariants[i]!;
+      let evaluation: CriticEvaluation | null = null;
+
+      for (let attempt = 0; attempt <= MAX_REGENERATION_ATTEMPTS; attempt++) {
+        evaluation = await this.critic.evaluate(variant, criticContext);
+
+        if (evaluation.verdict !== 'reject' || attempt === MAX_REGENERATION_ATTEMPTS) {
+          break;
+        }
+
+        // Rejected — regenerate this single variant with critic feedback
+        console.log(`Creative variant ${i} rejected by critic (attempt ${attempt + 1}): ${evaluation.reasoning}`);
+        const regenerated = await this.generateVariants({
+          ...normalized,
+          prompt: `${normalized.prompt}\n\nIMPROVEMENT NEEDED: ${evaluation.suggestions.join('; ')}`,
+          variantCount: 1,
+        });
+        if (regenerated.length > 0) {
+          variant = regenerated[0]!;
+        }
+      }
+
+      evaluatedVariants.push({
+        variant: {
+          ...variant,
+          criticScore: evaluation!.score,
+          criticVerdict: evaluation!.verdict,
+          criticReasoning: evaluation!.reasoning,
+        },
+        evaluation: evaluation!,
+      });
+    }
+
+    await job.updateProgress(70);
+
+    const primaryVariant = evaluatedVariants[0]?.variant ?? this.buildFallbackVariant(normalized, 0);
     const brandScore = this.estimateBrandScore(normalized);
     const predictedCtr = this.estimatePredictedCtr(primaryVariant, normalized.type);
-    const storedVariants = limitedVariants.map((variant, index) => ({
+    const storedVariants = evaluatedVariants.map(({ variant }, index) => ({
       id: randomUUID(),
       variantLabel: String.fromCharCode(65 + index),
       content: variant,
@@ -59,6 +112,7 @@ export class CreativeEngine {
     await job.updateProgress(70);
 
     const storedCreative = await withTenantDb(tenantId, async (db) => {
+      const primaryEval = evaluatedVariants[0]?.evaluation;
       const values = {
         tenantId,
         campaignId: normalized.campaignId,
@@ -72,6 +126,9 @@ export class CreativeEngine {
         generationModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
         variants: storedVariants,
         tags: this.buildTags(normalized),
+        criticScore: primaryEval?.score ?? null,
+        criticVerdict: primaryEval?.verdict ?? null,
+        criticReasoning: primaryEval?.reasoning ?? null,
         updatedAt: new Date(),
       };
 
@@ -109,6 +166,24 @@ export class CreativeEngine {
     }).catch((error) => {
       console.warn('Failed to publish creative_generated signal:', error instanceof Error ? error.message : String(error));
     });
+
+    // Publish critic evaluation signal for orchestrator
+    const primaryEval = evaluatedVariants[0]?.evaluation;
+    if (primaryEval) {
+      await publishAgentSignal({
+        tenantId,
+        agentId: 'ad-worker',
+        type: 'creative_critiqued',
+        data: {
+          creativeId: storedCreative.id,
+          score: primaryEval.score,
+          verdict: primaryEval.verdict,
+          reasoning: primaryEval.reasoning,
+        },
+      }).catch((error) => {
+        console.warn('Failed to publish creative_critiqued signal:', error instanceof Error ? error.message : String(error));
+      });
+    }
 
     // Log agent action for explainability
     try {

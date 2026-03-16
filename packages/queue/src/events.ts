@@ -33,7 +33,9 @@ export type InterAgentEventType =
   | 'seo.competitor_analyzed'
   | 'orchestrator.task_assigned'
   | 'orchestrator.task_completed'
-  | 'orchestrator.task_failed';
+  | 'orchestrator.task_failed'
+  | 'data.anomaly_escalated'
+  | 'creative.critic_evaluated';
 
 /** Base event payload for inter-agent messages */
 export interface InterAgentEvent<T = Record<string, unknown>> {
@@ -95,7 +97,7 @@ export interface WebhookDeliveryPayload {
 /** Onboarding step payload */
 export interface OnboardingPayload {
   tenantId: string;
-  step: 'oauth_connect' | 'instant_audit' | 'provision' | 'strategy_generate' | 'go_live';
+  step: 'shadow_audit' | 'firmographic_enrichment' | 'oauth_connect' | 'instant_audit' | 'provision' | 'strategy_generate' | 'go_live';
   config: Record<string, unknown>;
   traceContext?: TraceCarrier;
 }

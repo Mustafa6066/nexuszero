@@ -1,5 +1,6 @@
 import { getDb, tenants, agents, campaigns, creatives, integrationHealth, integrations } from '@nexuszero/db';
 import { eq, and, count, ne } from 'drizzle-orm';
+import { dispatchNotification, buildDigestNotification } from '@nexuszero/shared';
 
 /**
  * Daily Orbit Digest — builds intelligence snapshot per active tenant
@@ -35,6 +36,17 @@ export async function runDailyDigest(): Promise<number> {
     try {
       const digest = await buildDigestForTenant(tenant.id, tenant.name, tenant.plan);
       if (digest.sections.length === 0) continue;
+
+      // Push digest to Slack/Teams if configured
+      const dashboardUrl = process.env.DASHBOARD_URL
+        ? `${process.env.DASHBOARD_URL}/dashboard/digest`
+        : undefined;
+      dispatchNotification(
+        tenant.id,
+        buildDigestNotification(digest.sections, dashboardUrl),
+      ).catch((err) => {
+        console.warn(`Failed to dispatch digest notification for tenant ${tenant.id}:`, (err as Error).message);
+      });
 
       // Log the digest for downstream consumption (email service, webhook dispatcher, etc.)
       console.log(

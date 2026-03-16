@@ -28,6 +28,12 @@ export interface Creative {
   generationModel: string;
   variants: CreativeVariant[];
   tags: string[];
+  /** Critic agent quality score (0-100) */
+  criticScore?: number;
+  /** Critic agent verdict */
+  criticVerdict?: 'pass' | 'revise' | 'reject';
+  /** Critic agent reasoning */
+  criticReasoning?: string;
   createdAt: Date;
   updatedAt: Date;
 }

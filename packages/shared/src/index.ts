@@ -8,6 +8,7 @@ export * from './constants/creative-formats.js';
 export * from './constants/error-codes.js';
 export * from './constants/integration-registry.js';
 export * from './constants/tier-capabilities.js';
+export * from './constants/safe-actions.js';
 
 // Utils
 export * from './utils/validation.js';
@@ -19,6 +20,7 @@ export * from './utils/tenant-context.js';
 export * from './utils/statistical.js';
 export * from './utils/observability.js';
 export * from './utils/mena.js';
+export * from './utils/notification-dispatcher.js';
 
 // Schemas
 export * from './schemas/tenant.schema.js';

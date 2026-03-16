@@ -10,6 +10,7 @@
 import { eq, and, inArray } from 'drizzle-orm';
 import { getDb, integrations } from '@nexuszero/db';
 import type { Platform, IntegrationStatus } from '@nexuszero/shared';
+import { dispatchNotification, buildTokenExpiredNotification } from '@nexuszero/shared';
 import { attemptReconnection, runReconnectionSweep } from './auto-reconnector.js';
 import { resetCircuit, getTrippedCircuits } from './circuit-state-manager.js';
 import { findFallback, type FallbackResult } from './fallback-manager.js';
@@ -73,6 +74,9 @@ export async function runHealingCycle(tenantId: string): Promise<HealingReport> 
     }
   }
 
+  // 5. Notify tenant about platforms that still need manual re-auth
+  await notifyStillFailed(tenantId, stillFailed);
+
   return {
     tenantId,
     reconnected,
@@ -81,6 +85,22 @@ export async function runHealingCycle(tenantId: string): Promise<HealingReport> 
     circuitsReset,
     timestamp: new Date(),
   };
+}
+
+/** Notify tenant via Slack/Teams about platforms that still need re-authentication */
+async function notifyStillFailed(tenantId: string, platforms: Platform[]): Promise<void> {
+  if (platforms.length === 0) return;
+
+  const reconnectUrl = process.env.DASHBOARD_URL
+    ? `${process.env.DASHBOARD_URL}/dashboard/integrations?reconnect=${platforms.join(',')}`
+    : undefined;
+
+  dispatchNotification(
+    tenantId,
+    buildTokenExpiredNotification(platforms, reconnectUrl ?? '#'),
+  ).catch((err) => {
+    console.warn(`[healing] Failed to notify tenant ${tenantId} about expired tokens:`, (err as Error).message);
+  });
 }
 
 /** Run healing sweep across all tenants with issues */

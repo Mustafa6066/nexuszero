@@ -3,6 +3,8 @@ import { extractTraceContext, QUEUE_NAMES, spanKindForMessagingConsumer, withSpa
 import { getRedisConnection } from '@nexuszero/queue';
 import type { OnboardingPayload } from '@nexuszero/queue';
 import { OnboardingStateMachine } from './state-machine.js';
+import { ShadowAuditStep } from './steps/shadow-audit.js';
+import { FirmographicEnrichmentStep } from './steps/firmographic-enrichment.js';
 import { OAuthConnectStep } from './steps/oauth-connect.js';
 import { InstantAuditStep } from './steps/instant-audit.js';
 import { ProvisionStep } from './steps/provision.js';
@@ -12,6 +14,8 @@ import { GoLiveStep } from './steps/go-live.js';
 export class OnboardingWorker {
   private worker: Worker | null = null;
 
+  private shadowAudit = new ShadowAuditStep();
+  private firmographicEnrichment = new FirmographicEnrichmentStep();
   private oauthConnect = new OAuthConnectStep();
   private instantAudit = new InstantAuditStep();
   private provision = new ProvisionStep();
@@ -63,6 +67,10 @@ export class OnboardingWorker {
         },
       }, async () => {
         switch (step) {
+          case 'shadow_audit':
+            return this.shadowAudit.execute(tenantId, config);
+          case 'firmographic_enrichment':
+            return this.firmographicEnrichment.execute(tenantId, config);
           case 'oauth_connect':
             return this.oauthConnect.execute(tenantId, config);
           case 'instant_audit':

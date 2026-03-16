@@ -7,6 +7,8 @@ export type TenantStatus = 'pending' | 'provisioning' | 'active' | 'suspended' |
 /** Onboarding state machine states */
 export type OnboardingState =
   | 'created'
+  | 'shadow_auditing'
+  | 'shadow_complete'
   | 'oauth_connecting'
   | 'oauth_connected'
   | 'auditing'
@@ -30,6 +32,7 @@ export interface TenantSettings {
   timezone: string;
   weeklyReportEnabled: boolean;
   slackWebhookUrl: string | null;
+  teamsWebhookUrl: string | null;
   notificationEmail: string | null;
 }
 
