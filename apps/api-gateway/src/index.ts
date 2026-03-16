@@ -25,11 +25,13 @@ import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { tracingMiddleware } from './middleware/tracing.js';
+import { httpsRedirectMiddleware } from './middleware/https-redirect.js';
 import { yogaHandler } from './graphql/index.js';
 
 const app = new Hono();
 
 // Global middleware
+app.use('*', httpsRedirectMiddleware);
 app.use('*', tracingMiddleware);
 app.use('*', logger());
 app.use('*', secureHeaders());
