@@ -38,9 +38,9 @@ export function extractSeoSignals(html: string, pageUrl: string): SeoSignals {
 
   // Headings
   const h1: string[] = [];
-  $('h1').each((_i, el) => h1.push($(el).text().trim()));
+  $('h1').each((_i, el) => { h1.push($(el).text().trim()); });
   const h2: string[] = [];
-  $('h2').each((_i, el) => h2.push($(el).text().trim()));
+  $('h2').each((_i, el) => { h2.push($(el).text().trim()); });
 
   // Canonical
   const canonicalUrl = $('link[rel="canonical"]').attr('href') || null;
