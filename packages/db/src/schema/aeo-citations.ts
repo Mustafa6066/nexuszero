@@ -1,6 +1,21 @@
-import { pgTable, uuid, varchar, text, real, integer, timestamp, jsonb, boolean, pgEnum } from 'drizzle-orm/pg-core';
-import { vector } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, real, integer, timestamp, jsonb, boolean, pgEnum, customType } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants.js';
+
+/** Custom pgvector column type — drizzle-orm 0.30.x doesn't export vector natively */
+const vector = customType<{ data: number[]; config: { dimensions: number } }>({
+  dataType(config) {
+    return `vector(${config?.dimensions ?? 1536})`;
+  },
+  fromDriver(value: unknown): number[] {
+    if (typeof value === 'string') {
+      return value.replace(/[[\]]/g, '').split(',').map(Number);
+    }
+    return value as number[];
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(',')}]`;
+  },
+});
 
 export const aiPlatformEnum = pgEnum('ai_platform', ['chatgpt', 'perplexity', 'google_ai_overview', 'gemini', 'bing_copilot', 'claude']);
 export const schemaMarkupStatusEnum = pgEnum('schema_markup_status', ['missing', 'partial', 'complete', 'optimized']);
