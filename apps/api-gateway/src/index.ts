@@ -48,6 +48,33 @@ app.onError(errorHandler);
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', service: 'api-gateway', timestamp: new Date().toISOString() }));
 
+// Global health check aggregator
+app.get('/health/all', async (c) => {
+  const services = [
+    { name: 'orchestrator', url: process.env.ORCHESTRATOR_URL || 'http://localhost:4001' },
+    { name: 'webhook-service', url: process.env.WEBHOOK_SERVICE_URL || 'http://localhost:4003' },
+    { name: 'onboarding-service', url: process.env.ONBOARDING_SERVICE_URL || 'http://localhost:4004' },
+  ];
+
+  const results = await Promise.all(
+    services.map(async (s) => {
+      try {
+        const res = await fetch(`${s.url}/health`, { signal: AbortSignal.timeout(2000) });
+        return { name: s.name, status: res.ok ? 'ok' : 'error', statusCode: res.status };
+      } catch (e) {
+        return { name: s.name, status: 'unreachable', error: (e as Error).message };
+      }
+    })
+  );
+
+  const allOk = results.every((r) => r.status === 'ok');
+  return c.json({
+    status: allOk ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    services: results,
+  }, allOk ? 200 : 503);
+});
+
 // Public routes
 app.route('/api/v1/auth', tenantRoutes);
 

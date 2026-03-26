@@ -14,6 +14,7 @@
     "test:e2e": "turbo test:e2e",
     "db:migrate": "pnpm --filter @nexuszero/db migrate",
     "db:seed": "pnpm --filter @nexuszero/db seed",
+    "validate:prod": "node scripts/validate-prod-env.mjs",
     "db:generate": "pnpm --filter @nexuszero/db generate",
     "setup:local": "bash scripts/setup-local.sh",
     "clean": "turbo clean && rm -rf node_modules"
