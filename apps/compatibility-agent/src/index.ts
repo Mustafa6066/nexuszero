@@ -11,6 +11,7 @@ import { initializeOpenTelemetry } from '@nexuszero/shared';
 
 import { CompatibilityWorker } from './agent.js';
 import { env } from './config/env.js';
+import { httpsRedirectMiddleware } from './middleware/https-redirect.js';
 
 // Cron-driven background tasks
 import { refreshExpiringTokens } from './oauth/token-refresher.js';
@@ -93,6 +94,7 @@ export function createApp(): Hono {
 
   app.use('*', logger());
   app.use('*', secureHeaders());
+  app.use('*', httpsRedirectMiddleware);
 
   // Public health check — no auth required (used by load balancers / Railway)
   app.get('/health', (c) =>
