@@ -200,3 +200,169 @@ CREATE INDEX IF NOT EXISTS idx_analytics_dp_tenant_date ON analytics_data_points
 CREATE INDEX IF NOT EXISTS idx_aeo_citations_tenant_platform ON aeo_citations (tenant_id, platform);
 CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries (status, next_retry_at);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_created ON audit_logs (tenant_id, created_at);
+
+-- =====================================================================
+-- Additional RLS policies for tables added after initial launch
+-- =====================================================================
+
+-- Assistant Sessions
+ALTER TABLE assistant_sessions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY assistant_sessions_isolation ON assistant_sessions
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Assistant Messages
+ALTER TABLE assistant_messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY assistant_messages_isolation ON assistant_messages
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Assistant Attachments
+ALTER TABLE assistant_attachments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY assistant_attachments_isolation ON assistant_attachments
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Approval Queue
+ALTER TABLE approval_queue ENABLE ROW LEVEL SECURITY;
+CREATE POLICY approval_queue_isolation ON approval_queue
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Alert Rules
+ALTER TABLE alert_rules ENABLE ROW LEVEL SECURITY;
+CREATE POLICY alert_rules_isolation ON alert_rules
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Login Streaks
+ALTER TABLE login_streaks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY login_streaks_isolation ON login_streaks
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Agent Actions
+ALTER TABLE agent_actions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY agent_actions_isolation ON agent_actions
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Campaign Versions
+ALTER TABLE campaign_versions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY campaign_versions_isolation ON campaign_versions
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- CMS Changes
+ALTER TABLE cms_changes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY cms_changes_isolation ON cms_changes
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Reddit Mentions
+ALTER TABLE reddit_mentions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY reddit_mentions_isolation ON reddit_mentions
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Reddit Monitored Subreddits
+ALTER TABLE reddit_monitored_subreddits ENABLE ROW LEVEL SECURITY;
+CREATE POLICY reddit_monitored_subreddits_isolation ON reddit_monitored_subreddits
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Social Mentions
+ALTER TABLE social_mentions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY social_mentions_isolation ON social_mentions
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Social Listening Config
+ALTER TABLE social_listening_config ENABLE ROW LEVEL SECURITY;
+CREATE POLICY social_listening_config_isolation ON social_listening_config
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Content Drafts
+ALTER TABLE content_drafts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY content_drafts_isolation ON content_drafts
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Geo Locations
+ALTER TABLE geo_locations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY geo_locations_isolation ON geo_locations
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Geo Rankings
+ALTER TABLE geo_rankings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY geo_rankings_isolation ON geo_rankings
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- Geo Citations
+ALTER TABLE geo_citations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY geo_citations_isolation ON geo_citations
+  FOR ALL
+  TO nexuszero_app
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+-- LLM Model Configs (tenant_id is nullable — NULL = global defaults)
+ALTER TABLE llm_model_configs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY llm_model_configs_isolation ON llm_model_configs
+  FOR ALL
+  TO nexuszero_app
+  USING (
+    tenant_id IS NULL
+    OR tenant_id = current_setting('app.current_tenant_id', true)::uuid
+  );
+
+-- =====================================================================
+-- Indices for new tenant-scoped tables
+-- =====================================================================
+CREATE INDEX IF NOT EXISTS idx_assistant_sessions_tenant_id ON assistant_sessions (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_assistant_messages_tenant_id ON assistant_messages (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_assistant_messages_session ON assistant_messages (session_id);
+CREATE INDEX IF NOT EXISTS idx_assistant_attachments_tenant_id ON assistant_attachments (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_assistant_attachments_session ON assistant_attachments (session_id);
+CREATE INDEX IF NOT EXISTS idx_approval_queue_tenant_id ON approval_queue (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_approval_queue_tenant_status ON approval_queue (tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_alert_rules_tenant_id ON alert_rules (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_login_streaks_tenant_id ON login_streaks (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_login_streaks_tenant_user ON login_streaks (tenant_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_agent_actions_tenant_id ON agent_actions (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_agent_actions_tenant_agent ON agent_actions (tenant_id, agent_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_versions_tenant_id ON campaign_versions (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_versions_campaign ON campaign_versions (campaign_id, version);
+CREATE INDEX IF NOT EXISTS idx_cms_changes_tenant_id ON cms_changes (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_cms_changes_tenant_status ON cms_changes (tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_reddit_mentions_tenant_id ON reddit_mentions (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_reddit_monitored_subs_tenant ON reddit_monitored_subreddits (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_social_mentions_tenant_id ON social_mentions (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_social_mentions_tenant_platform ON social_mentions (tenant_id, platform);
+CREATE INDEX IF NOT EXISTS idx_social_listening_config_tenant ON social_listening_config (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_content_drafts_tenant_id ON content_drafts (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_content_drafts_tenant_status ON content_drafts (tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_geo_locations_tenant_id ON geo_locations (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_geo_rankings_tenant_id ON geo_rankings (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_geo_rankings_location ON geo_rankings (location_id);
+CREATE INDEX IF NOT EXISTS idx_geo_citations_tenant_id ON geo_citations (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_llm_model_configs_tenant_id ON llm_model_configs (tenant_id);
+

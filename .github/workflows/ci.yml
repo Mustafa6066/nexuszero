@@ -35,6 +35,26 @@ jobs:
       - run: pnpm turbo lint --filter='./apps/*' --filter='./packages/*'
       - run: pnpm turbo typecheck --filter='./apps/*' --filter='./packages/*'
 
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - name: Check for high/critical vulnerabilities
+        run: pnpm audit --audit-level=high || true
+        # Using || true to not block deploys on warnings; remove to enforce strictly
+
   test:
     name: Test
     runs-on: ubuntu-latest

@@ -1,5 +1,5 @@
 /** Types of agents in the swarm */
-export type AgentType = 'seo' | 'ad' | 'data-nexus' | 'creative' | 'aeo' | 'compatibility';
+export type AgentType = 'seo' | 'ad' | 'data-nexus' | 'creative' | 'aeo' | 'compatibility' | 'reddit' | 'social' | 'content-writer' | 'geo';
 
 /** Agent operational status */
 export type AgentStatus = 'idle' | 'processing' | 'paused' | 'error' | 'offline';

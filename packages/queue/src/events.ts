@@ -1,5 +1,6 @@
 import type { AgentType, TaskPriority } from '@nexuszero/shared';
 import type { TraceCarrier } from '@nexuszero/shared';
+import type { TaskBudgetConfig } from '@nexuszero/llm-router';
 
 /** All event types that can be passed between agents via Kafka */
 export type InterAgentEventType =
@@ -65,6 +66,8 @@ export interface TaskPayload {
   scheduledAt?: string;
   dependsOn?: string[];
   traceContext?: TraceCarrier;
+  /** Per-task token/cost budget constraints */
+  taskBudget?: TaskBudgetConfig;
 }
 
 /** Task result payload */

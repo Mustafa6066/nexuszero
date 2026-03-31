@@ -1,0 +1,25 @@
+{
+  "name": "@nexuszero/content-writer-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=../../../.env src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@nexuszero/db": "workspace:*",
+    "@nexuszero/llm-router": "workspace:*",
+    "@nexuszero/prober": "workspace:*",
+    "@nexuszero/queue": "workspace:*",
+    "@nexuszero/shared": "workspace:*",
+    "bullmq": "^5.7.0",
+    "drizzle-orm": "^0.30.10",
+    "ioredis": "^5.4.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -57,7 +57,27 @@ export class Scheduler {
       cron.schedule('0 7 * * *', safe('dailyOrbitDigest', () => runDailyDigest().then(() => {})), { timezone: 'UTC' }),
     );
 
-    console.log(JSON.stringify({ level: 'info', msg: 'Scheduler started', jobs: 8 }));
+    // Reddit scan — every hour (growth/enterprise)
+    this.jobs.push(
+      cron.schedule('0 * * * *', safe('scheduleRedditScan', () => this.scheduleRedditScan()), { timezone: 'UTC' }),
+    );
+
+    // Social listening — every 2 hours (growth/enterprise)
+    this.jobs.push(
+      cron.schedule('0 */2 * * *', safe('scheduleSocialScan', () => this.scheduleSocialScan()), { timezone: 'UTC' }),
+    );
+
+    // GEO rank & citation check — every 12 hours (growth/enterprise)
+    this.jobs.push(
+      cron.schedule('0 */12 * * *', safe('scheduleGeoScan', () => this.scheduleGeoScan()), { timezone: 'UTC' }),
+    );
+
+    // Weekly content calendar — Monday 09:00 UTC (enterprise)
+    this.jobs.push(
+      cron.schedule('0 9 * * 1', safe('scheduleWeeklyContent', () => this.scheduleWeeklyContent()), { timezone: 'UTC' }),
+    );
+
+    console.log(JSON.stringify({ level: 'info', msg: 'Scheduler started', jobs: 12 }));
   }
 
   stop() {
@@ -166,6 +186,80 @@ export class Scheduler {
         priority: 'low',
         input: { scheduled: true, date: new Date().toISOString().split('T')[0] },
       });
+    }
+  }
+
+  private async scheduleRedditScan() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      if (tenant.plan === 'growth' || tenant.plan === 'enterprise') {
+        await publishAgentTask({
+          id: randomUUID(),
+          tenantId: tenant.id,
+          agentType: 'reddit',
+          type: 'scan_subreddits',
+          priority: 'medium',
+          input: { scheduled: true, tenantId: tenant.id },
+        });
+      }
+    }
+  }
+
+  private async scheduleSocialScan() {
+    const activeTenants = await this.getActiveTenants();
+    const platforms = ['twitter', 'hackernews', 'youtube'] as const;
+    for (const tenant of activeTenants) {
+      if (tenant.plan === 'growth' || tenant.plan === 'enterprise') {
+        for (const platform of platforms) {
+          await publishAgentTask({
+            id: randomUUID(),
+            tenantId: tenant.id,
+            agentType: 'social',
+            type: `scan_${platform}`,
+            priority: 'medium',
+            input: { scheduled: true, tenantId: tenant.id },
+          });
+        }
+      }
+    }
+  }
+
+  private async scheduleGeoScan() {
+    const activeTenants = await this.getActiveTenants();
+    const geoTaskTypes = ['geo_keyword_research', 'geo_citation_audit', 'geo_schema_generate'] as const;
+    for (const tenant of activeTenants) {
+      if (tenant.plan === 'growth' || tenant.plan === 'enterprise') {
+        for (const type of geoTaskTypes) {
+          await publishAgentTask({
+            id: randomUUID(),
+            tenantId: tenant.id,
+            agentType: 'geo',
+            type,
+            priority: 'low',
+            input: { scheduled: true, tenantId: tenant.id },
+          });
+        }
+      }
+    }
+  }
+
+  private async scheduleWeeklyContent() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      if (tenant.plan === 'enterprise') {
+        await publishAgentTask({
+          id: randomUUID(),
+          tenantId: tenant.id,
+          agentType: 'content-writer',
+          type: 'write_blog_post',
+          priority: 'low',
+          input: {
+            scheduled: true,
+            tenantId: tenant.id,
+            brief: { topic: 'weekly industry insights', tone: 'professional', useWebSearch: true },
+          },
+        });
+      }
     }
   }
 

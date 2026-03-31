@@ -21,6 +21,7 @@ app.post('/chat', async (c) => {
   }
 
   const { message, sessionId, uiContext } = parsed.data;
+  const attachmentIds = Array.isArray(body.attachmentIds) ? body.attachmentIds as string[] : undefined;
 
   // Set SSE headers to prevent proxy buffering (Railway, Nginx, Cloudflare)
   c.header('Content-Type', 'text/event-stream');
@@ -39,6 +40,7 @@ app.post('/chat', async (c) => {
         message,
         sessionId,
         uiContext,
+        attachmentIds,
       });
 
       for await (const event of generator) {

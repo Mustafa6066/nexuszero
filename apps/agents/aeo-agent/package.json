@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
+    "@nexuszero/data-nexus-agent": "workspace:*",
     "@nexuszero/db": "workspace:*",
     "@nexuszero/prober": "workspace:*",
     "@nexuszero/queue": "workspace:*",

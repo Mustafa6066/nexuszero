@@ -35,6 +35,38 @@ export interface ConsumedKafkaMessage<T> {
   traceContext: TraceCarrier | null;
 }
 
+// ---------------------------------------------------------------------------
+// Singleton producer — reused across all publishToKafka calls
+// ---------------------------------------------------------------------------
+
+let singletonProducer: ProducerLike | null = null;
+let producerConnectPromise: Promise<void> | null = null;
+
+async function getSingletonProducer(kafka?: KafkaLike): Promise<ProducerLike> {
+  const client = kafka ?? getKafkaInstance();
+  if (!singletonProducer) {
+    singletonProducer = client.producer({
+      allowAutoTopicCreation: false,
+      retry: { retries: 5 },
+    });
+    producerConnectPromise = singletonProducer.connect();
+  }
+  await producerConnectPromise;
+  return singletonProducer;
+}
+
+// ---------------------------------------------------------------------------
+// Long-lived consumer registry — reuse consumers across poll calls
+// ---------------------------------------------------------------------------
+
+interface ManagedConsumer {
+  consumer: ConsumerLike;
+  buffer: Array<ConsumedKafkaMessage<unknown>>;
+  running: boolean;
+}
+
+const consumerRegistry = new Map<string, ManagedConsumer>();
+
 function getKafkaClient(kafka?: KafkaLike): KafkaLike {
   return kafka ?? getKafkaInstance();
 }
@@ -83,15 +115,13 @@ function getKafkaInstance(): Kafka {
   return kafkaInstance;
 }
 
-/** Produce a message to a Kafka topic */
+/** Produce a message to a Kafka topic (uses singleton producer) */
 export async function publishToKafka<T extends Record<string, unknown>>(
   topic: string,
   message: T,
   key?: string,
   options: PublishKafkaOptions = {},
 ): Promise<void> {
-  const kafka = getKafkaClient(options.kafka);
-  const producer = kafka.producer();
   const headers = { ...injectTraceContext(), ...(options.headers ?? {}) };
 
   await withSpan('kafka.publish', {
@@ -103,66 +133,72 @@ export async function publishToKafka<T extends Record<string, unknown>>(
       'messaging.kafka.message.key': key ?? '',
     },
   }, async () => {
-    await producer.connect();
-    try {
-      await retry(async () => {
-        await producer.send({
-          topic,
-          messages: [{ key: key ?? null, value: JSON.stringify(message), headers }],
-        });
-      }, {
-        maxRetries: 3,
-        baseDelayMs: 500,
-        maxDelayMs: 5_000,
+    const producer = await getSingletonProducer(options.kafka);
+    await retry(async () => {
+      await producer.send({
+        topic,
+        messages: [{ key: key ?? null, value: JSON.stringify(message), headers }],
       });
-    } finally {
-      await producer.disconnect();
-    }
+    }, {
+      maxRetries: 3,
+      baseDelayMs: 500,
+      maxDelayMs: 5_000,
+    });
   });
 }
 
-/** Consume a batch of messages from a Kafka topic (poll once and return) */
+/**
+ * Consume a batch of messages from a Kafka topic.
+ *
+ * Uses a long-lived consumer per topic+groupId combination.
+ * On first call it creates and subscribes the consumer; subsequent calls drain
+ * the internal buffer that the consumer populates in the background.
+ */
 export async function consumeFromKafka<T>(
   topic: string,
   groupId: string,
   _instanceId: string,
   options: { kafka?: KafkaLike } = {},
 ): Promise<Array<ConsumedKafkaMessage<T>>> {
-  const kafka = getKafkaClient(options.kafka);
-  const consumer = kafka.consumer({ groupId });
-  const results: Array<ConsumedKafkaMessage<T>> = [];
+  const registryKey = `${topic}:${groupId}`;
+  let managed = consumerRegistry.get(registryKey);
 
-  await consumer.connect();
-  await consumer.subscribe({ topic, fromBeginning: false });
+  if (!managed) {
+    const kafka = getKafkaClient(options.kafka);
+    const consumer = kafka.consumer({ groupId });
 
-  await new Promise<void>((resolve) => {
-    // Collect messages for up to 2 seconds then resolve
-    const timeout = setTimeout(() => resolve(), 2000);
+    managed = { consumer, buffer: [], running: false };
+    consumerRegistry.set(registryKey, managed);
 
-    consumer.run({
+    await consumer.connect();
+    await consumer.subscribe({ topic, fromBeginning: false });
+
+    const managedRef = managed;
+
+    await consumer.run({
       autoCommit: true,
       eachMessage: async ({ message }) => {
         const headers = decodeHeaders(message.headers as Record<string, Buffer | string | undefined> | undefined);
-        results.push({
+        managedRef.buffer.push({
           key: message.key ? message.key.toString() : null,
-          value: JSON.parse(message.value?.toString() ?? '{}') as T,
+          value: JSON.parse(message.value?.toString() ?? '{}') as unknown,
           offset: parseInt(message.offset, 10),
           timestamp: parseInt(message.timestamp, 10),
           headers,
           traceContext: Object.keys(headers).length > 0 ? headers : null,
         });
-        // If we got at least one batch, resolve sooner
-        clearTimeout(timeout);
-        setTimeout(() => resolve(), 100);
       },
-    }).catch((err) => {
-      console.error('Kafka consumer.run() failed:', err instanceof Error ? err.message : String(err));
-      resolve();
     });
-  });
 
-  await consumer.disconnect();
-  return results;
+    managed.running = true;
+
+    // Give the consumer a moment to fetch initial messages
+    await new Promise<void>((resolve) => setTimeout(resolve, 500));
+  }
+
+  // Drain and return buffered messages
+  const messages = managed.buffer.splice(0) as Array<ConsumedKafkaMessage<T>>;
+  return messages;
 }
 
 /** Create a Kafka topic via KafkaJS admin */
@@ -196,4 +232,26 @@ export async function createKafkaTopic(
       await admin.disconnect();
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// Graceful shutdown — close all long-lived connections
+// ---------------------------------------------------------------------------
+
+/** Disconnect all Kafka producers and consumers. Call on process shutdown. */
+export async function closeKafkaConnections(): Promise<void> {
+  const shutdowns: Promise<void>[] = [];
+
+  if (singletonProducer) {
+    shutdowns.push(singletonProducer.disconnect().catch(() => undefined));
+    singletonProducer = null;
+    producerConnectPromise = null;
+  }
+
+  for (const [key, managed] of consumerRegistry) {
+    shutdowns.push(managed.consumer.disconnect().catch(() => undefined));
+    consumerRegistry.delete(key);
+  }
+
+  await Promise.allSettled(shutdowns);
 }

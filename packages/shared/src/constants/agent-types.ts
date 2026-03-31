@@ -72,6 +72,38 @@ export const AGENT_TYPE_DEFINITIONS: Record<AgentType, {
     ],
     queuePrefix: 'compatibility-tasks',
   },
+  reddit: {
+    label: 'Reddit Agent',
+    description: 'Subreddit monitoring, brand mention detection, LLM-scored sentiment, reply drafting',
+    taskTypes: [
+      'scan_subreddits', 'draft_reply', 'post_reply',
+    ],
+    queuePrefix: 'reddit-tasks',
+  },
+  social: {
+    label: 'Social Listening Agent',
+    description: 'Twitter/X, Hacker News, and YouTube brand mention monitoring and engagement',
+    taskTypes: [
+      'scan_twitter', 'scan_hackernews', 'scan_youtube', 'draft_social_reply',
+    ],
+    queuePrefix: 'social-tasks',
+  },
+  'content-writer': {
+    label: 'Content Writer Agent',
+    description: 'Long-form blog posts, social copy, email copy generation with web research and SEO scoring',
+    taskTypes: [
+      'write_blog_post', 'write_social_copy', 'write_email', 'score_content', 'publish_content',
+    ],
+    queuePrefix: 'content-tasks',
+  },
+  geo: {
+    label: 'GEO Agent',
+    description: 'Local SEO, geographic rank tracking, citation/NAP auditing, LocalBusiness schema generation',
+    taskTypes: [
+      'geo_keyword_research', 'geo_rank_check', 'geo_citation_audit', 'geo_schema_generate',
+    ],
+    queuePrefix: 'geo-tasks',
+  },
 };
 
 /** Task type → agent type mapping */
@@ -121,13 +153,13 @@ export const PLAN_AGENT_LIMITS: Record<PlanTier, {
     maxConcurrentTasks: 5,
   },
   growth: {
-    maxAgents: 6,
-    allowedTypes: ['compatibility', 'seo', 'ad', 'data-nexus', 'creative', 'aeo'],
+    maxAgents: 10,
+    allowedTypes: ['compatibility', 'seo', 'ad', 'data-nexus', 'creative', 'aeo', 'reddit', 'social', 'content-writer', 'geo'],
     maxConcurrentTasks: 15,
   },
   enterprise: {
-    maxAgents: 10,
-    allowedTypes: ['compatibility', 'seo', 'ad', 'data-nexus', 'creative', 'aeo'],
+    maxAgents: 20,
+    allowedTypes: ['compatibility', 'seo', 'ad', 'data-nexus', 'creative', 'aeo', 'reddit', 'social', 'content-writer', 'geo'],
     maxConcurrentTasks: 50,
   },
 };

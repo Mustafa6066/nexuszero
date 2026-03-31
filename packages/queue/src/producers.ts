@@ -5,6 +5,8 @@ import { publishToKafka } from './kafka-client.js';
 import { getTenantQueue } from './queues.js';
 import type { TaskPayload, InterAgentEvent, WebhookDeliveryPayload, OnboardingPayload, TaskResult } from './events.js';
 import { createQueue as createBullQueue } from './bullmq-client.js';
+import { recordTaskQueued } from './priority-lanes.js';
+import { SIGNAL_SCHEMAS, safeValidateSignalPayload, type SignalType } from './signal-schemas.js';
 
 // ---------------------------------------------------------------------------
 // Queue cache — lazily created BullMQ queues keyed by name
@@ -50,6 +52,10 @@ export async function publishAgentTask(task: PublishAgentTaskInput): Promise<str
     'data-nexus': QUEUE_NAMES.DATA_TASKS,
     aeo: QUEUE_NAMES.AEO_TASKS,
     compatibility: QUEUE_NAMES.COMPATIBILITY_TASKS,
+    reddit: QUEUE_NAMES.REDDIT_TASKS,
+    social: QUEUE_NAMES.SOCIAL_TASKS,
+    'content-writer': QUEUE_NAMES.CONTENT_TASKS,
+    geo: QUEUE_NAMES.GEO_TASKS,
   };
 
   const baseQueue = queuePrefixes[task.agentType];
@@ -103,6 +109,9 @@ export async function publishAgentTask(task: PublishAgentTaskInput): Promise<str
     throw new AppError('SERVICE_UNAVAILABLE', { reason: 'Task queue temporarily unavailable' });
   }
 
+  // SLA: record task queued time
+  recordTaskQueued(taskId, task.tenantId, task.agentType, task.type, taskPayload.priority).catch(() => {});
+
   return taskId;
 }
 
@@ -126,6 +135,7 @@ export async function publishTaskResult(result: TaskResult): Promise<void> {
 // ---------------------------------------------------------------------------
 // publishAgentSignal — inter-agent coordination via Kafka
 // Callers use the simplified form {tenantId, agentId, type, data}.
+// Signals are validated against typed schemas when a matching schema exists.
 // ---------------------------------------------------------------------------
 
 export interface PublishAgentSignalInput {
@@ -135,7 +145,7 @@ export interface PublishAgentSignalInput {
   sourceAgent?: string;
   /** Optional routing hint for subscribers */
   targetAgent?: string;
-  /** Signal type, e.g. 'seo_keywords_updated' */
+  /** Signal type, e.g. 'seo.keyword_discovered' */
   type: string;
   /** Signal payload — use data or payload interchangeably */
   data?: Record<string, unknown>;
@@ -143,20 +153,41 @@ export interface PublishAgentSignalInput {
   priority?: 'high' | 'medium' | 'low';
   confidence?: number;
   correlationId?: string;
+  /** Causal chain — signal IDs that triggered this signal */
+  causedBy?: string[];
 }
 
-/** Publish an inter-agent signal via Kafka */
+/** Publish an inter-agent signal via Kafka (with optional schema validation) */
 export async function publishAgentSignal(signal: PublishAgentSignalInput): Promise<void> {
+  const rawPayload = signal.data ?? signal.payload ?? {};
+
+  // Validate payload against typed schema if one exists
+  let validatedPayload = rawPayload;
+  if (signal.type in SIGNAL_SCHEMAS) {
+    const result = safeValidateSignalPayload(signal.type as SignalType, rawPayload);
+    if (!result.success) {
+      console.log(JSON.stringify({
+        level: 'warn',
+        msg: 'Signal payload validation failed — sending anyway',
+        signalType: signal.type,
+        errors: result.error.issues.map(i => i.message),
+      }));
+    } else {
+      validatedPayload = result.data as Record<string, unknown>;
+    }
+  }
+
   const event = {
     id: randomUUID(),
     tenantId: signal.tenantId,
     sourceAgent: signal.agentId ?? signal.sourceAgent ?? 'unknown',
     targetAgent: signal.targetAgent,
     type: signal.type,
-    payload: signal.data ?? signal.payload ?? {},
+    payload: validatedPayload,
     priority: signal.priority,
     confidence: signal.confidence,
     correlationId: signal.correlationId,
+    causedBy: signal.causedBy,
     timestamp: new Date().toISOString(),
     traceContext: injectTraceContext(),
   };

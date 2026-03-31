@@ -23,6 +23,9 @@ importers:
       eslint:
         specifier: ^8.57.0
         version: 8.57.1
+      hono:
+        specifier: ^4.4.0
+        version: 4.12.5
       prettier:
         specifier: ^3.2.0
         version: 3.8.1
@@ -38,6 +41,9 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.37)
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
 
   apps/agents/ad-agent:
     dependencies:
@@ -64,7 +70,7 @@ importers:
         version: 5.10.0
       openai:
         specifier: ^4.47.0
-        version: 4.104.0(zod@3.25.76)
+        version: 4.104.0(ws@8.20.0)(zod@3.25.76)
     devDependencies:
       tsup:
         specifier: ^8.0.2
@@ -81,9 +87,46 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.24.0
         version: 0.24.3
+      '@nexuszero/data-nexus-agent':
+        specifier: workspace:*
+        version: link:../data-nexus
       '@nexuszero/db':
         specifier: workspace:*
         version: link:../../../packages/db
+      '@nexuszero/prober':
+        specifier: workspace:*
+        version: link:../../../packages/prober
+      '@nexuszero/queue':
+        specifier: workspace:*
+        version: link:../../../packages/queue
+      '@nexuszero/shared':
+        specifier: workspace:*
+        version: link:../../../packages/shared
+      bullmq:
+        specifier: ^5.7.0
+        version: 5.70.4
+      drizzle-orm:
+        specifier: ^0.30.10
+        version: 0.30.10(@opentelemetry/api@1.9.0)(@types/pg@8.15.5)(@types/react@18.3.28)(postgres@3.4.8)(react@18.3.1)
+      ioredis:
+        specifier: ^5.4.0
+        version: 5.10.0
+    devDependencies:
+      tsx:
+        specifier: ^4.11.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  apps/agents/content-writer-agent:
+    dependencies:
+      '@nexuszero/db':
+        specifier: workspace:*
+        version: link:../../../packages/db
+      '@nexuszero/llm-router':
+        specifier: workspace:*
+        version: link:../../../packages/llm-router
       '@nexuszero/prober':
         specifier: workspace:*
         version: link:../../../packages/prober
@@ -144,6 +187,74 @@ importers:
         specifier: ^5.4.5
         version: 5.9.3
 
+  apps/agents/geo-agent:
+    dependencies:
+      '@nexuszero/db':
+        specifier: workspace:*
+        version: link:../../../packages/db
+      '@nexuszero/llm-router':
+        specifier: workspace:*
+        version: link:../../../packages/llm-router
+      '@nexuszero/prober':
+        specifier: workspace:*
+        version: link:../../../packages/prober
+      '@nexuszero/queue':
+        specifier: workspace:*
+        version: link:../../../packages/queue
+      '@nexuszero/renderer':
+        specifier: workspace:*
+        version: link:../../../packages/renderer
+      '@nexuszero/shared':
+        specifier: workspace:*
+        version: link:../../../packages/shared
+      bullmq:
+        specifier: ^5.7.0
+        version: 5.70.4
+      drizzle-orm:
+        specifier: ^0.30.10
+        version: 0.30.10(@opentelemetry/api@1.9.0)(@types/pg@8.15.5)(@types/react@18.3.28)(postgres@3.4.8)(react@18.3.1)
+      ioredis:
+        specifier: ^5.4.0
+        version: 5.10.0
+    devDependencies:
+      tsx:
+        specifier: ^4.11.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  apps/agents/reddit-agent:
+    dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.24.0
+        version: 0.24.3
+      '@nexuszero/db':
+        specifier: workspace:*
+        version: link:../../../packages/db
+      '@nexuszero/queue':
+        specifier: workspace:*
+        version: link:../../../packages/queue
+      '@nexuszero/shared':
+        specifier: workspace:*
+        version: link:../../../packages/shared
+      bullmq:
+        specifier: ^5.7.0
+        version: 5.70.4
+      drizzle-orm:
+        specifier: ^0.30.10
+        version: 0.30.10(@opentelemetry/api@1.9.0)(@types/pg@8.15.5)(@types/react@18.3.28)(postgres@3.4.8)(react@18.3.1)
+      ioredis:
+        specifier: ^5.4.0
+        version: 5.10.0
+    devDependencies:
+      tsx:
+        specifier: ^4.11.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   apps/agents/seo-agent:
     dependencies:
       '@anthropic-ai/sdk':
@@ -176,6 +287,40 @@ importers:
         version: 4.21.0
       typescript:
         specifier: ^5.4.5
+        version: 5.9.3
+
+  apps/agents/social-agent:
+    dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.24.0
+        version: 0.24.3
+      '@nexuszero/db':
+        specifier: workspace:*
+        version: link:../../../packages/db
+      '@nexuszero/prober':
+        specifier: workspace:*
+        version: link:../../../packages/prober
+      '@nexuszero/queue':
+        specifier: workspace:*
+        version: link:../../../packages/queue
+      '@nexuszero/shared':
+        specifier: workspace:*
+        version: link:../../../packages/shared
+      bullmq:
+        specifier: ^5.7.0
+        version: 5.70.4
+      drizzle-orm:
+        specifier: ^0.30.10
+        version: 0.30.10(@opentelemetry/api@1.9.0)(@types/pg@8.15.5)(@types/react@18.3.28)(postgres@3.4.8)(react@18.3.1)
+      ioredis:
+        specifier: ^5.4.0
+        version: 5.10.0
+    devDependencies:
+      tsx:
+        specifier: ^4.11.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.4.0
         version: 5.9.3
 
   apps/api-gateway:
@@ -225,6 +370,9 @@ importers:
       postgres:
         specifier: ^3.4.3
         version: 3.4.8
+      ws:
+        specifier: ^8.17.0
+        version: 8.20.0
       zod:
         specifier: ^3.23.0
         version: 3.25.76
@@ -232,6 +380,9 @@ importers:
       '@types/jsonwebtoken':
         specifier: ^9.0.6
         version: 9.0.10
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.18.1
       tsup:
         specifier: ^8.0.2
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)
@@ -479,6 +630,25 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  packages/llm-router:
+    dependencies:
+      '@nexuszero/queue':
+        specifier: workspace:*
+        version: link:../queue
+      '@nexuszero/shared':
+        specifier: workspace:*
+        version: link:../shared
+      openai:
+        specifier: ^4.52.0
+        version: 4.104.0(ws@8.20.0)(zod@3.25.76)
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.8)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
   packages/prober:
     dependencies:
       '@google/generative-ai':
@@ -492,7 +662,7 @@ importers:
         version: 5.10.0
       openai:
         specifier: ^4.52.0
-        version: 4.104.0(zod@3.25.76)
+        version: 4.104.0(ws@8.20.0)(zod@3.25.76)
     devDependencies:
       tsup:
         specifier: ^8.0.0
@@ -2720,6 +2890,9 @@ packages:
   '@types/tedious@4.0.14':
     resolution: {integrity: sha512-KHPsfX/FoVbUGbyYvk1q9MMQHLPeRZhRJZdO45Q4YjvFkv4hMNghCWTvy7rdKessBsmtz4euWCWAB6/tVpI1Iw==}
 
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
+
   '@typescript-eslint/eslint-plugin@7.18.0':
     resolution: {integrity: sha512-94EQTWZ40mzBc42ATNIBimBEDltSJ9RQHCC8vc/PDbxi4k8dVwUAv4o98dk50M1zB+JGFxp43FP7f8+FP8R6Sw==}
     engines: {node: ^18.18.0 || >=20.0.0}
@@ -4815,6 +4988,18 @@ packages:
 
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
+
+  ws@8.20.0:
+    resolution: {integrity: sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
 
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
@@ -7329,6 +7514,10 @@ snapshots:
     dependencies:
       '@types/node': 20.19.37
 
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 20.19.37
+
   '@typescript-eslint/eslint-plugin@7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
@@ -8849,7 +9038,7 @@ snapshots:
     dependencies:
       mimic-fn: 4.0.0
 
-  openai@4.104.0(zod@3.25.76):
+  openai@4.104.0(ws@8.20.0)(zod@3.25.76):
     dependencies:
       '@types/node': 18.19.130
       '@types/node-fetch': 2.6.13
@@ -8859,6 +9048,7 @@ snapshots:
       formdata-node: 4.4.1
       node-fetch: 2.7.0
     optionalDependencies:
+      ws: 8.20.0
       zod: 3.25.76
     transitivePeerDependencies:
       - encoding
@@ -9569,6 +9759,8 @@ snapshots:
       strip-ansi: 6.0.1
 
   wrappy@1.0.2: {}
+
+  ws@8.20.0: {}
 
   xtend@4.0.2: {}
 

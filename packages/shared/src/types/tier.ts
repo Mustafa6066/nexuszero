@@ -40,7 +40,13 @@ export type AssistantToolName =
   // Explanation
   | 'explainMetric'
   | 'explainAgent'
-  | 'suggestAction';
+  | 'suggestAction'
+  // New capability tools
+  | 'webSearch'
+  | 'generateContent'
+  | 'getRedditMentions'
+  | 'getSocialMentions'
+  | 'getGeoRankings';
 
 /** Feature names that can be gated */
 export type FeatureName =
@@ -60,7 +66,14 @@ export type FeatureName =
   | 'white_label'
   | 'dedicated_sla'
   | 'custom_model_training'
-  | 'api_access';
+  | 'api_access'
+  | 'reddit_monitoring'
+  | 'social_listening'
+  | 'content_writer'
+  | 'geo_seo'
+  | 'real_time_search'
+  | 'multi_model_llm'
+  | 'file_upload_analysis';
 
 /** Capability definition for a single tier */
 export interface TierCapabilities {

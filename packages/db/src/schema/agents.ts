@@ -1,6 +1,6 @@
 import { pgTable, uuid, varchar, integer, real, timestamp, jsonb, pgEnum } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants.js';
-export const agentTypeEnum = pgEnum('agent_type', ['seo', 'ad', 'data-nexus', 'creative', 'aeo', 'compatibility']);
+export const agentTypeEnum = pgEnum('agent_type', ['seo', 'ad', 'data-nexus', 'creative', 'aeo', 'compatibility', 'reddit', 'social', 'content-writer', 'geo']);
 export const agentStatusEnum = pgEnum('agent_status', ['idle', 'processing', 'paused', 'error', 'offline']);
 
 export const agents = pgTable('agents', {

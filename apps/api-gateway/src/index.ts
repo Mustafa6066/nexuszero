@@ -3,7 +3,13 @@ import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
+import { bodyLimit } from 'hono/body-limit';
 import { initializeOpenTelemetry } from '@nexuszero/shared';
+import { getDb } from '@nexuszero/db';
+import { sql } from 'drizzle-orm';
+import { attachWebSocketServer, closeWebSocketServer } from './services/websocket.js';
+import { initWsBridge, closeWsBridge } from './services/ws-bridge.js';
+import { verifyJwt } from './middleware/auth.js';
 import { tenantRoutes } from './routes/tenants.js';
 import { campaignRoutes } from './routes/campaigns.js';
 import { agentRoutes } from './routes/agents.js';
@@ -21,12 +27,25 @@ import { alertRoutes } from './routes/alerts.js';
 import { streakRoutes } from './routes/streaks.js';
 import { compoundInsightsRoutes } from './routes/compound-insights.js';
 import { cmsRoutes } from './routes/cms.js';
+import { redditRoutes } from './routes/reddit.js';
+import { socialRoutes } from './routes/social.js';
+import { contentRoutes } from './routes/content.js';
+import { geoRoutes } from './routes/geo.js';
+import { modelRoutes } from './routes/models.js';
+import { uploadRoutes } from './routes/uploads.js';
+import llmUsageRoutes from './routes/llm-usage.js';
+import slaRoutes from './routes/sla.js';
+import wsStatsRoutes from './routes/ws-stats.js';
+import agentMemoryRoutes from './routes/agent-memory.js';
+import planApprovalRoutes from './routes/plan-approval.js';
+import pluginRoutes from './routes/plugins.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { tenantMiddleware } from './middleware/tenant.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { tracingMiddleware } from './middleware/tracing.js';
 import { yogaHandler } from './graphql/index.js';
+import { billingRoutes } from './routes/billing.js';
 
 const app = new Hono();
 
@@ -45,8 +64,27 @@ app.use('*', cors({
 }));
 app.onError(errorHandler);
 
-// Health check
-app.get('/health', (c) => c.json({ status: 'ok', service: 'api-gateway', timestamp: new Date().toISOString() }));
+// Request body size limit — 2 MB default, configurable via env
+const maxBodySize = parseInt(process.env.MAX_BODY_SIZE_BYTES || String(2 * 1024 * 1024), 10);
+app.use('*', bodyLimit({ maxSize: maxBodySize, onError: (c) => c.json({ error: { code: 'PAYLOAD_TOO_LARGE', message: `Request body exceeds ${Math.round(maxBodySize / 1024 / 1024)}MB limit` } }, 413) }));
+
+// Deep health check — verifies DB connectivity
+app.get('/health', async (c) => {
+  const checks: Record<string, 'ok' | 'error'> = {};
+  let healthy = true;
+
+  try {
+    const db = getDb();
+    await db.execute(sql`SELECT 1`);
+    checks.database = 'ok';
+  } catch {
+    checks.database = 'error';
+    healthy = false;
+  }
+
+  const status = healthy ? 'ok' : 'degraded';
+  return c.json({ status, service: 'api-gateway', timestamp: new Date().toISOString(), checks }, healthy ? 200 : 503);
+});
 
 // Global health check aggregator
 app.get('/health/all', async (c) => {
@@ -77,6 +115,23 @@ app.get('/health/all', async (c) => {
 
 // Public routes
 app.route('/api/v1/auth', tenantRoutes);
+app.route('/api/v1/billing', billingRoutes);
+
+// Token refresh endpoint (requires valid JWT)
+app.post('/api/v1/auth/refresh', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return c.json({ error: { code: 'AUTH_REQUIRED', message: 'Bearer token required' } }, 401);
+  }
+  try {
+    const { verifyJwt, signJwt } = await import('./middleware/auth.js');
+    const payload = verifyJwt(authHeader.substring(7));
+    const newToken = signJwt({ userId: payload.userId, tenantId: payload.tenantId, email: payload.email, role: payload.role });
+    return c.json({ token: newToken });
+  } catch {
+    return c.json({ error: { code: 'AUTH_INVALID_TOKEN', message: 'Token expired or invalid' } }, 401);
+  }
+});
 
 // Protected routes
 const api = new Hono();
@@ -100,6 +155,19 @@ api.route('/approvals', approvalRoutes);
 api.route('/alerts', alertRoutes);
 api.route('/streaks', streakRoutes);
 api.route('/insights', compoundInsightsRoutes);
+api.route('/cms', cmsRoutes);
+api.route('/reddit', redditRoutes);
+api.route('/social', socialRoutes);
+api.route('/content', contentRoutes);
+api.route('/geo', geoRoutes);
+api.route('/models', modelRoutes);
+api.route('/uploads', uploadRoutes);
+api.route('/llm-usage', llmUsageRoutes);
+api.route('/sla', slaRoutes);
+api.route('/ws', wsStatsRoutes);
+api.route('/agent-memory', agentMemoryRoutes);
+api.route('/plan-approvals', planApprovalRoutes);
+api.route('/plugins', pluginRoutes);
 
 app.route('/api/v1', api);
 
@@ -114,17 +182,60 @@ app.all('/graphql', async (c) => {
 
 const port = parseInt(process.env.PORT || '4000', 10);
 
+let server: ReturnType<typeof serve> | null = null;
+
 async function start() {
   await initializeOpenTelemetry({ serviceName: 'api-gateway' });
 
-  serve({ fetch: app.fetch, port }, () => {
+  server = serve({ fetch: app.fetch, port }, () => {
     console.log(`API Gateway running on port ${port}`);
   });
+
+  // Attach WebSocket server to the HTTP server
+  attachWebSocketServer(server, (token) => {
+    const user = verifyJwt(token);
+    return { ...user, tenantId: user.tenantId, userId: user.userId };
+  });
+
+  // Redis pub/sub bridge for multi-instance WS broadcasting
+  initWsBridge();
+
+  console.log('WebSocket server attached on /ws');
+}
+
+async function shutdown(signal: string) {
+  console.log(`Received ${signal}, shutting down gracefully...`);
+
+  // Stop accepting new connections
+  if (server) {
+    server.close(() => {
+      console.log('HTTP server closed');
+    });
+  }
+
+  // Allow in-flight requests to drain (up to 15 seconds)
+  const drainTimeout = parseInt(process.env.SHUTDOWN_TIMEOUT_MS || '15000', 10);
+  await new Promise((resolve) => setTimeout(resolve, drainTimeout));
+
+  // Close WebSocket connections and Redis bridge
+  await closeWebSocketServer();
+  await closeWsBridge();
+
+  try {
+    const { closeDb } = await import('@nexuszero/db');
+    await closeDb();
+    console.log('Database connections closed');
+  } catch { /* ignore if already closed */ }
+
+  process.exit(0);
 }
 
 start().catch((error) => {
   console.error('API Gateway failed to start:', error);
   process.exit(1);
 });
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
 
 export default app;

@@ -28,7 +28,7 @@ export const TIER_CAPABILITIES: Record<SubscriptionTier, TierCapabilities> = {
     ],
   },
   growth: {
-    agents: ['seo', 'ad', 'creative', 'data-nexus', 'compatibility', 'aeo'],
+    agents: ['seo', 'ad', 'creative', 'data-nexus', 'compatibility', 'aeo', 'reddit', 'social', 'content-writer', 'geo'],
     maxCampaigns: 50,
     maxCreativesPerMonth: 2000,
     features: [
@@ -37,6 +37,7 @@ export const TIER_CAPABILITIES: Record<SubscriptionTier, TierCapabilities> = {
       'basic_funnel', 'funnel_experiments',
       'aeo_basic', 'multi_touch_attribution',
       'competitor_monitoring', 'email_campaigns', 'custom_reports',
+      'reddit_monitoring', 'social_listening', 'content_writer', 'geo_seo', 'real_time_search',
     ],
     assistantTools: [
       // All launchpad tools
@@ -50,13 +51,16 @@ export const TIER_CAPABILITIES: Record<SubscriptionTier, TierCapabilities> = {
       'triggerAeoScan', 'getAeoCitations', 'generateReport',
       'adjustBudget', 'triggerSeoAudit', 'connectIntegration', 'reconnectIntegration',
       'showUpgradePrompt',
+      // New capability tools
+      'webSearch', 'generateContent', 'getRedditMentions', 'getSocialMentions', 'getGeoRankings',
     ],
     excluded: [
       'aeo_advanced', 'white_label', 'dedicated_sla', 'custom_model_training', 'api_access',
+      'multi_model_llm', 'file_upload_analysis',
     ],
   },
   enterprise: {
-    agents: ['seo', 'ad', 'creative', 'data-nexus', 'compatibility', 'aeo'],
+    agents: ['seo', 'ad', 'creative', 'data-nexus', 'compatibility', 'aeo', 'reddit', 'social', 'content-writer', 'geo'],
     maxCampaigns: Infinity,
     maxCreativesPerMonth: Infinity,
     features: [
@@ -66,6 +70,8 @@ export const TIER_CAPABILITIES: Record<SubscriptionTier, TierCapabilities> = {
       'aeo_basic', 'aeo_advanced', 'multi_touch_attribution',
       'competitor_monitoring', 'email_campaigns', 'custom_reports',
       'white_label', 'dedicated_sla', 'custom_model_training', 'api_access',
+      'reddit_monitoring', 'social_listening', 'content_writer', 'geo_seo',
+      'real_time_search', 'multi_model_llm', 'file_upload_analysis',
     ],
     assistantTools: [
       'navigate', 'openModal', 'closeModal', 'setDateRange', 'setFilter',
@@ -76,6 +82,8 @@ export const TIER_CAPABILITIES: Record<SubscriptionTier, TierCapabilities> = {
       'connectIntegration', 'reconnectIntegration',
       'showChart', 'showTable', 'showCreativePreview', 'showAlert', 'showUpgradePrompt',
       'explainMetric', 'explainAgent', 'suggestAction',
+      // New capability tools (all available for enterprise)
+      'webSearch', 'generateContent', 'getRedditMentions', 'getSocialMentions', 'getGeoRankings',
     ],
     excluded: [],
   },

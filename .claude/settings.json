@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:okara.ai)",
+      "Bash(grep -r \"TODO\\\\|FIXME\\\\|stub\\\\|not implemented\" /d/Saas/nexuszero/apps/agents/aeo-agent/src --include=*.ts)",
+      "Bash(grep -r \"TODO\\\\|FIXME\\\\|XXX\\\\|stub\\\\|scaffold\" /d/Saas/nexuszero/apps --include=*.ts --include=*.tsx)",
+      "Bash(grep -r \"throw new Error\\\\|not implemented\\\\|placeholder\" /d/Saas/nexuszero/apps --include=*.ts)",
+      "Bash(wc -l /d/Saas/nexuszero/packages/db/src/schema/*.ts)",
+      "Bash(find /d/Saas/nexuszero -maxdepth 2 -name Dockerfile* -o -name *.toml -o -name .eslintrc* -o -name .prettierrc* -o -name eslint.config*)",
+      "Bash(find /d/Saas/nexuszero -maxdepth 2 \\\\\\(-name eslint.config.* -o -name .eslintrc* -o -name .prettierrc* -o -name prettier.config.* \\\\\\) ! -path */node_modules/*)",
+      "Bash(find /d/Saas/nexuszero -name Dockerfile* ! -path */node_modules/*)",
+      "Bash(xargs ls:*)",
+      "Bash(find /d/Saas/nexuszero -maxdepth 3 -name *.test.ts -o -name *.test.js)",
+      "Bash(find /d/Saas/nexuszero -maxdepth 3 -name jest.config.* -o -name vitest.config.*)",
+      "Bash(find /d/Saas/nexuszero -name *.test.ts -o -name *.test.js)",
+      "Bash(xargs grep:*)",
+      "Bash(find /d/Saas/nexuszero -name .env* -o -name *.env)",
+      "Bash(find /d/Saas/nexuszero/apps/dashboard -maxdepth 2 -name *.json -o -name next.config.* ! -path */node_modules/*)",
+      "Bash(find /d/Saas/nexuszero -maxdepth 2 -name *.example ! -path */node_modules/*)"
+    ]
+  }
+}

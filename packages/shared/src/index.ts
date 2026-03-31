@@ -21,6 +21,17 @@ export * from './utils/statistical.js';
 export * from './utils/observability.js';
 export * from './utils/mena.js';
 export * from './utils/notification-dispatcher.js';
+export * from './utils/logger.js';
+export * from './utils/prompt-guard.js';
+export * from './utils/otel-counters.js';
+
+// Skills
+export * from './skills/skill-loader.js';
+export * from './skills/skill-registry.js';
+
+// Plugins
+export * from './plugins/plugin-types.js';
+export * from './plugins/plugin-registry.js';
 
 // Schemas
 export * from './schemas/tenant.schema.js';

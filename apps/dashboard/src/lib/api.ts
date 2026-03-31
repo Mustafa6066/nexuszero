@@ -333,6 +333,72 @@ class ApiClient {
 
   // Emergency Stop
   emergencyStop() { return this.post<any>('/agents/emergency-stop'); }
+
+  // Reddit
+  getRedditMentions(params?: Record<string, string>) {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.get<any[]>(`/reddit/mentions${qs}`);
+  }
+  getRedditMention(id: string) { return this.get<any>(`/reddit/mentions/${id}`); }
+  approveRedditMention(id: string) { return this.post<any>(`/reddit/mentions/${id}/approve`); }
+  dismissRedditMention(id: string) { return this.post<any>(`/reddit/mentions/${id}/dismiss`); }
+  getSubreddits() { return this.get<any[]>('/reddit/subreddits'); }
+  addSubreddit(data: { subreddit: string; keywords: string[] }) { return this.post<any>('/reddit/subreddits', data); }
+  deleteSubreddit(id: string) { return this.delete(`/reddit/subreddits/${id}`); }
+  triggerRedditScan() { return this.post<any>('/reddit/scan'); }
+
+  // Social Listening
+  getSocialMentions(params?: Record<string, string>) {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.get<any[]>(`/social/mentions${qs}`);
+  }
+  approveSocialMention(id: string) { return this.post<any>(`/social/mentions/${id}/approve`); }
+  triggerSocialScan(platforms?: string[]) { return this.post<any>('/social/scan', platforms ? { platforms } : {}); }
+  getSocialConfig() { return this.get<any[]>('/social/config'); }
+  addSocialConfig(data: { platform: string; keywords: string[] }) { return this.post<any>('/social/config', data); }
+  deleteSocialConfig(id: string) { return this.delete(`/social/config/${id}`); }
+
+  // Content Writer
+  getContentDrafts(params?: Record<string, string>) {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.get<any[]>(`/content/drafts${qs}`);
+  }
+  getContentDraft(id: string) { return this.get<any>(`/content/drafts/${id}`); }
+  generateContent(data: { type: string; brief: Record<string, unknown>; useWebSearch?: boolean }) { return this.post<any>('/content/generate', data); }
+  approveContentDraft(id: string) { return this.post<any>(`/content/drafts/${id}/approve`); }
+  rejectContentDraft(id: string, reason?: string) { return this.post<any>(`/content/drafts/${id}/reject`, { reason }); }
+  deleteContentDraft(id: string) { return this.delete(`/content/drafts/${id}`); }
+
+  // GEO
+  getGeoLocations() { return this.get<any[]>('/geo/locations'); }
+  addGeoLocation(data: Record<string, unknown>) { return this.post<any>('/geo/locations', data); }
+  updateGeoLocation(id: string, data: Record<string, unknown>) { return this.patch<any>(`/geo/locations/${id}`, data); }
+  deleteGeoLocation(id: string) { return this.delete(`/geo/locations/${id}`); }
+  getGeoRankings(params?: Record<string, string>) {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.get<any[]>(`/geo/rankings${qs}`);
+  }
+  getGeoCitations() { return this.get<any[]>('/geo/citations'); }
+  triggerGeoScan(service?: string) { return this.post<any>('/geo/scan', service ? { service } : {}); }
+
+  // Models / LLM
+  getModels() { return this.get<any>('/models'); }
+  getModelConfig() { return this.get<any[]>('/models/config'); }
+  updateModelConfig(data: { useCase: string; primaryModel: string; fallbackModel?: string; maxTokens?: number; temperature?: number }) {
+    return this.request<any>('/models/config', { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  // Uploads / Attachments
+  presignUpload(data: { fileName: string; mimeType: string; sessionId: string }) { return this.post<any>('/uploads/presign', data); }
+  parseUpload(id: string) { return this.post<any>(`/uploads/${id}/parse`); }
+  getUpload(id: string) { return this.get<any>(`/uploads/${id}`); }
+
+  async uploadFile(file: File, sessionId: string): Promise<{ attachmentId: string }> {
+    const { uploadUrl, attachmentId } = await this.presignUpload({ fileName: file.name, mimeType: file.type, sessionId });
+    await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+    await this.parseUpload(attachmentId);
+    return { attachmentId };
+  }
 }
 
 export const api = new ApiClient();

@@ -197,6 +197,76 @@ export default function SettingsPage() {
           {updateMutation.isPending ? t.settingsPage.saving : t.settingsPage.saveSettings}
         </Button>
       </div>
+
+      {/* AI Models (enterprise only) */}
+      {tenant?.plan === 'enterprise' && <AiModelsPanel />}
     </div>
+  );
+}
+
+function AiModelsPanel() {
+  const queryClient = useQueryClient();
+  const { data: models } = useQuery({ queryKey: ['models', 'list'], queryFn: () => api.getModels() });
+  const { data: configs = [] } = useQuery({ queryKey: ['models', 'config'], queryFn: () => api.getModelConfig() });
+  const [editConfig, setEditConfig] = useState<Record<string, any>>({});
+  const [saved, setSaved] = useState(false);
+
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => api.updateModelConfig(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['models', 'config'] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    },
+  });
+
+  const modelOptions: string[] = models?.models?.map((m: any) => m.modelId) ?? [];
+  const useCases = ['content_writing', 'analysis', 'assistant'] as const;
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold">AI Model Configuration</h3>
+        {saved && <Badge variant="success">Saved</Badge>}
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">
+        Configure which AI model is used for each task type. Changes take effect on the next request.
+      </p>
+      <div className="space-y-4">
+        {useCases.map(useCase => {
+          const existing = configs.find((c: any) => c.useCase === useCase);
+          const current = editConfig[useCase] ?? existing?.primaryModel ?? '';
+          return (
+            <div key={useCase} className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium capitalize">{useCase.replace(/_/g, ' ')}</p>
+                {existing?.primaryModel && (
+                  <p className="text-xs text-muted-foreground">{existing.primaryModel}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  className="rounded border px-2 py-1 text-sm bg-background min-w-[200px]"
+                  value={current}
+                  onChange={e => setEditConfig(c => ({ ...c, [useCase]: e.target.value }))}
+                >
+                  <option value="">Default (Claude Sonnet)</option>
+                  {modelOptions.map((m: string) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <Button
+                  size="sm"
+                  disabled={!editConfig[useCase] || updateMutation.isPending}
+                  onClick={() => updateMutation.mutate({ useCase, primaryModel: editConfig[useCase] })}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }

@@ -10,6 +10,7 @@ import { useAssistantVisibility } from '@/hooks/use-assistant';
 import {
   LayoutDashboard, BarChart3, Bot, Megaphone, Palette,
   Globe, Webhook, Settings, Plug, Sun, Moon, LogOut, ScanSearch, ShieldCheck, Newspaper,
+  MessageCircle, Rss, PenTool, MapPin,
 } from 'lucide-react';
 import { NexusIconInline } from './assistant/nexus-icon';
 import { NotificationTray } from './notification-tray';
@@ -28,6 +29,10 @@ function useNavItems() {
     { href: '/dashboard/integrations', icon: Plug, label: t.sidebar.integrations },
     { href: '/dashboard/approvals', icon: ShieldCheck, label: t.sidebar.approvals },
     { href: '/dashboard/digest', icon: Newspaper, label: t.sidebar.digest || 'Digest' },
+    { href: '/dashboard/reddit', icon: MessageCircle, label: 'Reddit' },
+    { href: '/dashboard/social', icon: Rss, label: 'Social' },
+    { href: '/dashboard/content', icon: PenTool, label: 'Content' },
+    { href: '/dashboard/geo', icon: MapPin, label: 'GEO' },
     { href: '/dashboard/webhooks', icon: Webhook, label: t.sidebar.webhooks },
     { href: '/dashboard/settings', icon: Settings, label: t.sidebar.settings },
   ], [t]);

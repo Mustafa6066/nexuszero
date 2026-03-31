@@ -1,0 +1,82 @@
+- generic [ref=e1]:
+  - heading "NexusZero Enhancement Test Harness" [level=1] [ref=e2]
+  - button "Run All Tests" [active] [ref=e3] [cursor=pointer]
+  - generic [ref=e4]: "Total: 65 | Passed: 65 | Failed: 0"
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - heading "Prompt Injection Guard" [level=2] [ref=e7]
+      - generic [ref=e8]: "✓ PG-01: Normal query is safe"
+      - generic [ref=e9]: "✓ PG-02: Detects system override"
+      - generic [ref=e10]: "✓ PG-03: Detects role hijacking"
+      - generic [ref=e11]: "✓ PG-04: Detects XML injection"
+      - generic [ref=e12]: "✓ PG-05: Detects DAN jailbreak"
+      - generic [ref=e13]: "✓ PG-06: Detects prompt boundary"
+      - generic [ref=e14]: "✓ PG-07: Detects system prompt leak"
+      - generic [ref=e15]: "✓ PG-08: Detects medium-risk override"
+      - generic [ref=e16]: "✓ PG-09: Detects pretend prompt"
+      - generic [ref=e17]: "✓ PG-10: Detects forget instruction"
+      - generic [ref=e18]: "✓ PG-11: Detects base64 payload"
+      - generic [ref=e19]: "✓ PG-12: Detects multiple injection types"
+    - generic [ref=e20]:
+      - heading "LLM Cost Tracker" [level=2] [ref=e21]
+      - generic [ref=e22]: "✓ CT-01: GPT-4o-mini cost is positive"
+      - generic [ref=e23]: "✓ CT-02: Claude 3.5 Sonnet cost is correct"
+      - generic [ref=e24]: "✓ CT-03: Unknown model uses default pricing"
+      - generic [ref=e25]: "✓ CT-04: Zero tokens = zero cost (expected 0, got 0)"
+      - generic [ref=e26]: "✓ CT-05: Gemini Flash is cheaper than GPT-4o"
+      - generic [ref=e27]: "✓ CT-06: Under launchpad cap"
+      - generic [ref=e28]: "✓ CT-07: At launchpad cap"
+      - generic [ref=e29]: "✓ CT-08: Under growth cap"
+      - generic [ref=e30]: "✓ CT-09: Under enterprise cap"
+      - generic [ref=e31]: "✓ CT-10: Unknown plan defaults to enterprise"
+    - generic [ref=e32]:
+      - heading "Priority Lanes & SLA" [level=2] [ref=e33]
+      - generic [ref=e34]: "✓ PL-01: 4 priority lanes defined"
+      - generic [ref=e35]: "✓ PL-02: Critical has lowest BullMQ priority number"
+      - generic [ref=e36]: "✓ PL-03: Critical SLA 10s queue (expected 10000, got 10000)"
+      - generic [ref=e37]: "✓ PL-04: High SLA 6m total (expected 360000, got 360000)"
+      - generic [ref=e38]: "✓ PL-05: No elevate when under threshold"
+      - generic [ref=e39]: "✓ PL-06: Elevates low -> medium"
+      - generic [ref=e40]: "✓ PL-07: Elevates medium -> high"
+      - generic [ref=e41]: "✓ PL-08: Elevates high -> critical"
+      - generic [ref=e42]: "✓ PL-09: Critical cannot escalate further"
+      - generic [ref=e43]: "✓ PL-10: Unknown priority returns no elevate"
+    - generic [ref=e44]:
+      - heading "Signal Schema Validation" [level=2] [ref=e45]
+      - generic [ref=e46]: "✓ SS-01: Valid SEO signal"
+      - generic [ref=e47]: "✓ SS-02: Valid Ad signal (expected c1, got c1)"
+      - generic [ref=e48]: "✓ SS-03: Valid Data signal (expected ctr, got ctr)"
+      - generic [ref=e49]: "✓ SS-04: Rejects missing required fields"
+      - generic [ref=e50]: "✓ SS-05: Rejects wrong field types"
+      - generic [ref=e51]: "✓ SS-06: Throws on unknown signal type"
+      - generic [ref=e52]: "✓ SS-07: Strips extra fields"
+    - generic [ref=e53]:
+      - heading "WebSocket Protocol" [level=2] [ref=e54]
+      - generic [ref=e55]: "✓ WS-01: 5 channels defined"
+      - generic [ref=e56]: "✓ WS-02: Has agent:status"
+      - generic [ref=e57]: "✓ WS-03: Has task:progress"
+      - generic [ref=e58]: "✓ WS-04: Has alerts"
+      - generic [ref=e59]: "✓ WS-05: Has sla:breaches"
+      - generic [ref=e60]: "✓ WS-06: Rejects unknown channel"
+      - generic [ref=e61]: "✓ WS-07: Agent status message shape"
+      - generic [ref=e62]: "✓ WS-08: Task progress message shape"
+      - generic [ref=e63]: "✓ WS-09: Alert message shape"
+      - generic [ref=e64]: "✓ WS-10: SLA breach message shape"
+      - generic [ref=e65]: "✓ WS-11: Subscribe action format"
+      - generic [ref=e66]: "✓ WS-12: Unsubscribe action format"
+      - generic [ref=e67]: "✓ WS-13: Ping action format"
+      - generic [ref=e68]: "✓ WS-14: JSON round-trip"
+    - generic [ref=e69]:
+      - heading "Agent Memory System" [level=2] [ref=e70]
+      - generic [ref=e71]: "✓ AM-01: 10 memory categories (expected 10, got 10)"
+      - generic [ref=e72]: "✓ AM-02: Has strategy_outcome"
+      - generic [ref=e73]: "✓ AM-03: Has keyword_insight"
+      - generic [ref=e74]: "✓ AM-04: Has budget_optimization"
+      - generic [ref=e75]: "✓ AM-05: Reliability caps at 1.0 (expected 1, got 1)"
+      - generic [ref=e76]: "✓ AM-06: Reliability floors at 0.0 (expected 0, got 0)"
+      - generic [ref=e77]: "✓ AM-07: Reinforcement increases reliability (expected 0.6, got 0.6)"
+      - generic [ref=e78]: "✓ AM-08: Decay decreases reliability (expected 0.4, got 0.4)"
+      - generic [ref=e79]: "✓ AM-09: Reliability in valid range"
+      - generic [ref=e80]: "✓ AM-10: Access count non-negative"
+      - generic [ref=e81]: "✓ AM-11: Embedding dimension is 1536 (expected 1536, got 1536)"
+      - generic [ref=e82]: "✓ AM-12: Memory with similarity score (expected 0.92, got 0.92)"

@@ -58,6 +58,10 @@ export const QUEUE_NAMES = {
   COMPATIBILITY_HEALTH: 'compatibility-health',
   COMPATIBILITY_ONBOARDING: 'compatibility-onboarding',
   CMS_TASKS: 'cms-tasks',
+  REDDIT_TASKS: 'reddit-tasks',
+  SOCIAL_TASKS: 'social-tasks',
+  CONTENT_TASKS: 'content-tasks',
+  GEO_TASKS: 'geo-tasks',
 
   /** Get tenant-scoped queue name (use '.' — BullMQ forbids ':' in names) */
   forTenant: (baseQueue: string, tenantId: string) => `${baseQueue}.${tenantId}`,
@@ -129,6 +133,22 @@ export const EVENT_TYPES = {
   // Analytics
   ANALYTICS_ANOMALY: 'analytics.anomaly_detected',
   ANALYTICS_GOAL_REACHED: 'analytics.goal_reached',
+
+  // Reddit Agent
+  REDDIT_MENTION_DETECTED: 'reddit.mention_detected',
+  REDDIT_REPLY_POSTED: 'reddit.reply_posted',
+
+  // Social Listening
+  SOCIAL_MENTION_DETECTED: 'social.mention_detected',
+  SOCIAL_YOUTUBE_MENTION: 'social.youtube_mention_detected',
+
+  // Content Writer
+  CONTENT_DRAFT_READY: 'content.draft_ready',
+  CONTENT_PUBLISHED: 'content.published',
+
+  // GEO Agent
+  GEO_RANKING_DROPPED: 'geo.ranking_dropped',
+  GEO_CITATION_ISSUE: 'geo.citation_issue',
 } as const;
 
 /** Consumer groups for Kafka */
@@ -142,6 +162,10 @@ export const CONSUMER_GROUPS = {
   WEBHOOK_SERVICE: 'webhook-service-group',
   ANALYTICS_INGEST: 'analytics-ingest-group',
   COMPATIBILITY_AGENT: 'compatibility-agent-group',
+  REDDIT_AGENT: 'reddit-agent-group',
+  SOCIAL_AGENT: 'social-agent-group',
+  CONTENT_WRITER: 'content-writer-group',
+  GEO_AGENT: 'geo-agent-group',
 } as const;
 
 /** Rate limits per plan tier (requests per minute) */

@@ -6,7 +6,7 @@ import { TaskRouter } from './task-router.js';
 import { TaskGraphExecutor } from './task-graph.js';
 import { Scheduler } from './scheduler.js';
 import { HealthMonitor } from './health-monitor.js';
-import { consumeFromKafka } from '@nexuszero/queue';
+import { consumeFromKafka, closeKafkaConnections } from '@nexuszero/queue';
 
 export function createApp() {
   const app = new Hono();
@@ -139,6 +139,7 @@ export async function shutdown() {
   stopConsumers?.();
   scheduler.stop();
   healthMonitor.stop();
+  await closeKafkaConnections();
 }
 
 export async function run() {

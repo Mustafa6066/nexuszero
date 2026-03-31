@@ -13,6 +13,7 @@ import { and, eq } from 'drizzle-orm';
 import { getBullMQConnection, getRedisConnection } from './bullmq-client.js';
 import { publishTaskResult } from './producers.js';
 import { parseTenantFromQueue } from './queues.js';
+import { recordTaskStarted, recordTaskCompleted } from './priority-lanes.js';
 import type { TaskPayload, TaskResult } from './events.js';
 
 export interface WorkerConfig {
@@ -156,6 +157,9 @@ export abstract class BaseAgentWorker {
     this.incrementTenantActivity(task.tenantId);
     await this.markTaskStarted(task, startTime);
 
+    // SLA: record task processing started
+    recordTaskStarted(task.taskId).catch(() => {});
+
     const tenantContext: TenantContext = {
       tenantId: task.tenantId,
       plan: 'unknown', // Worker loads tenant config separately if needed
@@ -194,6 +198,9 @@ export abstract class BaseAgentWorker {
         console.log(JSON.stringify({ level: 'warn', msg: 'Failed to publish task result', error: (err as Error).message }));
       });
 
+      // SLA: record task completion
+      recordTaskCompleted(task.taskId).catch(() => {});
+
       this.onTaskCompleted(task, result);
 
       console.log(JSON.stringify({
@@ -224,6 +231,9 @@ export abstract class BaseAgentWorker {
       await publishTaskResult(taskResult).catch(pubErr => {
         console.log(JSON.stringify({ level: 'warn', msg: 'Failed to publish failure result', error: (pubErr as Error).message }));
       });
+
+      // SLA: record task completion (even on failure)
+      recordTaskCompleted(task.taskId).catch(() => {});
 
       this.onTaskFailed(task, err);
       throw error;

@@ -12,8 +12,12 @@ import {
   aeoCitations,
   assistantSessions,
   assistantMessages,
+  assistantAttachments,
+  llmModelConfigs,
 } from '@nexuszero/db';
-import { eq, and, desc, gte, sql } from 'drizzle-orm';
+import { eq, and, desc, gte, sql, inArray } from 'drizzle-orm';
+import { webSearch } from '@nexuszero/prober';
+import { routedCompletion } from '@nexuszero/llm-router';
 import type {
   SubscriptionTier,
   AssistantToolName,
@@ -82,6 +86,10 @@ function buildToolDefinitions(tier: SubscriptionTier): ClaudeTool[] {
     { name: 'explainMetric', description: 'Explain what a metric means in plain language', input_schema: { type: 'object', properties: { metric: { type: 'string' } }, required: ['metric'] } },
     { name: 'explainAgent', description: 'Explain what an agent does', input_schema: { type: 'object', properties: { agentType: { type: 'string' } }, required: ['agentType'] } },
     { name: 'suggestAction', description: 'Generate an AI-powered recommendation based on context', input_schema: { type: 'object', properties: { context: { type: 'string' } }, required: ['context'] } },
+    // Real-time web search (growth/enterprise)
+    { name: 'webSearch', description: 'Search the web for current information, competitor data, or trending topics', input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Search query' }, numResults: { type: 'number', description: 'Number of results (default 5, max 10)' } }, required: ['query'] } },
+    // Content generation (growth/enterprise)
+    { name: 'generateContent', description: 'Queue AI content generation for a blog post, social copy, or email', input_schema: { type: 'object', properties: { type: { type: 'string', enum: ['blog_post', 'social_post', 'email'] }, topic: { type: 'string' }, tone: { type: 'string', enum: ['professional', 'casual', 'technical', 'friendly'] }, keywords: { type: 'array', items: { type: 'string' } }, wordCount: { type: 'number' }, useWebSearch: { type: 'boolean' } }, required: ['type', 'topic'] } },
   ];
 
   return allTools.filter((t) => allowed.includes(t.name as AssistantToolName));
@@ -197,6 +205,13 @@ async function executeDataTool(
         return result;
       });
     }
+    case 'webSearch': {
+      const query = typeof args.query === 'string' ? args.query : '';
+      const numResults = typeof args.numResults === 'number' ? Math.min(args.numResults, 10) : 5;
+      if (!query) return { error: 'query is required' };
+      const results = await webSearch(query, numResults);
+      return results;
+    }
     default:
       throw new Error(`Unknown data tool: ${tool}`);
   }
@@ -206,6 +221,7 @@ async function executeDataTool(
 const DATA_TOOLS = new Set<string>([
   'getAnalytics', 'getCampaigns', 'getCreatives', 'getAgentStatus',
   'getIntegrationHealth', 'getSeoRankings', 'getAeoCitations', 'getFunnelData',
+  'webSearch',
 ]);
 
 /** Tools that are rendered client-side (pass-through to frontend) */
@@ -219,7 +235,7 @@ const UI_TOOLS = new Set<string>([
 const ACTION_TOOLS = new Set<string>([
   'createCampaign', 'generateCreative', 'pauseCampaign', 'resumeCampaign',
   'adjustBudget', 'triggerSeoAudit', 'triggerAeoScan', 'generateReport',
-  'connectIntegration', 'reconnectIntegration',
+  'connectIntegration', 'reconnectIntegration', 'generateContent',
 ]);
 
 // ── Build system prompt ────────────────────────────────────────────────────
@@ -435,6 +451,7 @@ export interface ChatParams {
   message: string;
   sessionId?: string;
   uiContext: UIContext;
+  attachmentIds?: string[];
 }
 
 export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<AssistantStreamEvent> {
@@ -494,7 +511,72 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
     }
   }
 
-  // 2. Build Claude request
+  // 2. Load file attachments (if any) and build attachment context
+  let attachmentContext = '';
+  const { attachmentIds } = params;
+  if (attachmentIds && attachmentIds.length > 0) {
+    try {
+      const attachments = await withTenantDb(tenantId, async (db) =>
+        db.select({
+          fileName: assistantAttachments.fileName,
+          mimeType: assistantAttachments.mimeType,
+          parsedText: assistantAttachments.parsedText,
+          parsedSummary: assistantAttachments.parsedSummary,
+          status: assistantAttachments.status,
+        }).from(assistantAttachments)
+          .where(and(
+            eq(assistantAttachments.tenantId, tenantId),
+            inArray(assistantAttachments.id, attachmentIds),
+          )),
+      );
+      const parsed = attachments.filter(a => a.status === 'parsed' && (a.parsedText || a.parsedSummary));
+      if (parsed.length > 0) {
+        attachmentContext = parsed.map(a =>
+          `[Attached file: ${a.fileName}]\n${a.parsedText ?? a.parsedSummary ?? ''}\n`,
+        ).join('\n---\n');
+      }
+    } catch (err) {
+      console.error('[NexusAI] Failed to load attachments:', err);
+    }
+  }
+
+  // 3. Resolve LLM model (enterprise can configure custom models)
+  let resolvedModel = CLAUDE_MODEL;
+  let useOpenRouter = false;
+  let openRouterModel = '';
+  if (tenantCtx.tier === 'enterprise') {
+    try {
+      const modelConfig = await withTenantDb(tenantId, async (db) => {
+        const [config] = await db.select().from(llmModelConfigs)
+          .where(and(eq(llmModelConfigs.tenantId, tenantId), eq(llmModelConfigs.useCase, 'assistant')))
+          .limit(1);
+        return config;
+      });
+      if (modelConfig?.primaryModel) {
+        const primary = modelConfig.primaryModel;
+        if (primary.startsWith('anthropic/')) {
+          // Map to Anthropic model ID (strip the provider prefix)
+          const anthropicModelMap: Record<string, string> = {
+            'anthropic/claude-opus-4-6': 'claude-opus-4-6',
+            'anthropic/claude-sonnet-4-6': 'claude-sonnet-4-6',
+            'anthropic/claude-haiku-4-5': 'claude-haiku-4-5-20251001',
+            'anthropic/claude-3-5-sonnet': 'claude-3-5-sonnet-20241022',
+            'anthropic/claude-3-5-haiku': 'claude-3-5-haiku-20241022',
+            'anthropic/claude-3-opus': 'claude-3-opus-20240229',
+          };
+          resolvedModel = anthropicModelMap[primary] ?? CLAUDE_MODEL;
+        } else {
+          // Non-Anthropic model via OpenRouter (no tool support; simple chat)
+          useOpenRouter = true;
+          openRouterModel = primary;
+        }
+      }
+    } catch (err) {
+      console.error('[NexusAI] Failed to load model config:', err);
+    }
+  }
+
+  // 4. Build Claude request
   const systemPrompt = buildSystemPrompt(tenantCtx, uiContext, message, intelligenceBlock);
   const tools = buildToolDefinitions(tenantCtx.tier);
 
@@ -515,18 +597,44 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
   for (const msg of history.slice(0, -1)) {
     claudeMessages.push({ role: msg.role, content: msg.content });
   }
-  claudeMessages.push({ role: 'user', content: message });
+  // Prepend attachment context to user message if present
+  const userMessageWithAttachments = attachmentContext
+    ? `${attachmentContext}\n\n---\n\nUser message: ${message}`
+    : message;
+  claudeMessages.push({ role: 'user', content: userMessageWithAttachments });
 
   const allToolCalls: ToolCall[] = [];
   let fullTextResponse = '';
   let totalTokens = 0;
 
-  // 3. Agentic loop — call Claude, process tool calls, repeat
+  // If non-Anthropic model configured for enterprise, use OpenRouter (no tool calling)
+  if (useOpenRouter && openRouterModel) {
+    try {
+      const orResult = await routedCompletion({
+        model: openRouterModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...history.slice(0, -1).map(h => ({ role: h.role as 'user' | 'assistant', content: h.content })),
+          { role: 'user', content: userMessageWithAttachments },
+        ],
+        maxTokens: 4096,
+        temperature: 0.7,
+      });
+      fullTextResponse = sanitizeAssistantText(orResult);
+      yield { type: 'text', content: fullTextResponse };
+    } catch (err) {
+      console.error('[NexusAI] OpenRouter call failed, falling back to Claude:', err);
+      // Fall through to agentic loop with Claude
+      useOpenRouter = false;
+    }
+  }
+
+  // 5. Agentic loop — call Claude, process tool calls, repeat (skipped when OpenRouter handled it)
   let iteration = 0;
   const maxIterations = 5;
 
   try {
-  while (iteration < maxIterations) {
+  while (!useOpenRouter && iteration < maxIterations) {
     iteration++;
 
     let claudeResponse: {
@@ -544,7 +652,7 @@ export async function* handleAssistantChat(params: ChatParams): AsyncGenerator<A
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: CLAUDE_MODEL,
+          model: resolvedModel,
           max_tokens: 4096,
           system: systemPrompt,
           tools: tools.length > 0 ? tools : undefined,

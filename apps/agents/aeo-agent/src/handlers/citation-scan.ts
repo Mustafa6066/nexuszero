@@ -5,7 +5,7 @@ import { probeAllQueries, extractCitations } from '@nexuszero/prober';
 import type { CitationAnalysis } from '@nexuszero/prober';
 import { llmAnalyze } from '../llm.js';
 import { publishAgentSignal } from '@nexuszero/queue';
-import { insertProbeResult } from '@nexuszero/data-nexus/clickhouse-client';
+import { insertProbeResult } from '@nexuszero/data-nexus-agent/clickhouse-client';
 
 const AI_PLATFORMS = ['chatgpt', 'perplexity', 'google_ai_overview', 'gemini', 'bing_copilot', 'claude'] as const;
 

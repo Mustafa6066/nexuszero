@@ -5,6 +5,7 @@ import type { ProberProvider } from './providers/base-prober.js';
 import { OpenAIProber } from './providers/openai-prober.js';
 import { PerplexityProber } from './providers/perplexity-prober.js';
 import { GeminiProber } from './providers/gemini-prober.js';
+import { SerperProber } from './providers/serper-prober.js';
 
 export interface ProbeRequest {
   tenantId: string;
@@ -46,6 +47,7 @@ const ALL_PROBERS: ProberProvider[] = [
   new OpenAIProber(),
   new PerplexityProber(),
   new GeminiProber(),
+  new SerperProber(),
 ];
 
 /** Get probers filtered by configuration and optional name list */
