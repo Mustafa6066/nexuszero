@@ -24,7 +24,7 @@ export class PublishContentHandler {
     // Find the first active CMS integration for this tenant
     const [cmsIntegration] = await withTenantDb(tenantId, async (db) =>
       db.select().from(integrations)
-        .where(and(eq(integrations.tenantId, tenantId), eq(integrations.status, 'active')))
+        .where(and(eq(integrations.tenantId, tenantId), eq(integrations.status, 'connected')))
         .limit(1),
     );
 

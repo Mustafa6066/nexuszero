@@ -40,10 +40,10 @@ const tenantClients = new Map<string, Set<WebSocket>>();
  * Call this after the HTTP server starts.
  */
 export function attachWebSocketServer(
-  httpServer: Server,
+  httpServer: Server | { on?: unknown },
   verifyToken: (token: string) => JwtPayload & { tenantId: string; userId: string },
 ): WebSocketServer {
-  wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  wss = new WebSocketServer({ server: httpServer as Server, path: '/ws' });
 
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     handleConnection(ws, req, verifyToken);

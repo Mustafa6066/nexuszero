@@ -24,6 +24,7 @@ export * from './utils/notification-dispatcher.js';
 export * from './utils/logger.js';
 export * from './utils/prompt-guard.js';
 export * from './utils/otel-counters.js';
+export * from './utils/redis-client.js';
 
 // Skills
 export * from './skills/skill-loader.js';

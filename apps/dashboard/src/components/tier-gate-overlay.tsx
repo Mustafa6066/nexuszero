@@ -9,7 +9,7 @@ interface TierGateProps {
   /** Feature name shown to the user */
   feature: string;
   /** Description of what this feature does */
-  description: string;
+  description?: string;
   /** Minimum tier needed (growth or enterprise) */
   requiredTier: 'growth' | 'enterprise';
   /** The gated page content rendered blurred underneath */
@@ -31,7 +31,7 @@ const TIER_PRICES: Record<string, string> = {
  * Wraps page content with a blurred overlay when the user's tier is too low.
  * Shows the actual content blurred underneath so users can "preview" the feature.
  */
-export function TierGateOverlay({ feature, description, requiredTier, children }: TierGateProps) {
+export function TierGateOverlay({ feature, description = '', requiredTier, children }: TierGateProps) {
   const { data: me } = useQuery({
     queryKey: ['tenant', 'me'],
     queryFn: () => api.getMe(),

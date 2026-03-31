@@ -20,18 +20,18 @@ export class SocialCopyHandler {
       const copy = copies[platform];
       if (!copy) continue;
 
-      const [draft] = await withTenantDb(tenantId, async (db) =>
+      const [draft] = (await withTenantDb(tenantId, async (db) =>
         db.insert(contentDrafts).values({
           tenantId,
           type: 'social_post',
           title: `${platform}: ${brief.topic}`,
           content: copy,
-          brief: { ...brief as Record<string, unknown>, platform },
+          brief: { ...(brief as unknown as Record<string, unknown>), platform },
           status: 'draft',
           llmModel: 'anthropic/claude-sonnet-4-5',
           metadata: { platform },
         }).returning({ id: contentDrafts.id }),
-      );
+      )) as [{ id: string }];
       draftIds.push(draft.id);
     }
 

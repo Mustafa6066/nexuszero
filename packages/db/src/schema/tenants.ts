@@ -3,7 +3,9 @@ import { pgTable, uuid, varchar, text, timestamp, jsonb, pgEnum } from 'drizzle-
 export const planEnum = pgEnum('plan_tier', ['launchpad', 'growth', 'enterprise']);
 export const tenantStatusEnum = pgEnum('tenant_status', ['pending', 'provisioning', 'active', 'suspended', 'churned']);
 export const onboardingStateEnum = pgEnum('onboarding_state', [
-  'created', 'initiated', 'detecting', 'connecting', 'oauth_connecting', 'oauth_connected',
+  'created', 'initiated', 'detecting', 'connecting',
+  'shadow_auditing', 'shadow_complete',
+  'oauth_connecting', 'oauth_connected',
   'auditing', 'audit_complete', 'provisioning', 'provisioned',
   'strategy_generating', 'strategy_ready', 'activating', 'going_live', 'active', 'live', 'failed',
 ]);

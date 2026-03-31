@@ -33,23 +33,23 @@ export class FirmographicEnrichmentStep {
     const db = getDb();
 
     const [tenant] = await db
-      .select({ id: tenants.id, domain: tenants.domain, name: tenants.name, metadata: tenants.metadata })
+      .select({ id: tenants.id, domain: tenants.domain, name: tenants.name, settings: tenants.settings })
       .from(tenants)
       .where(eq(tenants.id, tenantId))
       .limit(1);
 
     if (!tenant) throw new Error('Tenant not found');
 
-    const shadowAudit = (tenant.metadata as Record<string, unknown>)?.shadowAudit as Record<string, unknown> | undefined;
+    const shadowAudit = (tenant.settings as Record<string, unknown>)?.shadowAudit as Record<string, unknown> | undefined;
     const domain = tenant.domain ?? (config.domain as string | undefined);
 
     // Build the enrichment profile via LLM
-    const profile = await this.inferProfile(domain, tenant.name, shadowAudit);
+    const profile = await this.inferProfile(domain ?? null, tenant.name, shadowAudit);
 
-    // Merge firmographic profile into tenant metadata
-    const existingMetadata = (tenant.metadata ?? {}) as Record<string, unknown>;
+    // Merge firmographic profile into tenant settings
+    const existingMetadata = ((tenant.settings as Record<string, unknown>) ?? {});
     await db.update(tenants).set({
-      metadata: {
+      settings: {
         ...existingMetadata,
         firmographicProfile: profile,
       },

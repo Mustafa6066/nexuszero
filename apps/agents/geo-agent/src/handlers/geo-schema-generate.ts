@@ -20,7 +20,7 @@ export class GeoSchemaHandler {
     // Find active CMS integration
     const [cmsIntegration] = await withTenantDb(tenantId, async (db) =>
       db.select().from(integrations)
-        .where(and(eq(integrations.tenantId, tenantId), eq(integrations.status, 'active')))
+        .where(and(eq(integrations.tenantId, tenantId), eq(integrations.status, 'connected')))
         .limit(1),
     );
 

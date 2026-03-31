@@ -58,6 +58,7 @@ export interface TaskPayload {
   taskId: string;
   tenantId: string;
   agentType: AgentType;
+  agentId?: string;
   taskType: string;
   priority: TaskPriority;
   payload: Record<string, unknown>;

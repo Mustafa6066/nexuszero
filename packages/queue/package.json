@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@nexuszero/db": "workspace:*",
+    "@nexuszero/llm-router": "workspace:*",
     "@nexuszero/shared": "workspace:*",
     "bullmq": "^5.7.0",
     "drizzle-orm": "^0.30.10",

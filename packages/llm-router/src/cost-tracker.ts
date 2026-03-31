@@ -1,4 +1,4 @@
-import { getRedisConnection } from '@nexuszero/queue';
+import { getRedisConnection } from '@nexuszero/shared';
 import { getCurrentTenantId } from '@nexuszero/shared';
 
 // ---------------------------------------------------------------------------

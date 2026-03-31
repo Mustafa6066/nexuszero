@@ -12,18 +12,18 @@ export class EmailCopyHandler {
 
     const { subjectLines, previewText, htmlBody } = await llmWriteEmail(brief);
 
-    const [draft] = await withTenantDb(tenantId, async (db) =>
+    const [draft] = (await withTenantDb(tenantId, async (db) =>
       db.insert(contentDrafts).values({
         tenantId,
         type: 'email',
         title: subjectLines[0] ?? brief.topic,
         content: htmlBody,
-        brief: brief as Record<string, unknown>,
+        brief: brief as unknown as Record<string, unknown>,
         status: 'draft',
         llmModel: 'anthropic/claude-sonnet-4-5',
         metadata: { subjectLines, previewText },
       }).returning({ id: contentDrafts.id }),
-    );
+    )) as [{ id: string }];
 
     await withTenantDb(tenantId, async (db) =>
       db.insert(approvalQueue).values({

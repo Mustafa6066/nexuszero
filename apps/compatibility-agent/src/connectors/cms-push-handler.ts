@@ -169,15 +169,15 @@ async function pushToWebflow(
   const siteId = (config.siteId as string) || '';
 
   if (scope === 'schema' || scope === 'script') {
-    return webflow.addCustomCode(accessToken, siteId, afterState.schemaScript as string || '');
+    return webflow.addCustomCode(accessToken, siteId, { headCode: (afterState.schemaScript as string) || '' });
   }
 
   if (resourceType === 'collection_item') {
     const collectionId = (config.collectionId as string) || '';
-    return webflow.updateCollectionItem(accessToken, collectionId, resourceId, afterState);
+    return webflow.updateCollectionItem(accessToken, collectionId, resourceId, { fieldData: afterState });
   }
 
-  return webflow.updatePage(accessToken, siteId, resourceId, afterState);
+  return webflow.updatePage(accessToken, resourceId, afterState as { title?: string; description?: string; slug?: string; openGraph?: Record<string, unknown> });
 }
 
 async function pushToShopify(
@@ -193,12 +193,13 @@ async function pushToShopify(
   if (scope === 'schema' || scope === 'meta') {
     const namespace = (afterState.namespace as string) || 'seo';
     const key = (afterState.key as string) || 'schema_markup';
-    return shopify.updateMetafield(accessToken, shop, {
+    return shopify.updateMetafield(shop, accessToken, {
       namespace,
       key,
       value: JSON.stringify(afterState.jsonLd || afterState),
       type: 'json',
-      ownerId: resourceId,
+      owner_resource: resourceType,
+      owner_id: resourceId,
     });
   }
 
@@ -220,12 +221,12 @@ async function pushToContentful(
   const spaceId = (config.spaceId as string) || '';
   const environmentId = (config.environmentId as string) || 'master';
 
-  const result = await contentful.updateEntry(accessToken, spaceId, environmentId, resourceId, afterState);
+  const result = await contentful.updateEntry(accessToken, spaceId, resourceId, { fields: afterState }, 0, environmentId);
 
   // Auto-publish if scope is safe
   if (scope === 'meta' || scope === 'schema') {
     const version = (result as any)?.data?.sys?.version || 1;
-    await contentful.publishEntry(accessToken, spaceId, environmentId, resourceId, version);
+    await contentful.publishEntry(accessToken, spaceId, resourceId, version, environmentId);
   }
 
   return result;

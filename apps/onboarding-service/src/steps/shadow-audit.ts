@@ -100,10 +100,10 @@ export class ShadowAuditStep {
     // 2. Run the preflight scan
     const scanResult = await scanDomain(domain);
 
-    // 3. Store the shadow audit results in tenant metadata
+    // 3. Store the shadow audit results in tenant settings
     await db.update(tenants).set({
       domain: tenant.domain ?? domain, // Persist inferred domain if none was set
-      metadata: {
+      settings: {
         shadowAudit: {
           scanResult,
           scannedDomain: domain,

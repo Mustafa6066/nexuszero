@@ -27,13 +27,13 @@ export class BlogPostHandler {
     const generationTimeMs = Date.now() - start;
 
     // 4. Store draft
-    const [draft] = await withTenantDb(tenantId, async (db) =>
+    const [draft] = (await withTenantDb(tenantId, async (db) =>
       db.insert(contentDrafts).values({
         tenantId,
         type: 'blog_post',
         title,
         content,
-        brief: brief as Record<string, unknown>,
+        brief: brief as unknown as Record<string, unknown>,
         status: 'draft',
         seoScore,
         readabilityScore,
@@ -42,7 +42,7 @@ export class BlogPostHandler {
         taskId: job.id ? job.id : undefined,
         metadata: { researchSources: researchContext.length, useWebSearch },
       }).returning({ id: contentDrafts.id }),
-    );
+    )) as [{ id: string }];
 
     // 5. Add to approval queue
     await withTenantDb(tenantId, async (db) =>

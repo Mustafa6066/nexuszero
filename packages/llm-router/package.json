@@ -18,7 +18,6 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@nexuszero/queue": "workspace:*",
     "@nexuszero/shared": "workspace:*",
     "openai": "^4.52.0"
   },

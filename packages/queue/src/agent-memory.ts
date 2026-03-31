@@ -1,5 +1,4 @@
-import { getDb, agentMemories } from '@nexuszero/db';
-import { withTenantDb } from '@nexuszero/shared';
+import { getDb, agentMemories, withTenantDb } from '@nexuszero/db';
 import { eq, and, desc, sql, gt } from 'drizzle-orm';
 import { getRedisConnection } from './bullmq-client.js';
 
@@ -64,7 +63,7 @@ export async function storeMemory(input: StoreMemoryInput): Promise<string> {
       sourceSignalType: input.sourceSignalType,
       correlationId: input.correlationId,
     }).returning({ id: agentMemories.id });
-    return row;
+    return row!;
   });
 
   // Track memory count per tenant+agent for quick stats

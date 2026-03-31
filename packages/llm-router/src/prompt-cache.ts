@@ -6,7 +6,7 @@
 // Uses Redis with TTL to store pre-computed prompt sections.
 // ---------------------------------------------------------------------------
 
-import { getRedisConnection } from '@nexuszero/queue';
+import { getRedisConnection } from '@nexuszero/shared';
 import { createHash } from 'node:crypto';
 
 const CACHE_KEY_PREFIX = 'prompt:cache';

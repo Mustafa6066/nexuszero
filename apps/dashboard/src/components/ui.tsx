@@ -43,18 +43,19 @@ export function MetricCard({ title, value, change, changeType = 'neutral', icon 
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: 'default' | 'success' | 'warning' | 'destructive' | 'outline';
+  variant?: 'default' | 'success' | 'warning' | 'destructive' | 'outline' | 'secondary';
+  className?: string;
 }
 
-export function Badge({ children, variant = 'default' }: BadgeProps) {
+export function Badge({ children, variant = 'default', className }: BadgeProps) {
   return (
     <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', {
       'bg-primary/10 text-primary': variant === 'default',
       'bg-green-500/10 text-green-400': variant === 'success',
       'bg-yellow-500/10 text-yellow-400': variant === 'warning',
       'bg-red-500/10 text-red-400': variant === 'destructive',
-      'border border-border text-muted-foreground': variant === 'outline',
-    })}>
+      'border border-border text-muted-foreground': variant === 'outline' || variant === 'secondary',
+    }, className)}>
       {children}
     </span>
   );
