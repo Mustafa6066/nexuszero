@@ -91,10 +91,12 @@ function ApiAuthSync() {
     const token = (session as any)?.accessToken as string | undefined;
     if (token) {
       api.setToken(token);
-      // Re-trigger queries only when transitioning from no-token → token
+      // Re-trigger queries only when transitioning from no-token → token.
+      // Use resetQueries so errored queries (retry:false hit before token arrived)
+      // are put back to pending and immediately refetched with the now-valid token.
       if (!hadToken.current) {
         hadToken.current = true;
-        queryClient.refetchQueries({ type: 'active' });
+        queryClient.resetQueries();
       }
     } else {
       api.clearToken();
@@ -118,8 +120,11 @@ export function Providers({ children, session }: { children: React.ReactNode; se
         staleTime: 30_000,
         refetchOnWindowFocus: false,
         retry(failureCount, error) {
-          // Don't retry auth errors — the token is simply missing or expired
-          if (error instanceof Error && error.message === 'Not authenticated') return false;
+          // Allow one retry on auth errors — the token may still be initialising on
+          // the client when the first attempt fires. ApiAuthSync will call resetQueries()
+          // once the token arrives, so this extra retry mainly covers the narrow gap
+          // before that effect runs.
+          if (error instanceof Error && error.message === 'Not authenticated') return failureCount < 1;
           return failureCount < 1;
         },
       },

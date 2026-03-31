@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
@@ -69,12 +70,14 @@ export default function AgentsPage() {
   const [actionDrawer, setActionDrawer] = useState<{ agentId: string; label: string } | null>(null);
   const { open, sendMessage } = useAssistantActions();
   const { t } = useLang();
+  const { status: authStatus } = useSession();
 
   const { data: agents, isLoading } = useQuery({
     queryKey: ['agents'],
     queryFn: () => api.getAgents(),
     refetchInterval: 60_000,
     refetchOnWindowFocus: false,
+    enabled: authStatus === 'authenticated',
   });
 
   const { data: stats } = useQuery({
@@ -82,6 +85,7 @@ export default function AgentsPage() {
     queryFn: () => api.getAgentStats(),
     refetchInterval: 120_000,
     refetchOnWindowFocus: false,
+    enabled: authStatus === 'authenticated',
   });
 
   const signalMutation = useMutation({
