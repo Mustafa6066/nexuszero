@@ -5,6 +5,8 @@ import { BidOptimizer } from './handlers/bid-optimizer.js';
 import { CampaignManager } from './handlers/campaign-manager.js';
 import { AudienceTargeting } from './handlers/audience-targeting.js';
 import { CreativeEngine } from './handlers/creative-engine.js';
+import { CroAuditHandler } from './handlers/cro-audit.js';
+import { SurveyLeadMagnetHandler } from './handlers/survey-lead-magnet.js';
 
 export class AdWorker extends BaseAgentWorker {
   readonly agentType = 'ad' as const;
@@ -22,6 +24,8 @@ export class AdWorker extends BaseAgentWorker {
   private campaignManager = new CampaignManager();
   private audienceTargeting = new AudienceTargeting();
   private creativeEngine = new CreativeEngine();
+  private croAudit = new CroAuditHandler();
+  private surveyLeadMagnet = new SurveyLeadMagnetHandler();
 
   protected async processTask(task: TaskPayload, job: Job<TaskPayload>): Promise<Record<string, unknown>> {
     const { taskType, payload } = task;
@@ -41,6 +45,10 @@ export class AdWorker extends BaseAgentWorker {
         return this.creativeEngine.runAbTest(payload, job);
       case 'check_fatigue':
         return this.creativeEngine.checkFatigue(payload, job);
+      case 'cro_audit':
+        return this.croAudit.execute(payload, job);
+      case 'survey_lead_magnet':
+        return this.surveyLeadMagnet.execute(payload, job);
       default:
         throw new Error(`Unknown ad task type: ${taskType}`);
     }

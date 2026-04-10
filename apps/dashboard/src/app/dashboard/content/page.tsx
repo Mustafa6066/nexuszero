@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button, MetricCard } from '@/components/ui';
 import { TierGateOverlay } from '@/components/tier-gate-overlay';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   draft: 'default',
@@ -24,12 +25,23 @@ const TYPE_LABELS: Record<string, string> = {
 const TONES = ['professional', 'casual', 'technical', 'friendly'] as const;
 const CONTENT_TYPES = ['blog_post', 'social_post', 'email'] as const;
 
+const PIPELINE_STAGES = ['draft', 'review', 'approved', 'published'] as const;
+const PIPELINE_COLORS: Record<string, string> = {
+  draft: 'bg-blue-500',
+  review: 'bg-yellow-500',
+  approved: 'bg-green-500',
+  published: 'bg-primary',
+  rejected: 'bg-red-500',
+};
+
 export default function ContentPage() {
   const queryClient = useQueryClient();
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('draft');
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [calendarView, setCalendarView] = useState<'week' | 'month'>('week');
+  const [calendarOffset, setCalendarOffset] = useState(0);
   const [generateForm, setGenerateForm] = useState({
     type: 'blog_post',
     topic: '',
@@ -84,6 +96,27 @@ export default function ContentPage() {
     ? (drafts.reduce((s: number, d: any) => s + (d.seoScore ?? 0), 0) / drafts.length).toFixed(0)
     : '0';
 
+  const pipelineCounts = useMemo(() => {
+    const counts: Record<string, number> = { draft: 0, review: 0, approved: 0, published: 0, rejected: 0 };
+    drafts.forEach((d: any) => { counts[d.status] = (counts[d.status] ?? 0) + 1; });
+    return counts;
+  }, [drafts]);
+
+  const calendarDays = useMemo(() => {
+    const now = new Date();
+    const dayCount = calendarView === 'week' ? 7 : 28;
+    const startOffset = calendarOffset * dayCount;
+    const days: { date: Date; label: string; draftsForDay: any[] }[] = [];
+    for (let i = 0; i < dayCount; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + startOffset + i - (calendarView === 'week' ? now.getDay() : now.getDate() - 1));
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayDrafts = drafts.filter((dr: any) => dr.createdAt?.slice(0, 10) === dateStr || dr.publishedAt?.slice(0, 10) === dateStr);
+      days.push({ date: d, label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }), draftsForDay: dayDrafts });
+    }
+    return days;
+  }, [drafts, calendarView, calendarOffset]);
+
   return (
     <TierGateOverlay requiredTier="growth" feature="Content Writer">
       <div className="p-6 space-y-6">
@@ -101,6 +134,88 @@ export default function ContentPage() {
           <MetricCard title="Published" value={String(publishedCount)} />
           <MetricCard title="Avg SEO Score" value={`${avgSeo}/100`} />
         </div>
+
+        {/* Content Pipeline */}
+        <Card className="p-4">
+          <h2 className="font-semibold text-sm mb-3">Content Pipeline</h2>
+          <div className="flex items-center gap-1">
+            {PIPELINE_STAGES.map((stage, i) => {
+              const count = pipelineCounts[stage] ?? 0;
+              const total = drafts.length || 1;
+              const pct = Math.max((count / total) * 100, count > 0 ? 8 : 2);
+              return (
+                <div key={stage} className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1 mb-1">
+                    {i > 0 && <div className="w-4 h-px bg-muted-foreground/30" />}
+                    <div className={`h-6 rounded-md ${PIPELINE_COLORS[stage]} flex items-center justify-center transition-all`} style={{ width: `${pct}%`, minWidth: '2rem' }}>
+                      <span className="text-[10px] font-bold text-white">{count}</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground capitalize text-center">{stage}</p>
+                </div>
+              );
+            })}
+          </div>
+          {pipelineCounts.rejected > 0 && (
+            <p className="text-xs text-red-500 mt-2">{pipelineCounts.rejected} rejected draft{pipelineCounts.rejected > 1 ? 's' : ''}</p>
+          )}
+        </Card>
+
+        {/* Editorial Calendar */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-sm">Editorial Calendar</h2>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setCalendarOffset(o => o - 1)} className="p-1 rounded hover:bg-muted/50">
+                <ChevronLeft size={14} />
+              </button>
+              <div className="flex items-center gap-1">
+                {(['week', 'month'] as const).map(v => (
+                  <button
+                    key={v}
+                    onClick={() => { setCalendarView(v); setCalendarOffset(0); }}
+                    className={`text-xs px-2 py-0.5 rounded ${calendarView === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted/50'}`}
+                  >
+                    {v.charAt(0).toUpperCase() + v.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setCalendarOffset(o => o + 1)} className="p-1 rounded hover:bg-muted/50">
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+          <div className={`grid gap-1 ${calendarView === 'week' ? 'grid-cols-7' : 'grid-cols-7'}`}>
+            {calendarDays.map((day, i) => {
+              const isToday = day.date.toDateString() === new Date().toDateString();
+              return (
+                <div
+                  key={i}
+                  className={`p-1.5 rounded-lg border text-center min-h-[4rem] ${
+                    isToday ? 'border-primary/50 bg-primary/5' : 'border-transparent hover:bg-muted/20'
+                  }`}
+                >
+                  <p className={`text-[10px] ${isToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                    {calendarView === 'week' ? day.label : day.date.getDate()}
+                  </p>
+                  {day.draftsForDay.slice(0, 2).map((d: any) => (
+                    <div
+                      key={d.id}
+                      className={`mt-0.5 px-1 py-0.5 rounded text-[9px] truncate cursor-pointer ${PIPELINE_COLORS[d.status] ?? 'bg-muted'} text-white`}
+                      title={d.title || d.type}
+                      onClick={() => setSelectedDraft(d)}
+                    >
+                      {d.title?.slice(0, 15) || d.type}
+                    </div>
+                  ))}
+                  {day.draftsForDay.length > 2 && (
+                    <p className="text-[9px] text-muted-foreground mt-0.5">+{day.draftsForDay.length - 2} more</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
 
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap">

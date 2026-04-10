@@ -258,3 +258,196 @@ export function linearRegression(
 
   return { slope, intercept, rSquared };
 }
+
+// ---------------------------------------------------------------------------
+// Bootstrap & non-parametric tests (Growth Engine / Experiment Engine)
+// Ported from: ai-marketing-skills growth-engine/experiment-engine.py
+// ---------------------------------------------------------------------------
+
+/**
+ * Bootstrap confidence interval for a metric.
+ * Resamples with replacement and returns [lower, upper] bounds.
+ *
+ * @param values - Observed data points
+ * @param confidenceLevel - Confidence level (default 0.95)
+ * @param resamples - Number of bootstrap resamples (default 1000)
+ * @returns { mean, lower, upper, confidenceLevel }
+ */
+export function bootstrapConfidenceInterval(
+  values: number[],
+  confidenceLevel = 0.95,
+  resamples = 1000,
+): { mean: number; lower: number; upper: number; confidenceLevel: number } {
+  if (values.length === 0) return { mean: 0, lower: 0, upper: 0, confidenceLevel };
+  if (values.length === 1) return { mean: values[0]!, lower: values[0]!, upper: values[0]!, confidenceLevel };
+
+  const n = values.length;
+  const means: number[] = [];
+
+  for (let r = 0; r < resamples; r++) {
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+      sum += values[Math.floor(Math.random() * n)]!;
+    }
+    means.push(sum / n);
+  }
+
+  means.sort((a, b) => a - b);
+
+  const alpha = 1 - confidenceLevel;
+  const lowerIdx = Math.floor((alpha / 2) * resamples);
+  const upperIdx = Math.floor((1 - alpha / 2) * resamples);
+  const overallMean = values.reduce((a, b) => a + b, 0) / n;
+
+  return {
+    mean: overallMean,
+    lower: means[lowerIdx]!,
+    upper: means[upperIdx]!,
+    confidenceLevel,
+  };
+}
+
+/**
+ * Mann-Whitney U test (Wilcoxon rank-sum test).
+ * Non-parametric test for comparing two independent samples.
+ *
+ * @returns { uStat, zScore, pValue, significant }
+ */
+export function mannWhitneyUTest(
+  sampleA: number[],
+  sampleB: number[],
+  alpha = 0.05,
+): { uStat: number; zScore: number; pValue: number; significant: boolean } {
+  const nA = sampleA.length;
+  const nB = sampleB.length;
+
+  if (nA === 0 || nB === 0) {
+    return { uStat: 0, zScore: 0, pValue: 1, significant: false };
+  }
+
+  // Combine and rank
+  const combined = [
+    ...sampleA.map(v => ({ value: v, group: 'A' as const })),
+    ...sampleB.map(v => ({ value: v, group: 'B' as const })),
+  ];
+  combined.sort((a, b) => a.value - b.value);
+
+  // Assign ranks (handle ties with average rank)
+  const ranks = new Array(combined.length).fill(0) as number[];
+  let i = 0;
+  while (i < combined.length) {
+    let j = i;
+    while (j < combined.length && combined[j]!.value === combined[i]!.value) {
+      j++;
+    }
+    const avgRank = (i + 1 + j) / 2; // Average rank for ties
+    for (let k = i; k < j; k++) {
+      ranks[k] = avgRank;
+    }
+    i = j;
+  }
+
+  // Sum ranks for group A
+  let rankSumA = 0;
+  for (let idx = 0; idx < combined.length; idx++) {
+    if (combined[idx]!.group === 'A') {
+      rankSumA += ranks[idx]!;
+    }
+  }
+
+  const uA = rankSumA - (nA * (nA + 1)) / 2;
+  const uB = nA * nB - uA;
+  const uStat = Math.min(uA, uB);
+
+  // Normal approximation for large samples
+  const meanU = (nA * nB) / 2;
+  const stdU = Math.sqrt((nA * nB * (nA + nB + 1)) / 12);
+
+  if (stdU === 0) return { uStat, zScore: 0, pValue: 1, significant: false };
+
+  const z = (uStat - meanU) / stdU;
+  const pVal = pValueFromZScore(z);
+
+  return {
+    uStat,
+    zScore: z,
+    pValue: pVal,
+    significant: pVal < alpha,
+  };
+}
+
+/**
+ * Dual-threshold experiment evaluation.
+ * Requires BOTH statistical significance AND minimum lift to declare a winner.
+ *
+ * @param control - Control group metric values
+ * @param variant - Variant group metric values  
+ * @param minLift - Minimum lift percentage required (default 0.15 = 15%)
+ * @param alpha - Significance level (default 0.05)
+ * @param trendingSampleMin - Minimum samples for "trending" status (default 15)
+ */
+export function evaluateExperiment(
+  control: number[],
+  variant: number[],
+  minLift = 0.15,
+  alpha = 0.05,
+  trendingSampleMin = 15,
+): {
+  winner: 'control' | 'variant' | 'none';
+  status: 'significant_winner' | 'trending' | 'inconclusive' | 'insufficient_data';
+  lift: number;
+  pValue: number;
+  controlMean: number;
+  variantMean: number;
+  controlCI: { lower: number; upper: number };
+  variantCI: { lower: number; upper: number };
+} {
+  if (control.length < 5 || variant.length < 5) {
+    return {
+      winner: 'none',
+      status: 'insufficient_data',
+      lift: 0,
+      pValue: 1,
+      controlMean: control.length > 0 ? control.reduce((a, b) => a + b, 0) / control.length : 0,
+      variantMean: variant.length > 0 ? variant.reduce((a, b) => a + b, 0) / variant.length : 0,
+      controlCI: { lower: 0, upper: 0 },
+      variantCI: { lower: 0, upper: 0 },
+    };
+  }
+
+  const controlCI = bootstrapConfidenceInterval(control);
+  const variantCI = bootstrapConfidenceInterval(variant);
+  const mwu = mannWhitneyUTest(control, variant, alpha);
+
+  const lift = controlCI.mean !== 0
+    ? (variantCI.mean - controlCI.mean) / Math.abs(controlCI.mean)
+    : 0;
+
+  const absLift = Math.abs(lift);
+  const isVariantBetter = variantCI.mean > controlCI.mean;
+
+  let winner: 'control' | 'variant' | 'none' = 'none';
+  let status: 'significant_winner' | 'trending' | 'inconclusive' | 'insufficient_data';
+
+  if (mwu.significant && absLift >= minLift) {
+    // Dual threshold met
+    winner = isVariantBetter ? 'variant' : 'control';
+    status = 'significant_winner';
+  } else if (mwu.pValue < 0.10 && control.length >= trendingSampleMin && variant.length >= trendingSampleMin) {
+    // Trending — not yet significant but promising
+    status = 'trending';
+  } else {
+    status = 'inconclusive';
+  }
+
+  return {
+    winner,
+    status,
+    lift,
+    pValue: mwu.pValue,
+    controlMean: controlCI.mean,
+    variantMean: variantCI.mean,
+    controlCI: { lower: controlCI.lower, upper: controlCI.upper },
+    variantCI: { lower: variantCI.lower, upper: variantCI.upper },
+  };
+}

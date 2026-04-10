@@ -17,6 +17,7 @@ export const AGENT_TYPE_DEFINITIONS: Record<AgentType, {
       'cms_publishing', 'site_crawl', 'core_web_vitals', 'schema_markup', 'indexation_check',
       'prospect_finding', 'outreach_generation', 'link_monitoring',
       'technical_seo_deep', 'competitor_seo_analysis',
+      'content_attack_brief', 'gsc_optimization', 'trend_scouting',
     ],
     queuePrefix: 'seo-tasks',
   },
@@ -27,6 +28,7 @@ export const AGENT_TYPE_DEFINITIONS: Record<AgentType, {
       'campaign_build', 'audience_targeting', 'ad_group_generation', 'budget_allocation',
       'bid_optimization', 'roas_tracking', 'cpa_optimization', 'dayparting_analysis',
       'spend_monitoring', 'anomaly_detection', 'alert_management',
+      'cro_audit', 'survey_lead_magnet',
     ],
     queuePrefix: 'ad-tasks',
   },
@@ -48,6 +50,8 @@ export const AGENT_TYPE_DEFINITIONS: Record<AgentType, {
       'multi_touch_attribution', 'channel_scoring', 'revenue_mapping',
       'funnel_analysis', 'experiment_generation', 'variant_testing', 'conversion_prediction',
       'time_series_forecast', 'budget_recommendation', 'scenario_planning',
+      'experiment_create', 'experiment_score', 'experiment_playbook',
+      'weekly_scorecard', 'pacing_alert', 'revenue_attribution', 'client_report',
     ],
     queuePrefix: 'data-tasks',
   },
@@ -85,6 +89,7 @@ export const AGENT_TYPE_DEFINITIONS: Record<AgentType, {
     description: 'Twitter/X, Hacker News, and YouTube brand mention monitoring and engagement',
     taskTypes: [
       'scan_twitter', 'scan_hackernews', 'scan_youtube', 'draft_social_reply',
+      'yt_competitive_analysis',
     ],
     queuePrefix: 'social-tasks',
   },
@@ -93,6 +98,8 @@ export const AGENT_TYPE_DEFINITIONS: Record<AgentType, {
     description: 'Long-form blog posts, social copy, email copy generation with web research and SEO scoring',
     taskTypes: [
       'write_blog_post', 'write_social_copy', 'write_email', 'score_content', 'publish_content',
+      'expert_panel_review', 'quality_gate', 'editorial_brain', 'quote_mining',
+      'content_transform', 'x_longform_post', 'generate_deck',
     ],
     queuePrefix: 'content-tasks',
   },
@@ -103,6 +110,40 @@ export const AGENT_TYPE_DEFINITIONS: Record<AgentType, {
       'geo_keyword_research', 'geo_rank_check', 'geo_citation_audit', 'geo_schema_generate',
     ],
     queuePrefix: 'geo-tasks',
+  },
+  'sales-pipeline': {
+    label: 'Sales Pipeline Agent',
+    description: 'Lead scoring, suppression, deal resurrection, ICP learning, trigger prospecting, value pricing',
+    taskTypes: [
+      'webhook_ingest', 'suppression_check', 'lead_route', 'deal_resurrect',
+      'trigger_prospect', 'icp_learn', 'value_pricing_brief', 'call_analyze',
+      'pricing_pattern_recommend',
+    ],
+    queuePrefix: 'sales-pipeline-tasks',
+  },
+  outbound: {
+    label: 'Outbound Agent',
+    description: 'Cold outbound campaign design, lead pipeline, competitive monitoring, cross-signal detection',
+    taskTypes: [
+      'cold_outbound_design', 'lead_pipeline', 'competitive_monitor', 'cross_signal_detect', 'outbound_send',
+    ],
+    queuePrefix: 'outbound-tasks',
+  },
+  finance: {
+    label: 'Finance Agent',
+    description: 'CFO briefings, cost estimation, scenario modeling from financial data',
+    taskTypes: [
+      'cfo_briefing', 'cost_estimate', 'scenario_model',
+    ],
+    queuePrefix: 'finance-tasks',
+  },
+  podcast: {
+    label: 'Podcast Agent',
+    description: 'Podcast ingestion, content atom extraction, multi-platform content generation, viral scoring',
+    taskTypes: [
+      'podcast_ingest', 'content_extract', 'content_generate', 'viral_score', 'calendar_build',
+    ],
+    queuePrefix: 'podcast-tasks',
   },
 };
 
@@ -153,13 +194,13 @@ export const PLAN_AGENT_LIMITS: Record<PlanTier, {
     maxConcurrentTasks: 5,
   },
   growth: {
-    maxAgents: 10,
-    allowedTypes: ['compatibility', 'seo', 'ad', 'data-nexus', 'creative', 'aeo', 'reddit', 'social', 'content-writer', 'geo'],
-    maxConcurrentTasks: 15,
+    maxAgents: 14,
+    allowedTypes: ['compatibility', 'seo', 'ad', 'data-nexus', 'creative', 'aeo', 'reddit', 'social', 'content-writer', 'geo', 'sales-pipeline', 'outbound', 'podcast', 'finance'],
+    maxConcurrentTasks: 20,
   },
   enterprise: {
     maxAgents: 20,
-    allowedTypes: ['compatibility', 'seo', 'ad', 'data-nexus', 'creative', 'aeo', 'reddit', 'social', 'content-writer', 'geo'],
+    allowedTypes: ['compatibility', 'seo', 'ad', 'data-nexus', 'creative', 'aeo', 'reddit', 'social', 'content-writer', 'geo', 'sales-pipeline', 'outbound', 'podcast', 'finance'],
     maxConcurrentTasks: 50,
   },
 };

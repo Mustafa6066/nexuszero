@@ -5,6 +5,8 @@ import { SessionProvider, useSession } from 'next-auth/react';
 import type { Session } from 'next-auth';
 import { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { wsClient } from '@/lib/ws-client';
+import { useWsSubscriptions } from '@/lib/ws-store';
 import { en, ar, RTL_LOCALES } from '@/lib/i18n';
 import type { Locale, Translations } from '@/lib/i18n';
 
@@ -98,11 +100,20 @@ function ApiAuthSync() {
         hadToken.current = true;
         queryClient.resetQueries();
       }
+      // Connect WebSocket with the same token
+      wsClient.connect(token);
     } else {
       api.clearToken();
+      wsClient.disconnect();
       hadToken.current = false;
     }
   }, [session, status, queryClient]);
+  return null;
+}
+
+/** Subscribe to WS channels and invalidate TanStack Query caches on real-time events */
+function WsSubscriptionSync() {
+  useWsSubscriptions();
   return null;
 }
 
@@ -137,6 +148,7 @@ export function Providers({ children, session }: { children: React.ReactNode; se
         <SessionProvider session={session}>
           <QueryClientProvider client={queryClient}>
             <ApiAuthSync />
+            <WsSubscriptionSync />
             {children}
           </QueryClientProvider>
         </SessionProvider>

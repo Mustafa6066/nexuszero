@@ -91,7 +91,6 @@ export default function DashboardPage() {
   const { data: summary, error: summaryError } = useQuery({
     queryKey: ['analytics', 'summary'],
     queryFn: () => api.getAnalyticsSummary(),
-    refetchInterval: 120_000,
     refetchOnWindowFocus: false,
     enabled: status === 'authenticated',
   });
@@ -99,7 +98,6 @@ export default function DashboardPage() {
   const { data: agents, error: agentsError } = useQuery({
     queryKey: ['agents'],
     queryFn: () => api.getAgents(),
-    refetchInterval: 60_000,
     refetchOnWindowFocus: false,
     enabled: status === 'authenticated',
   });

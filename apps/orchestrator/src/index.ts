@@ -1,12 +1,15 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { pathToFileURL } from 'node:url';
-import { extractTraceContext, initializeOpenTelemetry, spanKindForMessagingConsumer, withSpan } from '@nexuszero/shared';
+import { extractTraceContext, initializeOpenTelemetry, initSentry, spanKindForMessagingConsumer, withSpan } from '@nexuszero/shared';
 import { TaskRouter } from './task-router.js';
 import { TaskGraphExecutor } from './task-graph.js';
 import { Scheduler } from './scheduler.js';
 import { HealthMonitor } from './health-monitor.js';
 import { consumeFromKafka, closeKafkaConnections } from '@nexuszero/queue';
+import { BrainLoop } from '@nexuszero/brain';
+
+initSentry('orchestrator');
 
 export function createApp() {
   const app = new Hono();
@@ -30,6 +33,7 @@ const taskRouter = new TaskRouter();
 const taskGraphExecutor = new TaskGraphExecutor();
 const scheduler = new Scheduler();
 const healthMonitor = new HealthMonitor();
+const brainLoop = new BrainLoop();
 let stopConsumers: (() => void) | null = null;
 
 const POLL_INTERVAL_MS = parseInt(process.env.KAFKA_POLL_INTERVAL_MS || '3000', 10);
@@ -111,7 +115,12 @@ export function startConsumers() {
       await taskRouter.onTaskFailed(message as Parameters<typeof taskRouter.onTaskFailed>[0]);
     }),
     startPollingLoop('agent-signals', 'orchestrator-signals', 'agent signal', async (message) => {
-      await taskRouter.onAgentSignal(message as Parameters<typeof taskRouter.onAgentSignal>[0]);
+      const signal = message as Parameters<typeof taskRouter.onAgentSignal>[0];
+      await taskRouter.onAgentSignal(signal);
+      // Feed signals to the Brain for perception
+      if (signal.tenantId) {
+        await brainLoop.processSignals(signal.tenantId, [signal]).catch(() => {});
+      }
     }),
   ];
 
@@ -129,6 +138,16 @@ export async function start() {
   scheduler.start();
   healthMonitor.start();
 
+  // Start the Brain loop for active tenants
+  const brainEnabled = process.env.BRAIN_ENABLED !== 'false';
+  if (brainEnabled) {
+    const tenantIds = process.env.BRAIN_TENANT_IDS?.split(',').filter(Boolean) ?? [];
+    if (tenantIds.length > 0) {
+      brainLoop.start(tenantIds);
+      console.log(JSON.stringify({ level: 'info', msg: 'Brain loop started', tenants: tenantIds.length }));
+    }
+  }
+
   const port = parseInt(process.env.ORCHESTRATOR_PORT || process.env.PORT || '4001', 10);
   serve({ fetch: app.fetch, port }, () => {
     console.log(JSON.stringify({ level: 'info', msg: `Orchestrator running`, port }));
@@ -139,6 +158,7 @@ export async function shutdown() {
   stopConsumers?.();
   scheduler.stop();
   healthMonitor.stop();
+  brainLoop.stop();
   await closeKafkaConnections();
 }
 

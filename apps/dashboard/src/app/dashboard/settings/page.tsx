@@ -5,9 +5,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Button, Badge } from '@/components/ui';
 import { GuardrailsPanel } from '@/components/guardrails-panel';
+import { TeamPanel } from '@/components/settings/team-panel';
+import { ApiKeysPanel } from '@/components/settings/api-keys-panel';
 import { useLang } from '@/app/providers';
+import { Settings, Users, Key, Bell, AlertTriangle } from 'lucide-react';
+
+const TABS = [
+  { id: 'general', label: 'General', icon: Settings },
+  { id: 'team', label: 'Team', icon: Users },
+  { id: 'api-keys', label: 'API Keys', icon: Key },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'danger', label: 'Danger Zone', icon: AlertTriangle },
+] as const;
+
+type TabId = (typeof TABS)[number]['id'];
 
 export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<TabId>('general');
   const queryClient = useQueryClient();
   const { data: tenant, isLoading } = useQuery({
     queryKey: ['tenant', 'me'],
@@ -75,131 +89,207 @@ export default function SettingsPage() {
         {error && <Badge variant="destructive">{error}</Badge>}
       </div>
 
-      <Card>
-        <h3 className="text-sm font-semibold mb-4">{t.settingsPage.organization}</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">{t.settingsPage.companyName}</label>
-            <input
-              type="text"
-              value={(form.company_name as string) ?? tenant?.company_name ?? ''}
-              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">{t.settingsPage.website}</label>
-            <input
-              type="url"
-              value={(form.website as string) ?? tenant?.website ?? ''}
-              onChange={(e) => setForm({ ...form, website: e.target.value })}
-              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">{t.settingsPage.industry}</label>
-            <input
-              type="text"
-              value={(form.industry as string) ?? tenant?.industry ?? ''}
-              onChange={(e) => setForm({ ...form, industry: e.target.value })}
-              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="text-sm font-semibold mb-4">{t.settingsPage.subscription}</h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm">{t.settingsPage.currentPlan}</p>
-            <p className="mt-1 text-lg font-bold capitalize">{tenant?.plan_tier ?? 'starter'}</p>
-          </div>
-          <Badge variant={tenant?.status === 'active' ? 'success' : 'warning'}>
-            {tenant?.status ?? 'unknown'}
-          </Badge>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div>
-            <p className="text-xs text-muted-foreground">{t.settingsPage.maxAgents}</p>
-            <p className="text-sm font-medium">{tenant?.config?.max_agents ?? 'Unlimited'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">{t.settingsPage.maxCampaigns}</p>
-            <p className="text-sm font-medium">{tenant?.config?.max_campaigns ?? 'Unlimited'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">{t.settingsPage.apiRateLimit}</p>
-            <p className="text-sm font-medium">{tenant?.config?.rate_limit ?? '100'}/min</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">{t.settingsPage.created}</p>
-            <p className="text-sm font-medium">{tenant?.created_at ? new Date(tenant.created_at).toLocaleDateString() : 'N/A'}</p>
-          </div>
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="text-sm font-semibold mb-4">{t.settingsPage.oauthIntegrations}</h3>
-        <div className="space-y-3">
-          {['google_ads', 'meta_ads', 'tiktok_ads', 'linkedin_ads'].map((platform) => {
-            const isConnected = tenant?.oauth_tokens?.[platform]?.access_token;
-            return (
-              <div key={platform} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium capitalize">{platform.replace('_', ' ')}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {isConnected ? 'Connected' : 'Not connected'}
-                  </p>
-                </div>
-                <Badge variant={isConnected ? 'success' : 'outline'}>
-                  {isConnected ? 'Connected' : 'Disconnected'}
-                </Badge>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-
-      {/* Agent Guardrails */}
-      <GuardrailsPanel />
-
-      <Card>
-        <h3 className="text-sm font-semibold mb-4">{t.settingsPage.notificationPreferences}</h3>
-        <div className="space-y-3">
-          {[
-            { key: 'anomaly_alerts', label: t.settingsPage.anomalyAlerts, desc: t.settingsPage.anomalyAlertsDesc },
-            { key: 'daily_digest', label: t.settingsPage.dailyDigest, desc: t.settingsPage.dailyDigestDesc },
-            { key: 'campaign_updates', label: t.settingsPage.campaignUpdates, desc: t.settingsPage.campaignUpdatesDesc },
-            { key: 'agent_errors', label: t.settingsPage.agentErrors, desc: t.settingsPage.agentErrorsDesc },
-          ].map((pref) => (
-            <div key={pref.key} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-              <div>
-                <p className="text-sm font-medium">{pref.label}</p>
-                <p className="text-xs text-muted-foreground">{pref.desc}</p>
-              </div>
-              <label className="relative inline-flex cursor-pointer items-center">
-                <input
-                  type="checkbox"
-                  checked={notificationPrefs[pref.key] ?? tenant?.notification_preferences?.[pref.key] ?? true}
-                  onChange={(e) => setNotificationPrefs({ ...notificationPrefs, [pref.key]: e.target.checked })}
-                  className="peer sr-only"
-                />
-                <div className="h-6 w-11 rounded-full bg-secondary peer-checked:bg-primary transition-colors after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:after:translate-x-full" />
-              </label>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={updateMutation.isPending}>
-          {updateMutation.isPending ? t.settingsPage.saving : t.settingsPage.saveSettings}
-        </Button>
+      {/* Tab Navigation */}
+      <div className="flex gap-1 rounded-lg border border-border bg-secondary/50 p-1">
+        {TABS.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* AI Models (enterprise only) */}
-      {tenant?.plan === 'enterprise' && <AiModelsPanel />}
+      {/* General Tab */}
+      {activeTab === 'general' && (
+        <>
+          <Card>
+            <h3 className="text-sm font-semibold mb-4">{t.settingsPage.organization}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">{t.settingsPage.companyName}</label>
+                <input
+                  type="text"
+                  value={(form.company_name as string) ?? tenant?.company_name ?? ''}
+                  onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+                  className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">{t.settingsPage.website}</label>
+                <input
+                  type="url"
+                  value={(form.website as string) ?? tenant?.website ?? ''}
+                  onChange={(e) => setForm({ ...form, website: e.target.value })}
+                  className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">{t.settingsPage.industry}</label>
+                <input
+                  type="text"
+                  value={(form.industry as string) ?? tenant?.industry ?? ''}
+                  onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                  className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-sm font-semibold mb-4">{t.settingsPage.subscription}</h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm">{t.settingsPage.currentPlan}</p>
+                <p className="mt-1 text-lg font-bold capitalize">{tenant?.plan_tier ?? 'starter'}</p>
+              </div>
+              <Badge variant={tenant?.status === 'active' ? 'success' : 'warning'}>
+                {tenant?.status ?? 'unknown'}
+              </Badge>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div>
+                <p className="text-xs text-muted-foreground">{t.settingsPage.maxAgents}</p>
+                <p className="text-sm font-medium">{tenant?.config?.max_agents ?? 'Unlimited'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t.settingsPage.maxCampaigns}</p>
+                <p className="text-sm font-medium">{tenant?.config?.max_campaigns ?? 'Unlimited'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t.settingsPage.apiRateLimit}</p>
+                <p className="text-sm font-medium">{tenant?.config?.rate_limit ?? '100'}/min</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{t.settingsPage.created}</p>
+                <p className="text-sm font-medium">{tenant?.created_at ? new Date(tenant.created_at).toLocaleDateString() : 'N/A'}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-sm font-semibold mb-4">{t.settingsPage.oauthIntegrations}</h3>
+            <div className="space-y-3">
+              {['google_ads', 'meta_ads', 'tiktok_ads', 'linkedin_ads'].map((platform) => {
+                const isConnected = tenant?.oauth_tokens?.[platform]?.access_token;
+                return (
+                  <div key={platform} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium capitalize">{platform.replace('_', ' ')}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {isConnected ? 'Connected' : 'Not connected'}
+                      </p>
+                    </div>
+                    <Badge variant={isConnected ? 'success' : 'outline'}>
+                      {isConnected ? 'Connected' : 'Disconnected'}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          <GuardrailsPanel />
+
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? t.settingsPage.saving : t.settingsPage.saveSettings}
+            </Button>
+          </div>
+
+          {tenant?.plan === 'enterprise' && <AiModelsPanel />}
+        </>
+      )}
+
+      {/* Team Tab */}
+      {activeTab === 'team' && <TeamPanel />}
+
+      {/* API Keys Tab */}
+      {activeTab === 'api-keys' && <ApiKeysPanel />}
+
+      {/* Notifications Tab */}
+      {activeTab === 'notifications' && (
+        <>
+          <Card>
+            <h3 className="text-sm font-semibold mb-4">{t.settingsPage.notificationPreferences}</h3>
+            <div className="space-y-3">
+              {[
+                { key: 'anomaly_alerts', label: t.settingsPage.anomalyAlerts, desc: t.settingsPage.anomalyAlertsDesc },
+                { key: 'daily_digest', label: t.settingsPage.dailyDigest, desc: t.settingsPage.dailyDigestDesc },
+                { key: 'campaign_updates', label: t.settingsPage.campaignUpdates, desc: t.settingsPage.campaignUpdatesDesc },
+                { key: 'agent_errors', label: t.settingsPage.agentErrors, desc: t.settingsPage.agentErrorsDesc },
+              ].map((pref) => (
+                <div key={pref.key} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium">{pref.label}</p>
+                    <p className="text-xs text-muted-foreground">{pref.desc}</p>
+                  </div>
+                  <label className="relative inline-flex cursor-pointer items-center">
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs[pref.key] ?? tenant?.notification_preferences?.[pref.key] ?? true}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, [pref.key]: e.target.checked })}
+                      className="peer sr-only"
+                    />
+                    <div className="h-6 w-11 rounded-full bg-secondary peer-checked:bg-primary transition-colors after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:after:translate-x-full" />
+                  </label>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? t.settingsPage.saving : t.settingsPage.saveSettings}
+            </Button>
+          </div>
+        </>
+      )}
+
+      {/* Danger Zone Tab */}
+      {activeTab === 'danger' && (
+        <Card className="border-red-500/30">
+          <h3 className="text-sm font-semibold text-red-400 mb-4 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" /> Danger Zone
+          </h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border border-red-500/20 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">Export All Data</p>
+                <p className="text-xs text-muted-foreground">Download all your data as a JSON archive</p>
+              </div>
+              <Button size="sm" variant="outline">Export</Button>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-red-500/20 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">Pause All Agents</p>
+                <p className="text-xs text-muted-foreground">Immediately stop all agent activity</p>
+              </div>
+              <Button size="sm" variant="destructive" onClick={() => api.emergencyStop()}>
+                Emergency Stop
+              </Button>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-red-500/20 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-red-400">Delete Account</p>
+                <p className="text-xs text-muted-foreground">Permanently delete your account and all associated data</p>
+              </div>
+              <Button size="sm" variant="destructive" disabled>
+                Delete Account
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

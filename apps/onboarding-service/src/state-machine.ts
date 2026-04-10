@@ -1,7 +1,8 @@
 import type { OnboardingState } from '@nexuszero/shared';
+import { createLogger } from '@nexuszero/shared';
 import { getDb, tenants, agents, oauthTokens } from '@nexuszero/db';
 import { eq } from 'drizzle-orm';
-import { publishOnboardingStep, publishWebhookEvent, publishAgentTask, publishAuditEvent } from '@nexuszero/queue';
+import { publishOnboardingStep, publishWebhookEvent, publishAgentTask, publishAuditEvent, publishWsEvent } from '@nexuszero/queue';
 import { KAFKA_TOPICS } from '@nexuszero/shared';
 import { randomUUID } from 'node:crypto';
 
@@ -10,17 +11,27 @@ const STATE_TRANSITIONS: Record<OnboardingState, OnboardingState[]> = {
   created: ['shadow_auditing'],
   shadow_auditing: ['shadow_complete', 'failed'],
   shadow_complete: ['oauth_connecting'],
-  oauth_connecting: ['oauth_connected', 'failed'],
+  oauth_connecting: ['oauth_connected', 'shadow_complete', 'failed'],
   oauth_connected: ['auditing'],
-  auditing: ['audit_complete', 'failed'],
+  auditing: ['audit_complete', 'oauth_connected', 'failed'],
   audit_complete: ['provisioning'],
-  provisioning: ['provisioned', 'failed'],
+  provisioning: ['provisioned', 'audit_complete', 'failed'],
   provisioned: ['strategy_generating'],
-  strategy_generating: ['strategy_ready', 'failed'],
-  strategy_ready: ['going_live'],
-  going_live: ['active', 'failed'],
+  strategy_generating: ['strategy_ready', 'provisioned', 'failed'],
+  strategy_ready: ['going_live', 'strategy_generating'],
+  going_live: ['active', 'strategy_ready', 'failed'],
   active: [],
   failed: ['created'], // Allow restart from failed
+};
+
+/** Map each state to the previous safe step-back target */
+const STEP_BACK_TARGETS: Partial<Record<OnboardingState, OnboardingState>> = {
+  oauth_connecting: 'shadow_complete',
+  auditing: 'oauth_connected',
+  provisioning: 'audit_complete',
+  strategy_generating: 'provisioned',
+  strategy_ready: 'strategy_generating',
+  going_live: 'strategy_ready',
 };
 
 const ORDERED_STATES: OnboardingState[] = [
@@ -30,6 +41,8 @@ const ORDERED_STATES: OnboardingState[] = [
 ];
 
 export class OnboardingStateMachine {
+  private readonly log = createLogger('onboarding-service');
+
   constructor(private readonly tenantId: string) {}
 
   /** Get onboarding progress */
@@ -191,6 +204,63 @@ export class OnboardingStateMachine {
     );
   }
 
+  /** Step back to the previous safe state */
+  async stepBack(): Promise<{ previousState: string; newState: string }> {
+    const db = getDb();
+    const [tenant] = await db.select({ onboardingState: tenants.onboardingState })
+      .from(tenants).where(eq(tenants.id, this.tenantId)).limit(1);
+
+    if (!tenant) throw new Error(`Tenant ${this.tenantId} not found`);
+
+    const currentState = tenant.onboardingState as OnboardingState;
+    const target = STEP_BACK_TARGETS[currentState];
+
+    if (!target) {
+      throw new Error(`Cannot step back from state: ${currentState}`);
+    }
+
+    await this.transitionTo(target);
+
+    this.log.info('Step back', { tenantId: this.tenantId, from: currentState, to: target });
+
+    return { previousState: currentState, newState: target };
+  }
+
+  /** Pause onboarding — sets paused flag, cron triggers skip paused tenants */
+  async pause(): Promise<void> {
+    const db = getDb();
+    const [tenant] = await db.select({ onboardingState: tenants.onboardingState })
+      .from(tenants).where(eq(tenants.id, this.tenantId)).limit(1);
+
+    if (!tenant) throw new Error(`Tenant ${this.tenantId} not found`);
+    if (tenant.onboardingState === 'active') throw new Error('Cannot pause — onboarding already complete');
+
+    await db.update(tenants).set({
+      metadata: { onboardingPaused: true, pausedAt: new Date().toISOString() },
+      updatedAt: new Date(),
+    }).where(eq(tenants.id, this.tenantId));
+
+    publishWsEvent(this.tenantId, 'onboarding:progress', 'paused', { state: tenant.onboardingState });
+    this.log.info('Onboarding paused', { tenantId: this.tenantId });
+  }
+
+  /** Resume paused onboarding */
+  async resume(): Promise<void> {
+    const db = getDb();
+    const [tenant] = await db.select({ onboardingState: tenants.onboardingState })
+      .from(tenants).where(eq(tenants.id, this.tenantId)).limit(1);
+
+    if (!tenant) throw new Error(`Tenant ${this.tenantId} not found`);
+
+    await db.update(tenants).set({
+      metadata: { onboardingPaused: false, resumedAt: new Date().toISOString() },
+      updatedAt: new Date(),
+    }).where(eq(tenants.id, this.tenantId));
+
+    publishWsEvent(this.tenantId, 'onboarding:progress', 'resumed', { state: tenant.onboardingState });
+    this.log.info('Onboarding resumed', { tenantId: this.tenantId });
+  }
+
   /** Transition to a new onboarding state */
   private async transitionTo(newState: OnboardingState) {
     const db = getDb();
@@ -219,7 +289,14 @@ export class OnboardingStateMachine {
       newState,
     });
 
-    console.log(`Tenant ${this.tenantId}: ${currentState} -> ${newState}`);
+    // Push real-time onboarding progress to dashboard via WebSocket
+    publishWsEvent(this.tenantId, 'onboarding:progress', 'state_changed', {
+      previousState: currentState,
+      newState,
+      progress: this.getProgress(newState),
+    });
+
+    this.log.info('State transition', { tenantId: this.tenantId, from: currentState, to: newState });
   }
 
   /**

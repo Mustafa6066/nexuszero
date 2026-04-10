@@ -77,7 +77,49 @@ export class Scheduler {
       cron.schedule('0 9 * * 1', safe('scheduleWeeklyContent', () => this.scheduleWeeklyContent()), { timezone: 'UTC' }),
     );
 
-    console.log(JSON.stringify({ level: 'info', msg: 'Scheduler started', jobs: 12 }));
+    // ─── Marketing Skills Scheduled Tasks ────────────────────────────
+
+    // Content Attack Brief — weekly (Sunday 22:00 UTC)
+    this.jobs.push(
+      cron.schedule('0 22 * * 0', safe('scheduleContentAttackBrief', () => this.scheduleContentAttackBrief()), { timezone: 'UTC' }),
+    );
+
+    // GSC Optimization — daily at 06:00 UTC
+    this.jobs.push(
+      cron.schedule('0 6 * * *', safe('scheduleGscOptimization', () => this.scheduleGscOptimization()), { timezone: 'UTC' }),
+    );
+
+    // Trend Scouting — Tuesday & Friday 10:00 UTC
+    this.jobs.push(
+      cron.schedule('0 10 * * 2,5', safe('scheduleTrendScouting', () => this.scheduleTrendScouting()), { timezone: 'UTC' }),
+    );
+
+    // Experiment scoring — every 6 hours
+    this.jobs.push(
+      cron.schedule('0 */6 * * *', safe('scheduleExperimentScoring', () => this.scheduleExperimentScoring()), { timezone: 'UTC' }),
+    );
+
+    // Weekly scorecard — Monday 08:00 UTC
+    this.jobs.push(
+      cron.schedule('0 8 * * 1', safe('scheduleWeeklyScorecard', () => this.scheduleWeeklyScorecard()), { timezone: 'UTC' }),
+    );
+
+    // Pacing alerts — daily at 14:00 UTC
+    this.jobs.push(
+      cron.schedule('0 14 * * *', safe('schedulePacingAlert', () => this.schedulePacingAlert()), { timezone: 'UTC' }),
+    );
+
+    // YT Competitive analysis — Sunday 15:00 UTC
+    this.jobs.push(
+      cron.schedule('0 15 * * 0', safe('scheduleYtCompetitive', () => this.scheduleYtCompetitive()), { timezone: 'UTC' }),
+    );
+
+    // CFO Briefing — 1st of month, 09:00 UTC (enterprise)
+    this.jobs.push(
+      cron.schedule('0 9 1 * *', safe('scheduleCfoBriefing', () => this.scheduleCfoBriefing()), { timezone: 'UTC' }),
+    );
+
+    console.log(JSON.stringify({ level: 'info', msg: 'Scheduler started', jobs: 20 }));
   }
 
   stop() {
@@ -135,8 +177,8 @@ export class Scheduler {
       await publishAgentTask({
         id: randomUUID(),
         tenantId: tenant.id,
-        agentType: 'ad',
-        type: 'check_fatigue',
+        agentType: 'creative',
+        type: 'fatigue_detection',
         priority: 'medium',
         input: { scheduled: true },
       });
@@ -258,6 +300,130 @@ export class Scheduler {
             tenantId: tenant.id,
             brief: { topic: 'weekly industry insights', tone: 'professional', useWebSearch: true },
           },
+        });
+      }
+    }
+  }
+
+  // ─── Marketing Skills Scheduled Methods ─────────────────────────
+
+  private async scheduleContentAttackBrief() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      if (tenant.plan === 'growth' || tenant.plan === 'enterprise') {
+        await publishAgentTask({
+          id: randomUUID(),
+          tenantId: tenant.id,
+          agentType: 'seo',
+          type: 'content_attack_brief',
+          priority: 'medium',
+          input: { scheduled: true },
+        });
+      }
+    }
+  }
+
+  private async scheduleGscOptimization() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      if (tenant.plan === 'growth' || tenant.plan === 'enterprise') {
+        await publishAgentTask({
+          id: randomUUID(),
+          tenantId: tenant.id,
+          agentType: 'seo',
+          type: 'gsc_optimization',
+          priority: 'low',
+          input: { scheduled: true },
+        });
+      }
+    }
+  }
+
+  private async scheduleTrendScouting() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      if (tenant.plan === 'growth' || tenant.plan === 'enterprise') {
+        await publishAgentTask({
+          id: randomUUID(),
+          tenantId: tenant.id,
+          agentType: 'seo',
+          type: 'trend_scouting',
+          priority: 'medium',
+          input: { scheduled: true },
+        });
+      }
+    }
+  }
+
+  private async scheduleExperimentScoring() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      await publishAgentTask({
+        id: randomUUID(),
+        tenantId: tenant.id,
+        agentType: 'data-nexus',
+        type: 'experiment_score',
+        priority: 'medium',
+        input: { scheduled: true, action: 'evaluate' },
+      });
+    }
+  }
+
+  private async scheduleWeeklyScorecard() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      await publishAgentTask({
+        id: randomUUID(),
+        tenantId: tenant.id,
+        agentType: 'data-nexus',
+        type: 'weekly_scorecard',
+        priority: 'medium',
+        input: { scheduled: true },
+      });
+    }
+  }
+
+  private async schedulePacingAlert() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      await publishAgentTask({
+        id: randomUUID(),
+        tenantId: tenant.id,
+        agentType: 'data-nexus',
+        type: 'pacing_alert',
+        priority: 'high',
+        input: { scheduled: true },
+      });
+    }
+  }
+
+  private async scheduleYtCompetitive() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      if (tenant.plan === 'growth' || tenant.plan === 'enterprise') {
+        await publishAgentTask({
+          id: randomUUID(),
+          tenantId: tenant.id,
+          agentType: 'social',
+          type: 'yt_competitive_analysis',
+          priority: 'low',
+          input: { scheduled: true },
+        });
+      }
+    }
+  }
+
+  private async scheduleCfoBriefing() {
+    const activeTenants = await this.getActiveTenants();
+    for (const tenant of activeTenants) {
+      if (tenant.plan === 'enterprise') {
+        await publishAgentTask({
+          id: randomUUID(),
+          tenantId: tenant.id,
+          agentType: 'finance',
+          type: 'cfo_briefing',
+          priority: 'low',
+          input: { scheduled: true, period: 'monthly' },
         });
       }
     }

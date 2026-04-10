@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Card, Badge } from '@/components/ui';
+import { Card, Badge, Button } from '@/components/ui';
 import { useLang } from '@/app/providers';
-import { BarChart3, TrendingUp, Zap, Brain, Calendar, AlertTriangle } from 'lucide-react';
+import { BarChart3, TrendingUp, Zap, Brain, Calendar, AlertTriangle, Search, Settings, Filter } from 'lucide-react';
 
 const CATEGORY_ICONS: Record<string, typeof Brain> = {
   optimization: Zap,
@@ -14,15 +14,40 @@ const CATEGORY_ICONS: Record<string, typeof Brain> = {
   alert: AlertTriangle,
 };
 
+const DIGEST_CATEGORIES = ['optimization', 'creation', 'analysis', 'alert'] as const;
+const AGENT_TYPES = ['seo', 'ad', 'content', 'social', 'reddit', 'geo', 'aeo', 'creative', 'data-nexus'] as const;
+
 export default function DigestPage() {
   const { t } = useLang();
   const [days, setDays] = useState(7);
+  const [showPrefs, setShowPrefs] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [enabledCategories, setEnabledCategories] = useState<Set<string>>(new Set(DIGEST_CATEGORIES));
+  const [enabledAgents, setEnabledAgents] = useState<Set<string>>(new Set(AGENT_TYPES));
 
   const { data: digest, isLoading } = useQuery({
     queryKey: ['weekly-digest', days],
     queryFn: () => api.getWeeklyDigest(days),
     refetchOnWindowFocus: false,
   });
+
+  const filteredHighlights = useMemo(() => {
+    if (!digest?.highlights) return [];
+    let items = digest.highlights as any[];
+    if (categoryFilter) items = items.filter((h: any) => h.category === categoryFilter);
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      items = items.filter((h: any) =>
+        (h.reasoning ?? '').toLowerCase().includes(q) ||
+        (h.actionType ?? '').toLowerCase().includes(q) ||
+        (h.category ?? '').toLowerCase().includes(q) ||
+        (h.impactMetric ?? '').toLowerCase().includes(q)
+      );
+    }
+    items = items.filter((h: any) => enabledCategories.has(h.category));
+    return items;
+  }, [digest, categoryFilter, searchQuery, enabledCategories]);
 
   return (
     <div className="space-y-6">
@@ -34,6 +59,13 @@ export default function DigestPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowPrefs(v => !v)}
+            className={`p-1.5 rounded-lg transition-colors ${showPrefs ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'}`}
+            title="Digest Preferences"
+          >
+            <Settings size={14} />
+          </button>
           {[7, 14, 30].map((d) => (
             <button
               key={d}
@@ -47,6 +79,57 @@ export default function DigestPage() {
           ))}
         </div>
       </div>
+
+      {/* Digest Preferences */}
+      {showPrefs && (
+        <Card className="p-4 space-y-4">
+          <h3 className="font-semibold text-sm">Digest Preferences</h3>
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">Categories to include:</p>
+            <div className="flex flex-wrap gap-2">
+              {DIGEST_CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setEnabledCategories(prev => {
+                    const next = new Set(prev);
+                    next.has(cat) ? next.delete(cat) : next.add(cat);
+                    return next;
+                  })}
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors capitalize ${
+                    enabledCategories.has(cat)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-muted-foreground'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">Agents to include:</p>
+            <div className="flex flex-wrap gap-2">
+              {AGENT_TYPES.map(agent => (
+                <button
+                  key={agent}
+                  onClick={() => setEnabledAgents(prev => {
+                    const next = new Set(prev);
+                    next.has(agent) ? next.delete(agent) : next.add(agent);
+                    return next;
+                  })}
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors capitalize ${
+                    enabledAgents.has(agent)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-muted-foreground'
+                  }`}
+                >
+                  {agent.replace(/-/g, ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -115,12 +198,38 @@ export default function DigestPage() {
             </div>
           </Card>
 
-          {/* Highlights */}
+          {/* Highlights / Searchable Archive */}
           {digest.highlights?.length > 0 && (
             <Card>
-              <h3 className="text-sm font-semibold mb-3">{t.digest?.highlights || 'Top Highlights'}</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">{t.digest?.highlights || 'Activity Archive'}</h3>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      className="pl-7 pr-2 py-1 rounded-md border text-xs bg-background w-40"
+                      placeholder="Search highlights..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <select
+                    className="text-xs rounded-md border px-2 py-1 bg-background"
+                    value={categoryFilter}
+                    onChange={e => setCategoryFilter(e.target.value)}
+                  >
+                    <option value="">All categories</option>
+                    {DIGEST_CATEGORIES.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {filteredHighlights.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">No highlights match your filters.</p>
+              ) : (
               <div className="space-y-3">
-                {digest.highlights.map((h: any, i: number) => (
+                {filteredHighlights.map((h: any, i: number) => (
                   <div key={i} className="rounded-xl bg-secondary/30 p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant={h.category === 'alert' ? 'warning' : h.category === 'optimization' ? 'success' : 'outline'}>
@@ -142,6 +251,7 @@ export default function DigestPage() {
                   </div>
                 ))}
               </div>
+              )}
             </Card>
           )}
         </>

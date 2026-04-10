@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { withTenantDb, campaigns, campaignVersions } from '@nexuszero/db';
 import { createCampaignSchema, updateCampaignSchema, campaignFiltersSchema, AppError } from '@nexuszero/shared';
-import { eq, and, ilike, sql, asc, desc, max } from 'drizzle-orm';
+import { eq, and, ilike, sql, asc, desc, max, inArray } from 'drizzle-orm';
 
 const SORT_COLUMNS: Record<string, any> = {
   name: campaigns.name,
@@ -261,6 +261,49 @@ app.post('/:id/rollback/:versionId', async (c) => {
       .returning();
 
     return c.json({ restored, fromVersion: version.version });
+  });
+});
+
+// POST /campaigns/bulk/status — bulk update campaign status
+app.post('/bulk/status', async (c) => {
+  const tenantId = c.get('tenantId');
+  const { ids, status } = await c.req.json();
+  const validStatuses = ['active', 'paused', 'draft', 'completed'];
+
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100) {
+    throw new AppError('VALIDATION_ERROR', { reason: 'ids must be an array of 1-100 items' });
+  }
+  if (!validStatuses.includes(status)) {
+    throw new AppError('VALIDATION_ERROR', { reason: `status must be one of: ${validStatuses.join(', ')}` });
+  }
+
+  return withTenantDb(tenantId, async (db) => {
+    const updated = await db.update(campaigns)
+      .set({ status, updatedAt: new Date() })
+      .where(and(inArray(campaigns.id, ids), eq(campaigns.tenantId, tenantId)))
+      .returning({ id: campaigns.id, status: campaigns.status });
+    return c.json({ updated: updated.length, items: updated });
+  });
+});
+
+// POST /campaigns/bulk/delete — bulk delete campaigns
+app.post('/bulk/delete', async (c) => {
+  const tenantId = c.get('tenantId');
+  const user = c.get('user');
+  const { ids } = await c.req.json();
+
+  if (user.role !== 'owner' && user.role !== 'admin') {
+    throw new AppError('AUTH_INSUFFICIENT_PERMISSIONS');
+  }
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100) {
+    throw new AppError('VALIDATION_ERROR', { reason: 'ids must be an array of 1-100 items' });
+  }
+
+  return withTenantDb(tenantId, async (db) => {
+    const deleted = await db.delete(campaigns)
+      .where(and(inArray(campaigns.id, ids), eq(campaigns.tenantId, tenantId)))
+      .returning({ id: campaigns.id });
+    return c.json({ deleted: deleted.length });
   });
 });
 

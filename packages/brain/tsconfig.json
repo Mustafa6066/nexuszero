@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "paths": {
+      "@nexuszero/db": ["packages/db/dist/index.d.ts"],
+      "@nexuszero/llm-router": ["packages/llm-router/dist/index.d.ts"],
+      "@nexuszero/queue": ["packages/queue/dist/index.d.ts"],
+      "@nexuszero/shared": ["packages/shared/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

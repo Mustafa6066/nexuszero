@@ -10,7 +10,7 @@ import { useAssistantVisibility } from '@/hooks/use-assistant';
 import {
   LayoutDashboard, BarChart3, Bot, Megaphone, Palette,
   Globe, Webhook, Settings, Plug, Sun, Moon, LogOut, ScanSearch, ShieldCheck, Newspaper,
-  MessageCircle, Rss, PenTool, MapPin,
+  MessageCircle, Rss, PenTool, MapPin, AlertTriangle, Bell, Target,
 } from 'lucide-react';
 import { NexusIconInline } from './assistant/nexus-icon';
 import { NotificationTray } from './notification-tray';
@@ -34,6 +34,9 @@ function useNavItems() {
     { href: '/dashboard/content', icon: PenTool, label: 'Content' },
     { href: '/dashboard/geo', icon: MapPin, label: 'GEO' },
     { href: '/dashboard/webhooks', icon: Webhook, label: t.sidebar.webhooks },
+    { href: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
+    { href: '/dashboard/strategy', icon: Target, label: 'Strategy' },
+    { href: '/dashboard/dlq', icon: AlertTriangle, label: 'DLQ' },
     { href: '/dashboard/settings', icon: Settings, label: t.sidebar.settings },
   ], [t]);
 }

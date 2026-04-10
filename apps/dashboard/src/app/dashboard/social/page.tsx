@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button, MetricCard } from '@/components/ui';
 import { TierGateOverlay } from '@/components/tier-gate-overlay';
+import { TrendingUp, TrendingDown, Minus, BarChart3 } from 'lucide-react';
 
 const PLATFORM_LABELS: Record<string, string> = {
   twitter: 'Twitter/X',
@@ -66,6 +67,44 @@ export default function SocialPage() {
   const twitterCount = mentions.filter((m: any) => m.platform === 'twitter').length;
   const hnCount = mentions.filter((m: any) => m.platform === 'hackernews').length;
 
+  const trendAnalysis = useMemo(() => {
+    const sentimentByPlatform: Record<string, { positive: number; negative: number; neutral: number; total: number }> = {};
+    mentions.forEach((m: any) => {
+      const p = m.platform || 'unknown';
+      if (!sentimentByPlatform[p]) sentimentByPlatform[p] = { positive: 0, negative: 0, neutral: 0, total: 0 };
+      sentimentByPlatform[p].total++;
+      if (m.sentiment === 'positive') sentimentByPlatform[p].positive++;
+      else if (m.sentiment === 'negative') sentimentByPlatform[p].negative++;
+      else sentimentByPlatform[p].neutral++;
+    });
+
+    const keywordFrequency: Record<string, number> = {};
+    mentions.forEach((m: any) => {
+      const words = (m.content ?? '').toLowerCase().split(/\s+/);
+      words.forEach((w: string) => {
+        if (w.length > 4) keywordFrequency[w] = (keywordFrequency[w] ?? 0) + 1;
+      });
+    });
+    const trendingKeywords = Object.entries(keywordFrequency)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 8)
+      .map(([word, count]) => ({ word, count }));
+
+    return { sentimentByPlatform, trendingKeywords };
+  }, [mentions]);
+
+  const platformComparison = useMemo(() => {
+    const platforms = ['twitter', 'hackernews', 'youtube'] as const;
+    return platforms.map(p => {
+      const pMentions = mentions.filter((m: any) => m.platform === p);
+      const avgEngagement = pMentions.length
+        ? (pMentions.reduce((s: number, m: any) => s + (m.engagementScore ?? 0), 0) / pMentions.length).toFixed(1)
+        : '0';
+      const positive = pMentions.filter((m: any) => m.sentiment === 'positive').length;
+      return { platform: p, label: PLATFORM_LABELS[p], count: pMentions.length, avgEngagement, positive };
+    });
+  }, [mentions]);
+
   return (
     <TierGateOverlay requiredTier="growth" feature="Social Listening">
       <div className="p-6 space-y-6">
@@ -84,6 +123,81 @@ export default function SocialPage() {
           <MetricCard title="Positive" value={String(positiveMentions)} />
           <MetricCard title="Twitter/X" value={String(twitterCount)} />
           <MetricCard title="Hacker News" value={String(hnCount)} />
+        </div>
+
+        {/* Trend Analysis & Platform Comparison */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="p-4">
+            <h2 className="font-semibold text-sm mb-3">Trending Keywords</h2>
+            {trendAnalysis.trendingKeywords.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No mentions yet to analyze trends.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {trendAnalysis.trendingKeywords.map(({ word, count }) => (
+                  <span
+                    key={word}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
+                  >
+                    {word}
+                    <span className="text-[10px] text-muted-foreground">({count})</span>
+                  </span>
+                ))}
+              </div>
+            )}
+            {Object.keys(trendAnalysis.sentimentByPlatform).length > 0 && (
+              <div className="mt-4 space-y-2">
+                <h3 className="text-xs font-medium text-muted-foreground">Sentiment by Platform</h3>
+                {Object.entries(trendAnalysis.sentimentByPlatform).map(([platform, data]) => {
+                  const posPct = data.total > 0 ? (data.positive / data.total * 100).toFixed(0) : '0';
+                  return (
+                    <div key={platform} className="flex items-center gap-2">
+                      <span className="text-xs w-20 capitalize">{PLATFORM_LABELS[platform] ?? platform}</span>
+                      <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden flex">
+                        <div className="h-full bg-green-500" style={{ width: `${data.positive / (data.total || 1) * 100}%` }} />
+                        <div className="h-full bg-yellow-500" style={{ width: `${data.neutral / (data.total || 1) * 100}%` }} />
+                        <div className="h-full bg-red-500" style={{ width: `${data.negative / (data.total || 1) * 100}%` }} />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground w-8 text-right">{posPct}%+</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart3 size={14} className="text-muted-foreground" />
+              <h2 className="font-semibold text-sm">Platform Comparison</h2>
+            </div>
+            <div className="space-y-3">
+              {platformComparison.map(p => (
+                <div key={p.platform} className="flex items-center gap-3 p-2 rounded-lg bg-muted/20">
+                  <div className="w-24">
+                    <p className="text-sm font-medium">{p.label}</p>
+                    <p className="text-xs text-muted-foreground">{p.count} mentions</p>
+                  </div>
+                  <div className="flex-1 grid grid-cols-2 gap-2 text-center">
+                    <div>
+                      <p className="text-sm font-bold">{p.avgEngagement}</p>
+                      <p className="text-[10px] text-muted-foreground">Avg Engagement</p>
+                    </div>
+                    <div className="flex items-center justify-center gap-1">
+                      {p.positive > p.count / 2 ? (
+                        <TrendingUp size={12} className="text-green-500" />
+                      ) : p.positive < p.count / 3 ? (
+                        <TrendingDown size={12} className="text-red-500" />
+                      ) : (
+                        <Minus size={12} className="text-yellow-500" />
+                      )}
+                      <p className="text-sm font-bold">{p.count ? ((p.positive / p.count) * 100).toFixed(0) : 0}%</p>
+                      <p className="text-[10px] text-muted-foreground">Positive</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-4">

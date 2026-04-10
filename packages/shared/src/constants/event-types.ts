@@ -62,6 +62,10 @@ export const QUEUE_NAMES = {
   SOCIAL_TASKS: 'social-tasks',
   CONTENT_TASKS: 'content-tasks',
   GEO_TASKS: 'geo-tasks',
+  SALES_PIPELINE_TASKS: 'sales-pipeline-tasks',
+  OUTBOUND_TASKS: 'outbound-tasks',
+  FINANCE_TASKS: 'finance-tasks',
+  PODCAST_TASKS: 'podcast-tasks',
 
   /** Get tenant-scoped queue name (use '.' — BullMQ forbids ':' in names) */
   forTenant: (baseQueue: string, tenantId: string) => `${baseQueue}.${tenantId}`,

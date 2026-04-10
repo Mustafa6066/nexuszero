@@ -16,6 +16,10 @@ export function getAllTenantQueues(tenantId: string): Record<string, string> {
     data: getTenantQueue(QUEUE_NAMES.DATA_TASKS, tenantId),
     aeo: getTenantQueue(QUEUE_NAMES.AEO_TASKS, tenantId),
     compatibility: getTenantQueue(QUEUE_NAMES.COMPATIBILITY_TASKS, tenantId),
+    salesPipeline: getTenantQueue(QUEUE_NAMES.SALES_PIPELINE_TASKS, tenantId),
+    outbound: getTenantQueue(QUEUE_NAMES.OUTBOUND_TASKS, tenantId),
+    finance: getTenantQueue(QUEUE_NAMES.FINANCE_TASKS, tenantId),
+    podcast: getTenantQueue(QUEUE_NAMES.PODCAST_TASKS, tenantId),
   };
 }
 

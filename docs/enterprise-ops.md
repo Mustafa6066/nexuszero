@@ -32,6 +32,15 @@ This document describes the enterprise runtime additions introduced for NexusZer
   - set `DB_ENFORCE_RLS=true`
 - If the role is not provisioned yet, leave `DATABASE_APP_ROLE` empty. Requests will continue to use tenant-scoped query filters instead of failing every protected route.
 
+## Hybrid Brain Operations
+
+- The Hybrid Brain is embedded inside `apps/orchestrator` through the `@nexuszero/brain` package rather than deployed as a standalone service.
+- Scheduled brain ticks are allowlisted through orchestrator rollout settings such as `BRAIN_TENANT_IDS`.
+- The orchestrator Kafka poller now doubles as the Brain's signal ingress path for tenant perception updates.
+- Redis is part of the Brain control plane now and stores missions, reaction logs, rollback plans, decision records, and short-lived intelligence caches.
+- Recommended rollout path: enable the Brain for a small tenant allowlist first, watch mission/reaction behavior, then expand coverage.
+- Detailed package internals, state contracts, and Brain-specific validation are documented in [hybrid-brain.md](hybrid-brain.md).
+
 ## Terraform
 
 The foundational IaC is under `terraform/`.
@@ -89,6 +98,9 @@ corepack pnpm --filter @nexuszero/shared build
 corepack pnpm exec vitest run packages/db/src/client.test.ts packages/queue/src/kafka-client.test.ts packages/queue/src/producers.test.ts packages/shared/src/utils/mena.test.ts apps/api-gateway/tests/tenant-isolation.test.ts apps/api-gateway/tests/intelligence-summary.test.ts apps/api-gateway/tests/gateway.test.ts apps/api-gateway/tests/assistant-language.test.ts apps/api-gateway/tests/assistant-chat.test.ts apps/onboarding-service/src/worker.test.ts apps/orchestrator/src/task-router.test.ts apps/orchestrator/tests/index.test.ts apps/webhook-service/tests/index.test.ts apps/compatibility-agent/tests/index.test.ts apps/agents/seo-agent/src/llm.test.ts
 corepack pnpm --filter @nexuszero/db build
 corepack pnpm --filter @nexuszero/queue build
+corepack pnpm --filter @nexuszero/brain typecheck
+corepack pnpm --filter @nexuszero/brain test
+corepack pnpm --filter @nexuszero/brain build
 corepack pnpm --filter @nexuszero/api-gateway build
 corepack pnpm --filter @nexuszero/onboarding-service build
 corepack pnpm --filter @nexuszero/orchestrator build

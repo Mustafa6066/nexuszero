@@ -46,3 +46,4 @@ export {
   getPendingApprovals, expireOldApprovals,
 } from './plan-approval.js';
 export type { ApprovalRequest, ApprovalResult } from './plan-approval.js';
+export { publishWsEvent } from './ws-events.js';

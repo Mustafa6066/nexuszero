@@ -4,7 +4,9 @@ import { pathToFileURL } from 'node:url';
 import { WebhookWorker } from './worker.js';
 import { WebhookDispatcher } from './dispatcher.js';
 import { consumeFromKafka } from '@nexuszero/queue';
-import { extractTraceContext, initializeOpenTelemetry, KAFKA_TOPICS, spanKindForMessagingConsumer, withSpan } from '@nexuszero/shared';
+import { extractTraceContext, initializeOpenTelemetry, initSentry, KAFKA_TOPICS, spanKindForMessagingConsumer, withSpan } from '@nexuszero/shared';
+
+initSentry('webhook-service');
 
 export function createApp() {
   const app = new Hono();

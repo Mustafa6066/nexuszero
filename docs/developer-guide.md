@@ -51,6 +51,7 @@ pnpm dev
 # Or start individual services
 pnpm --filter @nexuszero/api-gateway dev
 pnpm --filter @nexuszero/orchestrator dev
+pnpm --filter @nexuszero/brain dev
 pnpm --filter @nexuszero/dashboard dev
 ```
 
@@ -60,7 +61,7 @@ pnpm --filter @nexuszero/dashboard dev
 nexuszero/
 ├── apps/
 │   ├── api-gateway/          # REST + GraphQL API (Hono, port 4000)
-│   ├── orchestrator/         # Task graph, scheduler, signal router (port 4001)
+│   ├── orchestrator/         # Task graph, scheduler, signal router, embedded Brain loop (port 4001)
 │   ├── webhook-service/      # Webhook fan-out and delivery (port 4003)
 │   ├── onboarding-service/   # Tenant onboarding state machine (port 4004)
 │   ├── dashboard/            # Next.js 14 web app (Vercel, port 3000)
@@ -70,8 +71,10 @@ nexuszero/
 │       ├── data-nexus/       # Analytics and data intelligence agent
 │       └── aeo-agent/        # Answer engine optimization agent
 ├── packages/
+│   ├── brain/                # Hybrid Brain reasoning, planning, reactions, missions
 │   ├── shared/               # Types, schemas, utils, constants
 │   ├── queue/                # BullMQ + Kafka client abstraction
+│   ├── llm-router/           # Model routing, usage tracking, budget helpers
 │   └── db/                   # Drizzle ORM, schemas, migrations
 ├── docs/                     # Documentation
 ├── scripts/                  # Setup and utility scripts
@@ -116,6 +119,35 @@ pnpm turbo build
 
 # Build a specific app
 pnpm --filter @nexuszero/api-gateway build
+
+# Build the Hybrid Brain package
+pnpm --filter @nexuszero/brain build
+```
+
+## Hybrid Brain Development
+
+`@nexuszero/brain` is an internal package consumed by the orchestrator rather than a standalone service.
+
+Use [hybrid-brain.md](hybrid-brain.md) for the full control-loop and state-model deep dive.
+
+Key areas:
+
+- `src/brain-loop.ts` - main perceive -> reason -> plan -> react loop
+- `src/perception/` - signal aggregation, fleet state, tenant context assembly
+- `src/reasoning/` - opportunity scoring, blast radius analysis, strategy evaluation
+- `src/planning/` - dynamic DAG creation and rollback planning
+- `src/intelligence/` - signal graph, temporal analysis, prediction, cost, stale detection, expertise mapping
+- `src/reactions/` - configurable reaction engine and escalation handlers
+- `src/missions/` - mission lifecycle FSM
+- `src/context/` - 4-layer prompt assembly for downstream agents
+
+Useful commands:
+
+```bash
+pnpm --filter @nexuszero/brain typecheck
+pnpm --filter @nexuszero/brain test
+pnpm --filter @nexuszero/brain build
+pnpm --filter @nexuszero/brain dev
 ```
 
 ### Enterprise Validation
@@ -125,6 +157,8 @@ Use the targeted release gate when you need to validate tenant isolation, observ
 ```bash
 corepack pnpm --filter @nexuszero/shared build
 corepack pnpm exec vitest run packages/db/src/client.test.ts packages/queue/src/kafka-client.test.ts packages/queue/src/producers.test.ts packages/shared/src/utils/mena.test.ts apps/api-gateway/tests/tenant-isolation.test.ts apps/api-gateway/tests/intelligence-summary.test.ts apps/api-gateway/tests/gateway.test.ts apps/api-gateway/tests/assistant-language.test.ts apps/api-gateway/tests/assistant-chat.test.ts apps/onboarding-service/src/worker.test.ts apps/orchestrator/src/task-router.test.ts apps/orchestrator/tests/index.test.ts apps/webhook-service/tests/index.test.ts apps/compatibility-agent/tests/index.test.ts apps/agents/seo-agent/src/llm.test.ts
+corepack pnpm --filter @nexuszero/brain typecheck
+corepack pnpm --filter @nexuszero/brain test
 ```
 
 ### Database Operations
@@ -151,8 +185,8 @@ pnpm --filter @nexuszero/db db:studio
    - `src/handlers/` — Individual task handlers
 4. Register the agent type in `packages/shared/src/types/agent.ts`
 5. Add queue name in `packages/shared/src/constants/event-types.ts`
-6. Add Kafka signal types in `packages/queue/src/events.ts`
-7. Register routes in orchestrator signal consumer
+6. Add typed signal schemas in `packages/queue/src/signal-schemas.ts`
+7. Register any new signal subscriptions in `AGENT_SIGNAL_SUBSCRIPTIONS` and update orchestrator or Brain routing if the agent participates in cross-agent workflows
 8. Add `railway.toml` for deployment
 
 ## Adding a New API Route
@@ -176,6 +210,10 @@ pnpm --filter @nexuszero/db db:studio
 | `KAFKA_URL` | ✅ | Upstash Kafka REST URL |
 | `KAFKA_USERNAME` |  ✅ | Upstash Kafka username |
 | `KAFKA_PASSWORD` | ✅ | Upstash Kafka password |
+| `KAFKA_POLL_INTERVAL_MS` |  | Orchestrator Kafka poll interval override |
+| `ORCHESTRATOR_INSTANCE_ID` |  | Stable consumer instance label for orchestrator polling |
+| `BRAIN_ENABLED` |  | Gates scheduled Brain loop startup in orchestrator when set to `false` |
+| `BRAIN_TENANT_IDS` |  | Comma-separated tenant IDs to include in scheduled Brain ticks |
 | `CLICKHOUSE_URL` | ✅ | ClickHouse connection URL |
 | `CLICKHOUSE_USER` |  | ClickHouse username (default: `default`) |
 | `CLICKHOUSE_PASSWORD` |  | ClickHouse password |

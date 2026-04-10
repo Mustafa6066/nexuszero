@@ -59,6 +59,9 @@ import { eq, and } from 'drizzle-orm';
 // Rate limits
 import { isNearRateLimit } from './health/rate-limit-tracker.js';
 
+// Migration
+import { buildMigrationPlan, executeMigration } from './migration/migration-engine.js';
+
 import type { Platform } from '@nexuszero/shared';
 
 export class CompatibilityWorker extends BaseAgentWorker {
@@ -140,9 +143,9 @@ export class CompatibilityWorker extends BaseAgentWorker {
       case 'knowledge_search':
         return this.handleKnowledgeSearch(tenantId, payload, job);
 
-      // ── Tool migration (future) ──
+      // ── Tool migration ──
       case 'tool_migration':
-        return { status: 'not_implemented', message: 'Tool migration is planned for a future release' };
+        return this.handleToolMigration(tenantId, payload, job);
 
       default:
         throw new Error(`Unknown compatibility task type: ${taskType}`);
@@ -168,6 +171,10 @@ export class CompatibilityWorker extends BaseAgentWorker {
       platforms: detection.platforms,
       confidence: detection.confidence,
       analyzedAt: detection.analyzedAt,
+      emailPlatforms: detection.emailPlatforms.map((d) => d.platform),
+      paymentProcessors: detection.paymentProcessors.map((d) => d.platform),
+      socialProfiles: detection.socialProfiles,
+      businessType: detection.businessType,
     };
   }
 
@@ -760,5 +767,46 @@ export class CompatibilityWorker extends BaseAgentWorker {
     const all = await listBlueprints();
     await job.updateProgress(100);
     return { results: all };
+  }
+
+  /** Handle tool migration — detect version changes and generate compat wrappers */
+  private async handleToolMigration(
+    tenantId: string,
+    payload: Record<string, unknown>,
+    job: Job<TaskPayload>,
+  ): Promise<Record<string, unknown>> {
+    const integrationId = String(payload.integrationId ?? '');
+    const platform = String(payload.platform ?? '') as Platform;
+    const autoApply = payload.autoApply === true;
+
+    if (!integrationId) throw new Error('integrationId is required for tool_migration');
+    if (!platform) throw new Error('platform is required for tool_migration');
+
+    await job.updateProgress(10);
+
+    const plan = await buildMigrationPlan(tenantId, integrationId, platform);
+    await job.updateProgress(60);
+
+    if (plan.fieldMappings.length === 0) {
+      await job.updateProgress(100);
+      return {
+        status: 'no_changes',
+        message: 'No API version changes detected',
+        plan: plan as unknown as Record<string, unknown>,
+      };
+    }
+
+    if (autoApply) {
+      const result = await executeMigration(tenantId, plan);
+      await job.updateProgress(100);
+      return result as unknown as Record<string, unknown>;
+    }
+
+    await job.updateProgress(100);
+    return {
+      status: 'plan_ready',
+      message: `Migration plan ready: ${plan.fieldMappings.length} mapping(s), ${plan.breakingChanges.length} breaking change(s)`,
+      plan: plan as unknown as Record<string, unknown>,
+    };
   }
 }

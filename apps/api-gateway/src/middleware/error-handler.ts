@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { AppError } from '@nexuszero/shared';
+import { AppError, captureException, CircuitBreakerOpenError } from '@nexuszero/shared';
 
 /** Type-guard that works even when instanceof fails due to duplicate module copies */
 function isAppError(err: unknown): err is AppError {
@@ -8,7 +8,23 @@ function isAppError(err: unknown): err is AppError {
   return false;
 }
 
+function isCircuitBreakerOpen(err: unknown): boolean {
+  if (err instanceof CircuitBreakerOpenError) return true;
+  if (err && typeof err === 'object' && (err as any).name === 'CircuitBreakerOpenError') return true;
+  return false;
+}
+
 export const errorHandler = (err: Error, c: Context) => {
+  if (isCircuitBreakerOpen(err)) {
+    c.header('Retry-After', '30');
+    return c.json({
+      error: {
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'Service temporarily unavailable — circuit breaker open',
+      },
+    }, 503);
+  }
+
   if (isAppError(err)) {
     return c.json({
       error: {
@@ -20,6 +36,7 @@ export const errorHandler = (err: Error, c: Context) => {
   }
 
   console.error('Unhandled error:', err);
+  captureException(err);
 
   return c.json({
     error: {

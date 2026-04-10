@@ -34,3 +34,5 @@ export * from './dead-letter-queue.js';
 export * from './agent-memories.js';
 export * from './plan-approvals.js';
 export * from './tenant-plugins.js';
+export * from './marketing-skills.js';
+export * from './notifications.js';

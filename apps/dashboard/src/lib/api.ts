@@ -154,6 +154,13 @@ class ApiClient {
           this.clearToken();
         }
 
+        if (response.status === 503) {
+          try {
+            const { useWsStore } = await import('./ws-store');
+            useWsStore.getState().setDegraded(true);
+          } catch { /* store may not be initialized yet */ }
+        }
+
         const message = this.extractErrorMessage(body, response);
 
         throw new Error(message || `API error: ${response.status}`);
@@ -215,6 +222,17 @@ class ApiClient {
   }
   getMe() { return this.get<any>('/tenants/me'); }
 
+  // Team Members
+  getTeamMembers() { return this.get<any[]>('/tenants/users'); }
+  inviteTeamMember(data: { email: string; name: string; role?: string }) { return this.post<any>('/tenants/invite', data); }
+  updateTeamMemberRole(userId: string, role: string) { return this.patch<any>(`/tenants/users/${userId}`, { role }); }
+  removeTeamMember(userId: string) { return this.delete(`/tenants/users/${userId}`); }
+
+  // API Keys
+  getApiKeys() { return this.get<any[]>('/tenants/api-keys'); }
+  createApiKey(data: { name: string; scopes?: string[] }) { return this.post<any>('/tenants/api-keys', data); }
+  revokeApiKey(id: string) { return this.delete(`/tenants/api-keys/${id}`); }
+
   // Campaigns
   getCampaigns(params?: Record<string, string>) {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
@@ -224,6 +242,20 @@ class ApiClient {
   createCampaign(data: any) { return this.post<any>('/campaigns', data); }
   updateCampaign(id: string, data: any) { return this.patch<any>(`/campaigns/${id}`, data); }
   deleteCampaign(id: string) { return this.delete(`/campaigns/${id}`); }
+  bulkUpdateCampaignStatus(ids: string[], status: string) { return this.post<any>('/campaigns/bulk/status', { ids, status }); }
+  bulkDeleteCampaigns(ids: string[]) { return this.post<any>('/campaigns/bulk/delete', { ids }); }
+
+  // Notifications
+  getNotifications(params?: { limit?: number; offset?: number; unread?: boolean }) {
+    const qs = new URLSearchParams();
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.offset) qs.set('offset', String(params.offset));
+    if (params?.unread) qs.set('unread', 'true');
+    const q = qs.toString();
+    return this.get<{ items: any[]; total: number; unread: number }>(`/notifications${q ? `?${q}` : ''}`);
+  }
+  markNotificationRead(id: string) { return this.patch<any>(`/notifications/${id}/read`, {}); }
+  markAllNotificationsRead() { return this.post<any>('/notifications/read-all'); }
 
   // Agents
   getAgents() { return this.get<any[]>('/agents'); }
@@ -272,6 +304,9 @@ class ApiClient {
   detectTechStack(websiteUrl: string) { return this.post<any>('/integrations/detect', { websiteUrl }); }
   startOnboarding(websiteUrl: string) { return this.post<any>('/integrations/onboarding/start', { websiteUrl }); }
   completeOnboarding() { return this.post<any>('/integrations/onboarding/complete'); }
+  stepBackOnboarding() { return this.post<any>('/integrations/onboarding/step-back'); }
+  pauseOnboarding() { return this.post<any>('/integrations/onboarding/pause'); }
+  resumeOnboarding() { return this.post<any>('/integrations/onboarding/resume'); }
   activateAgents(agentTypes: string[]) { return this.post<any>('/integrations/activate-agents', { agentTypes }); }
 
   // Assistant
@@ -399,6 +434,21 @@ class ApiClient {
     await this.parseUpload(attachmentId);
     return { attachmentId };
   }
+
+  // Dead Letter Queue
+  getDlqEntries(params?: Record<string, string>) {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.get<{ items: any[]; pagination: { page: number; limit: number; total: number } }>(`/dlq${qs}`);
+  }
+  getDlqStats() { return this.get<Record<string, number>>('/dlq/stats'); }
+  retryDlqEntry(id: string) { return this.post<any>(`/dlq/${id}/retry`); }
+  discardDlqEntry(id: string) { return this.post<any>(`/dlq/${id}/discard`); }
+
+  // Strategy
+  getStrategy() { return this.get<any>('/strategy'); }
+  regenerateStrategy(input?: { businessType?: string; goal?: string; channel?: string }) { return this.post<any>('/strategy/regenerate', input ?? {}); }
+  updateMilestone(milestoneId: string, status: string) { return this.patch<any>(`/strategy/milestones/${milestoneId}`, { status }); }
+  getStrategyTimeline() { return this.get<any>('/strategy/timeline'); }
 }
 
 export const api = new ApiClient();

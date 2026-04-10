@@ -258,6 +258,140 @@ app.post('/api-keys', async (c) => {
   return c.json({ ...key, key: rawKey }, 201);
 });
 
+// GET /tenants/api-keys — list API keys
+app.get('/api-keys', async (c) => {
+  const tenantId = c.get('tenantId');
+  return withTenantDb(tenantId, async (db) => {
+    const keys = await db.select({
+      id: apiKeys.id,
+      name: apiKeys.name,
+      keyPrefix: apiKeys.keyPrefix,
+      scopes: apiKeys.scopes,
+      isActive: apiKeys.isActive,
+      lastUsedAt: apiKeys.lastUsedAt,
+      expiresAt: apiKeys.expiresAt,
+      createdAt: apiKeys.createdAt,
+    }).from(apiKeys).where(eq(apiKeys.tenantId, tenantId));
+    return c.json(keys);
+  });
+});
+
+// DELETE /tenants/api-keys/:id — revoke an API key
+app.delete('/api-keys/:id', async (c) => {
+  const tenantId = c.get('tenantId');
+  const user = c.get('user');
+  const keyId = c.req.param('id');
+
+  if (user.role !== 'owner' && user.role !== 'admin') {
+    throw new AppError('AUTH_INSUFFICIENT_PERMISSIONS');
+  }
+
+  return withTenantDb(tenantId, async (db) => {
+    const [updated] = await db.update(apiKeys)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(and(eq(apiKeys.id, keyId), eq(apiKeys.tenantId, tenantId)))
+      .returning({ id: apiKeys.id });
+    if (!updated) {
+      throw new AppError('NOT_FOUND', { resource: 'api_key' });
+    }
+    return c.json({ success: true });
+  });
+});
+
+// POST /tenants/invite — invite a team member
+app.post('/invite', async (c) => {
+  const tenantId = c.get('tenantId');
+  const inviter = c.get('user');
+
+  if (inviter.role !== 'owner' && inviter.role !== 'admin') {
+    throw new AppError('AUTH_INSUFFICIENT_PERMISSIONS');
+  }
+
+  const { email, name, role } = await c.req.json();
+  if (!email || !name) {
+    throw new AppError('VALIDATION_ERROR', { reason: 'Email and name are required' });
+  }
+  const validRoles = ['admin', 'member', 'viewer'];
+  if (role && !validRoles.includes(role)) {
+    throw new AppError('VALIDATION_ERROR', { reason: `Role must be one of: ${validRoles.join(', ')}` });
+  }
+
+  const db = getDb();
+  const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (existing) {
+    throw new AppError('VALIDATION_ERROR', { field: 'email', reason: 'A user with this email already exists' });
+  }
+
+  // Create user with a temporary password (should be replaced by invite-link flow)
+  const tempPassword = hashPassword(crypto.randomUUID());
+  const [user] = await db.insert(users).values({
+    tenantId,
+    email,
+    name,
+    passwordHash: tempPassword,
+    role: role || 'member',
+  }).returning();
+
+  return c.json({ id: user.id, email: user.email, name: user.name, role: user.role }, 201);
+});
+
+// PATCH /tenants/users/:id — update a team member's role
+app.patch('/users/:id', async (c) => {
+  const tenantId = c.get('tenantId');
+  const currentUser = c.get('user');
+  const userId = c.req.param('id');
+
+  if (currentUser.role !== 'owner' && currentUser.role !== 'admin') {
+    throw new AppError('AUTH_INSUFFICIENT_PERMISSIONS');
+  }
+
+  const { role } = await c.req.json();
+  const validRoles = ['admin', 'member', 'viewer'];
+  if (!role || !validRoles.includes(role)) {
+    throw new AppError('VALIDATION_ERROR', { reason: `Role must be one of: ${validRoles.join(', ')}` });
+  }
+
+  return withTenantDb(tenantId, async (db) => {
+    const [target] = await db.select().from(users).where(and(eq(users.id, userId), eq(users.tenantId, tenantId))).limit(1);
+    if (!target) {
+      throw new AppError('NOT_FOUND', { resource: 'user' });
+    }
+    if (target.role === 'owner') {
+      throw new AppError('AUTH_INSUFFICIENT_PERMISSIONS', { reason: 'Cannot change owner role' });
+    }
+
+    const [updated] = await db.update(users)
+      .set({ role, updatedAt: new Date() })
+      .where(and(eq(users.id, userId), eq(users.tenantId, tenantId)))
+      .returning({ id: users.id, email: users.email, name: users.name, role: users.role });
+    return c.json(updated);
+  });
+});
+
+// DELETE /tenants/users/:id — remove a team member
+app.delete('/users/:id', async (c) => {
+  const tenantId = c.get('tenantId');
+  const currentUser = c.get('user');
+  const userId = c.req.param('id');
+
+  if (currentUser.role !== 'owner') {
+    throw new AppError('AUTH_INSUFFICIENT_PERMISSIONS');
+  }
+
+  return withTenantDb(tenantId, async (db) => {
+    const [target] = await db.select().from(users).where(and(eq(users.id, userId), eq(users.tenantId, tenantId))).limit(1);
+    if (!target) {
+      throw new AppError('NOT_FOUND', { resource: 'user' });
+    }
+    if (target.role === 'owner') {
+      throw new AppError('AUTH_INSUFFICIENT_PERMISSIONS', { reason: 'Cannot remove owner' });
+    }
+
+    await db.delete(users).where(and(eq(users.id, userId), eq(users.tenantId, tenantId)));
+    return c.json({ success: true });
+  });
+});
+
 // GET /tenants/me/guardrails — get guardrails config
 app.get('/me/guardrails', async (c) => {
   const tenantId = c.get('tenantId');

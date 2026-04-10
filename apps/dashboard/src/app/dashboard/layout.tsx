@@ -5,6 +5,7 @@ import { FloatingNav } from '@/components/sidebar';
 import { AssistantPanel } from '@/components/assistant/assistant-panel';
 import { CommandPalette } from '@/components/command-palette';
 import { MissionRail } from '@/components/mission-rail';
+import { DegradationBanner } from '@/components/degradation-banner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -27,6 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
       <CommandPalette />
       <AssistantPanel />
+      <DegradationBanner />
     </div>
   );
 }

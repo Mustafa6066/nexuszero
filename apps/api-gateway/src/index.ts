@@ -4,7 +4,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 import { bodyLimit } from 'hono/body-limit';
-import { initializeOpenTelemetry } from '@nexuszero/shared';
+import { initializeOpenTelemetry, initSentry } from '@nexuszero/shared';
 import { getDb } from '@nexuszero/db';
 import { sql } from 'drizzle-orm';
 import { attachWebSocketServer, closeWebSocketServer } from './services/websocket.js';
@@ -46,6 +46,20 @@ import { errorHandler } from './middleware/error-handler.js';
 import { tracingMiddleware } from './middleware/tracing.js';
 import { yogaHandler } from './graphql/index.js';
 import { billingRoutes } from './routes/billing.js';
+import { experimentRoutes } from './routes/experiments.js';
+import { salesPipelineRoutes } from './routes/sales-pipeline.js';
+import { outboundRoutes } from './routes/outbound.js';
+import { financeRoutes } from './routes/finance.js';
+import { podcastRoutes } from './routes/podcast.js';
+import { revenueRoutes } from './routes/revenue.js';
+import { croRoutes } from './routes/cro.js';
+import { statusRoutes } from './routes/status.js';
+import { dlqRoutes } from './routes/dlq.js';
+import { teamOpsRoutes } from './routes/team-ops.js';
+import { notificationRoutes } from './routes/notifications.js';
+import { strategyRoutes } from './routes/strategy.js';
+
+initSentry('api-gateway');
 
 const app = new Hono();
 
@@ -68,7 +82,7 @@ app.onError(errorHandler);
 const maxBodySize = parseInt(process.env.MAX_BODY_SIZE_BYTES || String(2 * 1024 * 1024), 10);
 app.use('*', bodyLimit({ maxSize: maxBodySize, onError: (c) => c.json({ error: { code: 'PAYLOAD_TOO_LARGE', message: `Request body exceeds ${Math.round(maxBodySize / 1024 / 1024)}MB limit` } }, 413) }));
 
-// Deep health check — verifies DB connectivity
+// Deep health check — verifies DB + Redis connectivity
 app.get('/health', async (c) => {
   const checks: Record<string, 'ok' | 'error'> = {};
   let healthy = true;
@@ -79,6 +93,16 @@ app.get('/health', async (c) => {
     checks.database = 'ok';
   } catch {
     checks.database = 'error';
+    healthy = false;
+  }
+
+  try {
+    const { getRedisConnection } = await import('@nexuszero/shared');
+    const redis = getRedisConnection();
+    const pong = await redis.ping();
+    checks.redis = pong === 'PONG' ? 'ok' : 'error';
+  } catch {
+    checks.redis = 'error';
     healthy = false;
   }
 
@@ -114,6 +138,7 @@ app.get('/health/all', async (c) => {
 });
 
 // Public routes
+app.route('/api/v1/status', statusRoutes);
 app.route('/api/v1/auth', tenantRoutes);
 app.route('/api/v1/billing', billingRoutes);
 
@@ -168,6 +193,17 @@ api.route('/ws', wsStatsRoutes);
 api.route('/agent-memory', agentMemoryRoutes);
 api.route('/plan-approvals', planApprovalRoutes);
 api.route('/plugins', pluginRoutes);
+api.route('/experiments', experimentRoutes);
+api.route('/sales-pipeline', salesPipelineRoutes);
+api.route('/outbound', outboundRoutes);
+api.route('/finance', financeRoutes);
+api.route('/podcast', podcastRoutes);
+api.route('/revenue', revenueRoutes);
+api.route('/cro', croRoutes);
+api.route('/dlq', dlqRoutes);
+api.route('/team-ops', teamOpsRoutes);
+api.route('/notifications', notificationRoutes);
+api.route('/strategy', strategyRoutes);
 
 app.route('/api/v1', api);
 

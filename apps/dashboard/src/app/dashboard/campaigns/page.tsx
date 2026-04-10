@@ -7,7 +7,10 @@ import { api } from '@/lib/api';
 import { Card, Badge, Button } from '@/components/ui';
 import { formatCurrency } from '@/lib/utils';
 import { WorkspaceGuidanceBanner } from '@/components/workspace-guidance-banner';
+import { FilterBar, BulkActionsBar } from '@/components/filter-bar';
+import { useFilters, useBulkSelection } from '@/hooks/use-filters';
 import { useLang } from '@/app/providers';
+import { Pause, Play, Trash2 } from 'lucide-react';
 
 const PLATFORMS = ['google_ads', 'meta_ads', 'tiktok_ads', 'linkedin_ads'] as const;
 const STATUSES = ['active', 'paused', 'draft', 'completed'] as const;
@@ -17,7 +20,8 @@ export default function CampaignsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { t } = useLang();
-  const [filter, setFilter] = useState<string>('all');
+  const { filters, setFilter, clearFilters, activeCount, toParams } = useFilters<{ status: string; platform: string }>();
+  const { selected, selectedCount, toggle, selectAll, clearSelection, isSelected, selectedArray } = useBulkSelection();
   const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
@@ -27,14 +31,29 @@ export default function CampaignsPage() {
   }, [searchParams]);
 
   const { data: campaigns, isLoading } = useQuery({
-    queryKey: ['campaigns', filter],
-    queryFn: () => api.getCampaigns(filter !== 'all' ? { status: filter } : undefined),
+    queryKey: ['campaigns', filters],
+    queryFn: () => api.getCampaigns(toParams()),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteCampaign(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaigns'] }),
   });
+
+  const bulkStatusMutation = useMutation({
+    mutationFn: ({ ids, status }: { ids: string[]; status: string }) => api.bulkUpdateCampaignStatus(ids, status),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['campaigns'] }); clearSelection(); },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: string[]) => api.bulkDeleteCampaigns(ids),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['campaigns'] }); clearSelection(); },
+  });
+
+  const filterGroups = [
+    { key: 'status', label: 'Status', options: [{ value: 'all', label: t.campaignsPage.filterAll }, ...STATUSES.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))] },
+    { key: 'platform', label: 'Platform', options: [{ value: 'all', label: 'All' }, ...PLATFORMS.map(p => ({ value: p, label: p.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }))] },
+  ];
 
   return (
     <div className="space-y-6">
@@ -51,19 +70,25 @@ export default function CampaignsPage() {
         </div>
       </div>
 
-      <div className="flex gap-2">
-        {['all', ...STATUSES].map((status) => (
-          <button
-            key={status}
-            onClick={() => setFilter(status)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              filter === status ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-            }`}
-          >
-            {status === 'all' ? t.campaignsPage.filterAll : status.charAt(0).toUpperCase() + status.slice(1)}
-          </button>
-        ))}
-      </div>
+      <FilterBar
+        groups={filterGroups}
+        filters={filters}
+        onFilterChange={(key, value) => setFilter(key as any, value as any)}
+        onClear={clearFilters}
+        activeCount={activeCount}
+      />
+
+      <BulkActionsBar selectedCount={selectedCount} onClear={clearSelection}>
+        <Button size="sm" variant="outline" onClick={() => bulkStatusMutation.mutate({ ids: selectedArray, status: 'active' })} disabled={bulkStatusMutation.isPending}>
+          <Play className="h-3 w-3 mr-1" /> Activate
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => bulkStatusMutation.mutate({ ids: selectedArray, status: 'paused' })} disabled={bulkStatusMutation.isPending}>
+          <Pause className="h-3 w-3 mr-1" /> Pause
+        </Button>
+        <Button size="sm" variant="destructive" onClick={() => { if (confirm(`Delete ${selectedCount} campaigns?`)) bulkDeleteMutation.mutate(selectedArray); }} disabled={bulkDeleteMutation.isPending}>
+          <Trash2 className="h-3 w-3 mr-1" /> Delete
+        </Button>
+      </BulkActionsBar>
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -77,12 +102,33 @@ export default function CampaignsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {campaigns && campaigns.length > 0 && (
+            <div className="col-span-full flex items-center gap-2">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedCount === campaigns.length && campaigns.length > 0}
+                  onChange={(e) => e.target.checked ? selectAll(campaigns.map((c: any) => c.id)) : clearSelection()}
+                  className="rounded"
+                />
+                Select all ({campaigns.length})
+              </label>
+            </div>
+          )}
           {(campaigns ?? []).map((campaign: any) => (
-            <Card key={campaign.id}>
+            <Card key={campaign.id} className={isSelected(campaign.id) ? 'ring-2 ring-primary' : ''}>
               <div className="flex items-start justify-between">
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-semibold">{campaign.name}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground capitalize">{campaign.platform?.replace('_', ' ')}</p>
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <input
+                    type="checkbox"
+                    checked={isSelected(campaign.id)}
+                    onChange={() => toggle(campaign.id)}
+                    className="mt-0.5 rounded"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-sm font-semibold">{campaign.name}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground capitalize">{campaign.platform?.replace('_', ' ')}</p>
+                  </div>
                 </div>
                 <Badge variant={
                   campaign.status === 'active' ? 'success' :

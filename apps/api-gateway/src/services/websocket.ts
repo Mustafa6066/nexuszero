@@ -144,7 +144,7 @@ function handleClientMessage(
   client: AuthenticatedSocket,
   msg: { action?: string; channel?: string },
 ): void {
-  const ALLOWED_CHANNELS = ['agent:status', 'task:progress', 'alerts', 'analytics:live', 'sla:breaches'];
+  const ALLOWED_CHANNELS = ['agent:status', 'task:progress', 'alerts', 'analytics:live', 'sla:breaches', 'onboarding:progress', 'notification:push'];
 
   if (msg.action === 'subscribe' && msg.channel && ALLOWED_CHANNELS.includes(msg.channel)) {
     client.subscriptions.add(msg.channel);

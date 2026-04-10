@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, Badge, Button, MetricCard } from '@/components/ui';
 import { TierGateOverlay } from '@/components/tier-gate-overlay';
+import { TrendingUp, TrendingDown, Minus, MapPin } from 'lucide-react';
 
 export default function GeoPage() {
   const queryClient = useQueryClient();
@@ -56,6 +57,19 @@ export default function GeoPage() {
   const avgRank = rankings.length
     ? (rankings.reduce((s: number, r: any) => s + (r.rank ?? 0), 0) / rankings.length).toFixed(1)
     : '-';
+
+  const locationRankSummary = useMemo(() => {
+    if (!locations.length || !rankings.length) return [];
+    return locations.map((loc: any) => {
+      const locRankings = rankings.filter((r: any) => r.locationId === loc.id);
+      const avg = locRankings.length
+        ? (locRankings.reduce((s: number, r: any) => s + (r.rank ?? 0), 0) / locRankings.length).toFixed(1)
+        : '-';
+      const inTopThree = locRankings.filter((r: any) => (r.rank ?? 100) <= 3).length;
+      const inLocalPack = locRankings.filter((r: any) => r.localPackRank != null).length;
+      return { ...loc, avgRank: avg, keywordCount: locRankings.length, inTopThree, inLocalPack };
+    });
+  }, [locations, rankings]);
 
   return (
     <TierGateOverlay requiredTier="growth" feature="GEO Local SEO">
@@ -157,6 +171,7 @@ export default function GeoPage() {
                       <tr className="border-b text-muted-foreground">
                         <th className="text-left py-1.5 pr-3">Keyword</th>
                         <th className="text-center py-1.5 pr-3">Rank</th>
+                        <th className="text-center py-1.5 pr-3">Trend</th>
                         <th className="text-center py-1.5 pr-3">3-Pack</th>
                         <th className="text-left py-1.5">Checked</th>
                       </tr>
@@ -169,6 +184,25 @@ export default function GeoPage() {
                             <span className={`font-bold ${r.rank <= 3 ? 'text-green-500' : r.rank <= 10 ? 'text-yellow-500' : 'text-muted-foreground'}`}>
                               #{r.rank ?? '-'}
                             </span>
+                          </td>
+                          <td className="py-1.5 pr-3 text-center">
+                            {r.previousRank != null ? (
+                              r.previousRank > r.rank ? (
+                                <span className="inline-flex items-center gap-0.5 text-green-500">
+                                  <TrendingUp size={10} />
+                                  <span className="text-[10px]">+{r.previousRank - r.rank}</span>
+                                </span>
+                              ) : r.previousRank < r.rank ? (
+                                <span className="inline-flex items-center gap-0.5 text-red-500">
+                                  <TrendingDown size={10} />
+                                  <span className="text-[10px]">{r.previousRank - r.rank}</span>
+                                </span>
+                              ) : (
+                                <Minus size={10} className="text-muted-foreground mx-auto" />
+                              )
+                            ) : (
+                              <span className="text-muted-foreground text-[10px]">new</span>
+                            )}
                           </td>
                           <td className="py-1.5 pr-3 text-center">
                             {r.localPackRank != null ? (
@@ -234,6 +268,51 @@ export default function GeoPage() {
             </Card>
           </div>
         </div>
+
+        {/* Location Ranking Comparison */}
+        {locationRankSummary.length > 1 && (
+          <Card className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin size={14} className="text-muted-foreground" />
+              <h2 className="font-semibold text-sm">Location Ranking Comparison</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="text-left py-1.5 pr-3">Location</th>
+                    <th className="text-center py-1.5 pr-3">Keywords</th>
+                    <th className="text-center py-1.5 pr-3">Avg Rank</th>
+                    <th className="text-center py-1.5 pr-3">Top 3</th>
+                    <th className="text-center py-1.5">Local Pack</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {locationRankSummary.map((loc: any) => (
+                    <tr key={loc.id} className="border-b border-muted/30">
+                      <td className="py-2 pr-3">
+                        <p className="font-medium">{loc.name}</p>
+                        <p className="text-muted-foreground">{loc.city}, {loc.country}</p>
+                      </td>
+                      <td className="py-2 pr-3 text-center">{loc.keywordCount}</td>
+                      <td className="py-2 pr-3 text-center">
+                        <span className={`font-bold ${Number(loc.avgRank) <= 5 ? 'text-green-500' : Number(loc.avgRank) <= 15 ? 'text-yellow-500' : 'text-muted-foreground'}`}>
+                          {loc.avgRank}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3 text-center">
+                        <span className="text-green-500 font-bold">{loc.inTopThree}</span>
+                      </td>
+                      <td className="py-2 text-center">
+                        <span className="text-primary font-bold">{loc.inLocalPack}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
       </div>
     </TierGateOverlay>
   );

@@ -6,6 +6,9 @@ import { KeywordResearchHandler } from './handlers/keyword-research.js';
 import { ContentOptimizationHandler } from './handlers/content-optimization.js';
 import { TechnicalSeoHandler } from './handlers/technical-seo.js';
 import { CompetitorAnalysisHandler } from './handlers/competitor-analysis.js';
+import { ContentAttackBriefHandler } from './handlers/content-attack-brief.js';
+import { GscOptimizerHandler } from './handlers/gsc-optimizer.js';
+import { TrendScoutHandler } from './handlers/trend-scout.js';
 
 export class SeoWorker extends BaseAgentWorker {
   readonly agentType = 'seo' as const;
@@ -24,6 +27,9 @@ export class SeoWorker extends BaseAgentWorker {
   private contentHandler = new ContentOptimizationHandler();
   private technicalHandler = new TechnicalSeoHandler();
   private competitorHandler = new CompetitorAnalysisHandler();
+  private attackBriefHandler = new ContentAttackBriefHandler();
+  private gscHandler = new GscOptimizerHandler();
+  private trendHandler = new TrendScoutHandler();
 
   protected async processTask(task: TaskPayload, job: Job<TaskPayload>): Promise<Record<string, unknown>> {
     const { taskType, payload } = task;
@@ -43,6 +49,12 @@ export class SeoWorker extends BaseAgentWorker {
         return this.competitorHandler.execute(payload, job);
       case 'update_seo_strategy':
         return this.auditHandler.updateStrategy(payload, job);
+      case 'content_attack_brief':
+        return this.attackBriefHandler.execute(payload, job);
+      case 'gsc_optimization':
+        return this.gscHandler.execute(payload, job);
+      case 'trend_scouting':
+        return this.trendHandler.execute(payload, job);
       default:
         throw new Error(`Unknown SEO task type: ${taskType}`);
     }

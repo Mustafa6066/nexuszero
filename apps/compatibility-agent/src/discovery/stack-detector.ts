@@ -11,6 +11,7 @@ import { detectAnalytics } from './analytics-detector.js';
 import { detectAdPixels } from './ad-pixel-detector.js';
 import { detectCrm } from './crm-detector.js';
 import { analyzeDns } from './dns-analyzer.js';
+import { classifyBusiness } from './business-classifier.js';
 
 let renderPage: ((url: string, options?: any) => Promise<any>) | null = null;
 try {
@@ -91,6 +92,10 @@ export interface StackDetectionResult {
   confidence: number;
   analyzedUrl: string;
   analyzedAt: Date;
+  emailPlatforms: DetectedTechnology[];
+  paymentProcessors: DetectedTechnology[];
+  socialProfiles: { platform: string; url: string }[];
+  businessType: string | null;
 }
 
 /** Detect the full tech stack of a website */
@@ -122,6 +127,10 @@ export async function detectTechStack(url: string): Promise<StackDetectionResult
       confidence: 0,
       analyzedUrl: normalizedUrl,
       analyzedAt: new Date(),
+      emailPlatforms: [],
+      paymentProcessors: [],
+      socialProfiles: [],
+      businessType: null,
     };
   }
 
@@ -134,7 +143,15 @@ export async function detectTechStack(url: string): Promise<StackDetectionResult
     analyzeDns(normalizedUrl),
   ]);
 
-  const allDetections = [...cmsResults, ...analyticsResults, ...adResults, ...crmResults, ...dnsResults];
+  // Additional detectors: email, payment, social
+  const emailPlatforms = detectEmailPlatforms(html);
+  const paymentProcessors = detectPaymentProcessors(html);
+  const socialProfiles = detectSocialProfiles(html, normalizedUrl);
+
+  const allDetections = [
+    ...cmsResults, ...analyticsResults, ...adResults, ...crmResults, ...dnsResults,
+    ...emailPlatforms, ...paymentProcessors,
+  ];
 
   // Deduplicate by platform, keeping highest confidence
   const platformMap = new Map<Platform, DetectedTechnology>();
@@ -151,12 +168,24 @@ export async function detectTechStack(url: string): Promise<StackDetectionResult
     ? detections.reduce((sum, d) => sum + d.confidence, 0) / detections.length
     : 0;
 
+  // Run business classification in parallel with final assembly
+  let businessType: string | null = null;
+  try {
+    businessType = await classifyBusiness(html, detections, normalizedUrl);
+  } catch {
+    // Business classification is non-critical
+  }
+
   return {
     detections,
     platforms,
     confidence: avgConfidence,
     analyzedUrl: normalizedUrl,
     analyzedAt: new Date(),
+    emailPlatforms,
+    paymentProcessors,
+    socialProfiles,
+    businessType,
   };
 }
 
@@ -233,4 +262,98 @@ function isSpaShell(html: string): boolean {
     .trim();
   // If text content is very short but HTML is substantial, likely SPA
   return stripped.length < 200 && html.length > 500;
+}
+
+// ── Email platform detection ────────────────────────────────────────────────
+
+const EMAIL_SIGNATURES: Array<{ pattern: RegExp; platform: Platform; name: string }> = [
+  { pattern: /mailchimp\.com|mc\.us\d+\.list-manage\.com|chimpstatic\.com/i, platform: 'mailchimp' as Platform, name: 'Mailchimp' },
+  { pattern: /klaviyo\.com|a\.]klaviyo\.com|static\.klaviyo\.com/i, platform: 'klaviyo' as Platform, name: 'Klaviyo' },
+  { pattern: /sendgrid\.(com|net)|mc\.sendgrid\.com/i, platform: 'sendgrid' as Platform, name: 'SendGrid' },
+  { pattern: /convertkit\.com|ck\.page/i, platform: 'convertkit' as Platform, name: 'ConvertKit' },
+  { pattern: /activecampaign\.com/i, platform: 'activecampaign' as Platform, name: 'ActiveCampaign' },
+  { pattern: /mailerlite\.com/i, platform: 'mailerlite' as Platform, name: 'MailerLite' },
+  { pattern: /constantcontact\.com/i, platform: 'constantcontact' as Platform, name: 'Constant Contact' },
+  { pattern: /campaign-archive\.com|eepurl\.com/i, platform: 'mailchimp' as Platform, name: 'Mailchimp' },
+];
+
+function detectEmailPlatforms(html: string): DetectedTechnology[] {
+  const results: DetectedTechnology[] = [];
+  for (const sig of EMAIL_SIGNATURES) {
+    if (sig.pattern.test(html)) {
+      results.push({
+        platform: sig.platform,
+        name: sig.name,
+        category: 'email',
+        confidence: 0.85,
+        evidence: `Matched pattern: ${sig.pattern.source}`,
+      } as DetectedTechnology);
+    }
+  }
+  return results;
+}
+
+// ── Payment processor detection ─────────────────────────────────────────────
+
+const PAYMENT_SIGNATURES: Array<{ pattern: RegExp; platform: Platform; name: string }> = [
+  { pattern: /js\.stripe\.com|stripe\.com\/v3|Stripe\(/i, platform: 'stripe' as Platform, name: 'Stripe' },
+  { pattern: /paypal\.com\/sdk|paypalobjects\.com/i, platform: 'paypal' as Platform, name: 'PayPal' },
+  { pattern: /squareup\.com|square\.site|web-payments-sdk/i, platform: 'square' as Platform, name: 'Square' },
+  { pattern: /braintree-api\.com|braintreegateway\.com/i, platform: 'braintree' as Platform, name: 'Braintree' },
+  { pattern: /paddle\.com\/paddlejs/i, platform: 'paddle' as Platform, name: 'Paddle' },
+  { pattern: /lemonsqueezy\.com/i, platform: 'lemonsqueezy' as Platform, name: 'Lemon Squeezy' },
+];
+
+function detectPaymentProcessors(html: string): DetectedTechnology[] {
+  const results: DetectedTechnology[] = [];
+  for (const sig of PAYMENT_SIGNATURES) {
+    if (sig.pattern.test(html)) {
+      results.push({
+        platform: sig.platform,
+        name: sig.name,
+        category: 'payment',
+        confidence: 0.9,
+        evidence: `Matched pattern: ${sig.pattern.source}`,
+      } as DetectedTechnology);
+    }
+  }
+  return results;
+}
+
+// ── Social profile link detection ───────────────────────────────────────────
+
+const SOCIAL_LINK_PATTERNS: Array<{ pattern: RegExp; platform: string }> = [
+  { pattern: /https?:\/\/(www\.)?twitter\.com\/[a-zA-Z0-9_]+/i, platform: 'twitter' },
+  { pattern: /https?:\/\/(www\.)?x\.com\/[a-zA-Z0-9_]+/i, platform: 'twitter' },
+  { pattern: /https?:\/\/(www\.)?facebook\.com\/[a-zA-Z0-9._-]+/i, platform: 'facebook' },
+  { pattern: /https?:\/\/(www\.)?instagram\.com\/[a-zA-Z0-9._]+/i, platform: 'instagram' },
+  { pattern: /https?:\/\/(www\.)?linkedin\.com\/(company|in)\/[a-zA-Z0-9_-]+/i, platform: 'linkedin' },
+  { pattern: /https?:\/\/(www\.)?youtube\.com\/(c|channel|@)[a-zA-Z0-9_-]+/i, platform: 'youtube' },
+  { pattern: /https?:\/\/(www\.)?tiktok\.com\/@[a-zA-Z0-9._]+/i, platform: 'tiktok' },
+  { pattern: /https?:\/\/(www\.)?pinterest\.com\/[a-zA-Z0-9_]+/i, platform: 'pinterest' },
+  { pattern: /https?:\/\/(www\.)?reddit\.com\/(r|u(ser)?)\/[a-zA-Z0-9_]+/i, platform: 'reddit' },
+  { pattern: /https?:\/\/(www\.)?github\.com\/[a-zA-Z0-9_-]+/i, platform: 'github' },
+];
+
+function detectSocialProfiles(html: string, siteUrl: string): { platform: string; url: string }[] {
+  const results: { platform: string; url: string }[] = [];
+  const seen = new Set<string>();
+  const siteHost = new URL(siteUrl).hostname.replace('www.', '');
+
+  for (const { pattern, platform } of SOCIAL_LINK_PATTERNS) {
+    const matches = html.match(new RegExp(pattern.source, 'gi'));
+    if (!matches) continue;
+    for (const match of matches) {
+      // Skip self-referential links
+      try {
+        const matchHost = new URL(match).hostname.replace('www.', '');
+        if (matchHost === siteHost) continue;
+      } catch { continue; }
+      const key = `${platform}:${match.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({ platform, url: match });
+    }
+  }
+  return results;
 }

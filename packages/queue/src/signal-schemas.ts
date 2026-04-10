@@ -211,6 +211,183 @@ export const RedditReplyPostedSchema = z.object({
   replyId: z.string(),
 });
 
+// ---- Sales Pipeline Agent signals ----
+
+export const SalesLeadScoredSchema = z.object({
+  leadId: z.string(),
+  companyName: z.string(),
+  contactEmail: z.string().optional(),
+  intentScore: z.number(),
+  icpFitScore: z.number(),
+  compositeScore: z.number(),
+  source: z.string(),
+});
+
+export const SalesLeadSuppressedSchema = z.object({
+  leadId: z.string(),
+  reason: z.string(),
+  layer: z.string(),
+});
+
+export const SalesDealResurrectedSchema = z.object({
+  dealId: z.string(),
+  companyName: z.string(),
+  timeDecayScore: z.number(),
+  resurrectReason: z.string(),
+});
+
+export const SalesIcpUpdatedSchema = z.object({
+  profileId: z.string(),
+  changes: z.record(z.unknown()),
+  approvalRate: z.number(),
+  sampleSize: z.number(),
+});
+
+// ---- Outbound Agent signals ----
+
+export const OutboundCampaignScoredSchema = z.object({
+  campaignId: z.string(),
+  score: z.number(),
+  copyScore: z.number(),
+  sequenceLength: z.number(),
+});
+
+export const OutboundLeadVerifiedSchema = z.object({
+  leadId: z.string(),
+  email: z.string(),
+  verified: z.boolean(),
+  source: z.string(),
+});
+
+export const OutboundCompetitorChangedSchema = z.object({
+  competitorDomain: z.string(),
+  changeType: z.string(),
+  summary: z.string(),
+  detectedAt: z.string(),
+});
+
+// ---- Content Agent signals (expert panel / quality gate) ----
+
+export const ContentExpertPanelScoredSchema = z.object({
+  contentId: z.string(),
+  contentType: z.string(),
+  score: z.number(),
+  rounds: z.number(),
+  passed: z.boolean(),
+});
+
+export const ContentQualityGatePassedSchema = z.object({
+  contentId: z.string(),
+  contentType: z.string(),
+  score: z.number(),
+  dimensions: z.record(z.number()),
+});
+
+export const ContentQualityGateFailedSchema = z.object({
+  contentId: z.string(),
+  contentType: z.string(),
+  score: z.number(),
+  threshold: z.number(),
+  weakestDimensions: z.array(z.string()),
+});
+
+// ---- Growth / Experiment signals ----
+
+export const GrowthExperimentCompletedSchema = z.object({
+  experimentId: z.string(),
+  name: z.string(),
+  winner: z.string().nullable(),
+  lift: z.number(),
+  pValue: z.number(),
+  status: z.string(),
+});
+
+export const GrowthWinnerPromotedSchema = z.object({
+  experimentId: z.string(),
+  winnerVariant: z.string(),
+  lift: z.number(),
+  channel: z.string(),
+});
+
+export const GrowthPlaybookUpdatedSchema = z.object({
+  entryId: z.string(),
+  category: z.string(),
+  insight: z.string(),
+});
+
+// ---- Finance Agent signals ----
+
+export const FinanceAnomalyDetectedSchema = z.object({
+  metric: z.string(),
+  expectedRange: z.string(),
+  actualValue: z.number(),
+  severity: z.enum(['warning', 'critical']),
+  period: z.string(),
+});
+
+export const FinanceReportGeneratedSchema = z.object({
+  reportId: z.string(),
+  reportType: z.string(),
+  period: z.string(),
+  keyFindings: z.array(z.string()),
+});
+
+// ---- Podcast Agent signals ----
+
+export const PodcastEpisodeProcessedSchema = z.object({
+  episodeId: z.string(),
+  title: z.string(),
+  atomsExtracted: z.number(),
+});
+
+export const PodcastContentGeneratedSchema = z.object({
+  episodeId: z.string(),
+  contentPieces: z.number(),
+  platforms: z.array(z.string()),
+});
+
+// ---- Revenue Intelligence signals ----
+
+export const RevenueAttributionUpdatedSchema = z.object({
+  model: z.string(),
+  period: z.string(),
+  topChannels: z.array(z.object({ channel: z.string(), revenue: z.number() })),
+});
+
+export const RevenueReportGeneratedSchema = z.object({
+  reportId: z.string(),
+  period: z.string(),
+  totalRevenue: z.number(),
+  topContent: z.array(z.string()),
+});
+
+// ---- Conversion Ops signals ----
+
+export const ConversionCroAuditCompletedSchema = z.object({
+  auditId: z.string(),
+  pageUrl: z.string(),
+  overallScore: z.number(),
+  issueCount: z.number(),
+});
+
+export const ConversionLeadMagnetGeneratedSchema = z.object({
+  briefId: z.string(),
+  title: z.string(),
+  format: z.string(),
+  segments: z.number(),
+});
+
+// ---- Social Agent (YT competitive) signal ----
+
+export const SocialYtOutlierFoundSchema = z.object({
+  channelId: z.string(),
+  channelName: z.string(),
+  videoTitle: z.string(),
+  views: z.number(),
+  avgViews: z.number(),
+  outlierRatio: z.number(),
+});
+
 // ---- Compatibility Agent signals ----
 
 export const CompatibilityIntegrationConnectedSchema = z.object({
@@ -269,6 +446,51 @@ export const OrchestratorTaskFailedSchema = z.object({
   retryable: z.boolean(),
 });
 
+// ---- Brain signals ----
+
+export const BrainMissionCreatedSchema = z.object({
+  missionId: z.string(),
+  goal: z.string(),
+  taskCount: z.number(),
+  agentTypes: z.array(z.string()),
+});
+
+export const BrainMissionCompletedSchema = z.object({
+  missionId: z.string(),
+  goal: z.string(),
+  status: z.enum(['completed', 'failed', 'cancelled']),
+  totalCost: z.number(),
+  durationMs: z.number(),
+  taskResults: z.number(),
+});
+
+export const BrainStrategyStaleSchema = z.object({
+  strategyId: z.string(),
+  strategyName: z.string(),
+  reason: z.string(),
+  daysSinceLastCheck: z.number(),
+});
+
+export const BrainAgentDegradedSchema = z.object({
+  agentType: z.string(),
+  healthScore: z.number(),
+  reason: z.string(),
+  degradedSince: z.string(),
+});
+
+export const BrainBudgetAlertSchema = z.object({
+  budgetUsedPercent: z.number(),
+  currentSpend: z.number(),
+  budgetLimit: z.number(),
+  throttleLevel: z.string().optional(),
+});
+
+export const BrainStoreDriftDetectedSchema = z.object({
+  driftCount: z.number(),
+  highSeverity: z.number(),
+  stores: z.array(z.string()),
+});
+
 // ---------------------------------------------------------------------------
 // Signal registry — maps signal type → Zod schema
 // ---------------------------------------------------------------------------
@@ -319,6 +541,46 @@ export const SIGNAL_SCHEMAS = {
   'reddit.mention_detected': RedditMentionDetectedSchema,
   'reddit.reply_posted': RedditReplyPostedSchema,
 
+  // Sales Pipeline
+  'sales.lead_scored': SalesLeadScoredSchema,
+  'sales.lead_suppressed': SalesLeadSuppressedSchema,
+  'sales.deal_resurrected': SalesDealResurrectedSchema,
+  'sales.icp_updated': SalesIcpUpdatedSchema,
+
+  // Outbound
+  'outbound.campaign_scored': OutboundCampaignScoredSchema,
+  'outbound.lead_verified': OutboundLeadVerifiedSchema,
+  'outbound.competitor_changed': OutboundCompetitorChangedSchema,
+
+  // Content (expert panel / quality gate)
+  'content.expert_panel_scored': ContentExpertPanelScoredSchema,
+  'content.quality_gate_passed': ContentQualityGatePassedSchema,
+  'content.quality_gate_failed': ContentQualityGateFailedSchema,
+
+  // Growth / Experiments
+  'growth.experiment_completed': GrowthExperimentCompletedSchema,
+  'growth.winner_promoted': GrowthWinnerPromotedSchema,
+  'growth.playbook_updated': GrowthPlaybookUpdatedSchema,
+
+  // Finance
+  'finance.anomaly_detected': FinanceAnomalyDetectedSchema,
+  'finance.report_generated': FinanceReportGeneratedSchema,
+
+  // Podcast
+  'podcast.episode_processed': PodcastEpisodeProcessedSchema,
+  'podcast.content_generated': PodcastContentGeneratedSchema,
+
+  // Revenue Intelligence
+  'revenue.attribution_updated': RevenueAttributionUpdatedSchema,
+  'revenue.report_generated': RevenueReportGeneratedSchema,
+
+  // Conversion Ops
+  'conversion.cro_audit_completed': ConversionCroAuditCompletedSchema,
+  'conversion.lead_magnet_generated': ConversionLeadMagnetGeneratedSchema,
+
+  // Social (YT competitive)
+  'social.yt_outlier_found': SocialYtOutlierFoundSchema,
+
   // Compatibility
   'compatibility.integration_connected': CompatibilityIntegrationConnectedSchema,
   'compatibility.integration_disconnected': CompatibilityIntegrationConnectedSchema,
@@ -334,6 +596,14 @@ export const SIGNAL_SCHEMAS = {
   'orchestrator.task_assigned': OrchestratorTaskAssignedSchema,
   'orchestrator.task_completed': OrchestratorTaskCompletedSchema,
   'orchestrator.task_failed': OrchestratorTaskFailedSchema,
+
+  // Brain
+  'brain.mission_created': BrainMissionCreatedSchema,
+  'brain.mission_completed': BrainMissionCompletedSchema,
+  'brain.strategy_stale': BrainStrategyStaleSchema,
+  'brain.agent_degraded': BrainAgentDegradedSchema,
+  'brain.budget_alert': BrainBudgetAlertSchema,
+  'brain.store_drift_detected': BrainStoreDriftDetectedSchema,
 } as const;
 
 export type SignalType = keyof typeof SIGNAL_SCHEMAS;
@@ -412,6 +682,7 @@ export const AGENT_SIGNAL_SUBSCRIPTIONS: Record<string, SignalType[]> = {
     'data.insight_generated',
     'creative.winner_found',
     'geo.ranking_dropped',
+    'growth.winner_promoted',
   ],
   ad: [
     'seo.keyword_discovered',
@@ -457,8 +728,42 @@ export const AGENT_SIGNAL_SUBSCRIPTIONS: Record<string, SignalType[]> = {
     'aeo.visibility_changed',
     'creative.winner_found',
     'data.insight_generated',
+    'podcast.content_generated',
   ],
   compatibility: [
     'orchestrator.task_assigned',
+  ],
+  'sales-pipeline': [
+    'seo.keyword_discovered',
+    'data.insight_generated',
+    'outbound.lead_verified',
+  ],
+  outbound: [
+    'sales.lead_scored',
+    'seo.keyword_discovered',
+    'seo.competitor_analyzed',
+  ],
+  finance: [
+    'data.anomaly_detected',
+    'data.forecast_updated',
+  ],
+  podcast: [
+    'content.quality_gate_passed',
+  ],
+  brain: [
+    'orchestrator.task_completed',
+    'orchestrator.task_failed',
+    'data.anomaly_detected',
+    'data.anomaly_escalated',
+    'data.insight_generated',
+    'data.forecast_updated',
+    'ad.budget_alert',
+    'ad.performance_update',
+    'compatibility.health_degraded',
+    'compatibility.schema_drift_detected',
+    'seo.ranking_changed',
+    'creative.fatigue_detected',
+    'sales.lead_scored',
+    'finance.anomaly_detected',
   ],
 };

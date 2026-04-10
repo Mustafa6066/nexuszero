@@ -25,6 +25,12 @@ export * from './utils/logger.js';
 export * from './utils/prompt-guard.js';
 export * from './utils/otel-counters.js';
 export * from './utils/redis-client.js';
+export * from './utils/humanizer.js';
+export * from './utils/expert-panel.js';
+export * from './utils/content-scorer.js';
+export * from './utils/pii-sanitizer.js';
+export * from './utils/autoresearch.js';
+export { initSentry, captureException, flushSentry } from './utils/sentry.js';
 
 // Skills
 export * from './skills/skill-loader.js';

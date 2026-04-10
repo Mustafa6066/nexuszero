@@ -23,6 +23,11 @@ import { ShopifyConnector } from './cms/shopify.connector.js';
 import { SlackConnector } from './messaging/slack.connector.js';
 import { SendGridConnector } from './messaging/sendgrid.connector.js';
 import { StripeConnector } from './payments/stripe.connector.js';
+import { GongConnector } from './sales/gong.connector.js';
+import { ApolloConnector } from './sales/apollo.connector.js';
+import { InstantlyConnector } from './outbound/instantly.connector.js';
+import { QuickBooksConnector } from './accounting/quickbooks.connector.js';
+import { YouTubeDataConnector } from './analytics/youtube-data.connector.js';
 
 /** Singleton instances of all native connectors */
 const connectors: Map<Platform, BaseConnector> = new Map();
@@ -49,6 +54,11 @@ function initConnectors(): void {
   connectors.set('slack', new SlackConnector());
   connectors.set('sendgrid', new SendGridConnector());
   connectors.set('stripe_connect', new StripeConnector());
+  connectors.set('gong', new GongConnector());
+  connectors.set('apollo', new ApolloConnector());
+  connectors.set('instantly', new InstantlyConnector());
+  connectors.set('quickbooks', new QuickBooksConnector());
+  connectors.set('youtube_data', new YouTubeDataConnector());
 }
 
 /** Get the connector for a specific platform */

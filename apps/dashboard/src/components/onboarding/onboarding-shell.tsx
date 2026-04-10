@@ -24,6 +24,7 @@ import { Badge, Button, Card } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useLang } from '@/app/providers';
 import { CinematicOnboarding } from './cinematic-onboarding';
+import { IntegrationCard, type ConnectionStatus } from './integration-card';
 
 type Step = 'mission' | 'scan' | 'snapshot' | 'connections' | 'strategy' | 'confirm' | 'launch';
 type AutonomyMode = 'manual' | 'guardrailed' | 'autonomous';
@@ -173,6 +174,63 @@ const PLATFORM_COPY: Record<string, { benefit: string; effort: string }> = {
   hubspot: { benefit: 'Unlocks lead-stage attribution and CRM handoff tracking.', effort: '3 min' },
   wordpress: { benefit: 'Unlocks content publishing and SEO remediation.', effort: '2 min' },
 };
+
+/** Priority order of platforms by goal (lower index = higher priority) */
+const GOAL_PLATFORM_PRIORITY: Record<string, string[]> = {
+  lead_generation: ['google_analytics', 'hubspot', 'google_search_console', 'google_ads', 'meta_ads', 'wordpress'],
+  reduce_ad_waste: ['google_analytics', 'google_ads', 'meta_ads', 'google_search_console', 'hubspot', 'wordpress'],
+  increase_ai_visibility: ['google_search_console', 'google_analytics', 'wordpress', 'hubspot', 'google_ads', 'meta_ads'],
+  launch_faster: ['google_analytics', 'google_ads', 'meta_ads', 'wordpress', 'google_search_console', 'hubspot'],
+  diagnose_issues: ['google_analytics', 'google_search_console', 'google_ads', 'meta_ads', 'hubspot', 'wordpress'],
+};
+
+/** "Why connect this?" explanations by platform + goal */
+const WHY_CONNECT: Record<string, Record<string, string>> = {
+  google_analytics: {
+    lead_generation: 'GA4 provides attribution data that shows which channels actually produce leads, not just traffic.',
+    reduce_ad_waste: 'GA4 links conversions back to ad campaigns so the Ad Agent can identify wasted spend.',
+    increase_ai_visibility: 'Analytics helps measure which AI-referred traffic converts, establishing a visibility ROI baseline.',
+    launch_faster: 'GA4 conversion data lets the Ad Agent auto-optimize from day one instead of guessing.',
+    diagnose_issues: 'GA4 reveals drop-off points and data quality gaps across your marketing stack.',
+  },
+  google_ads: {
+    default: 'Gives the Ad Agent direct access to pause underperformers and scale winners automatically.',
+  },
+  meta_ads: {
+    default: 'Enables cross-platform creative testing and budget reallocation between Google and Meta.',
+  },
+  google_search_console: {
+    default: 'Provides real ranking and click data so the SEO Agent can prioritize high-impact keywords.',
+  },
+  hubspot: {
+    default: 'Maps leads through the full funnel so Data Nexus can calculate true customer acquisition cost.',
+  },
+  wordpress: {
+    default: 'Allows the SEO Agent to publish optimized content directly without manual copy-paste.',
+  },
+};
+
+function getWhyConnect(platform: string, goal: string): string {
+  const platformConfig = WHY_CONNECT[platform];
+  if (!platformConfig) return '';
+  return platformConfig[goal] ?? platformConfig.default ?? '';
+}
+
+function getPlatformPriority(platform: string, goal: string): number {
+  const order = GOAL_PLATFORM_PRIORITY[goal] ?? GOAL_PLATFORM_PRIORITY.diagnose_issues;
+  const idx = order.indexOf(platform);
+  return idx >= 0 ? idx + 1 : 99;
+}
+
+function sortPlatformsByPriority(platforms: string[], goal: string): string[] {
+  return [...platforms].sort((a, b) => getPlatformPriority(a, goal) - getPlatformPriority(b, goal));
+}
+
+function isOptionalPlatform(platform: string, goal: string): boolean {
+  const threshold = MVP_THRESHOLDS[goal] ?? MVP_THRESHOLDS.diagnose_issues;
+  const allRequired = new Set([...threshold.required, ...threshold.alternatives.flat()]);
+  return !allRequired.has(platform);
+}
 
 function normalizeUrl(value: string): string {
   const trimmed = value.trim();
@@ -657,24 +715,71 @@ export function OnboardingShell() {
                   </p>
 
                   <div className="mt-6 space-y-5">
-                    <ConnectionSection
-                      title="Recommended now"
-                      description="These platforms appear to be detectable or especially high-value for your current goal."
-                      platforms={scanResult.connectablePlatforms}
-                      integrations={integrations ?? []}
-                      onConnect={(platform) => connectMutation.mutate(platform)}
-                      onReconnect={(platform) => reconnectMutation.mutate(platform)}
-                      isPending={connectMutation.isPending || reconnectMutation.isPending}
-                    />
-                    <ConnectionSection
-                      title="Recommended next"
-                      description="These tools are not auto-detected, but they would deepen attribution and expand the agent surface area."
-                      platforms={scanResult.missingPlatforms.slice(0, 4)}
-                      integrations={integrations ?? []}
-                      onConnect={(platform) => connectMutation.mutate(platform)}
-                      onReconnect={(platform) => reconnectMutation.mutate(platform)}
-                      isPending={connectMutation.isPending || reconnectMutation.isPending}
-                    />
+                    <div>
+                      <div className="mb-3">
+                        <h3 className="text-sm font-semibold text-foreground">Recommended now</h3>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">Ranked by expected value for your goal. Higher-priority platforms unlock more agent automation.</p>
+                      </div>
+                      <div className="space-y-3">
+                        {sortPlatformsByPriority(scanResult.connectablePlatforms, form.primaryGoal).map((platform) => {
+                          const copy = PLATFORM_COPY[platform] ?? { benefit: 'Unlocks more context and broader automation coverage.', effort: 'Manual' };
+                          const existing = (integrations ?? []).find((i: any) => i.platform === platform);
+                          const status: ConnectionStatus = existing?.status ?? 'disconnected';
+                          return (
+                            <IntegrationCard
+                              key={platform}
+                              platform={platform}
+                              benefit={copy.benefit}
+                              effort={copy.effort}
+                              status={status}
+                              priorityRank={getPlatformPriority(platform, form.primaryGoal)}
+                              isOptional={isOptionalPlatform(platform, form.primaryGoal)}
+                              whyConnect={getWhyConnect(platform, form.primaryGoal)}
+                              onConnect={() => connectMutation.mutate(platform)}
+                              onReconnect={() => reconnectMutation.mutate(platform)}
+                              isPending={connectMutation.isPending || reconnectMutation.isPending}
+                            />
+                          );
+                        })}
+                        {scanResult.connectablePlatforms.length === 0 && (
+                          <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
+                            No platforms were auto-detected. You can add connections manually below.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-3">
+                        <h3 className="text-sm font-semibold text-foreground">Recommended next</h3>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">Not auto-detected, but would deepen attribution and expand agent coverage.</p>
+                      </div>
+                      <div className="space-y-3">
+                        {sortPlatformsByPriority(scanResult.missingPlatforms.slice(0, 4), form.primaryGoal).map((platform) => {
+                          const copy = PLATFORM_COPY[platform] ?? { benefit: 'Unlocks more context and broader automation coverage.', effort: 'Manual' };
+                          const existing = (integrations ?? []).find((i: any) => i.platform === platform);
+                          const status: ConnectionStatus = existing?.status ?? 'disconnected';
+                          return (
+                            <IntegrationCard
+                              key={platform}
+                              platform={platform}
+                              benefit={copy.benefit}
+                              effort={copy.effort}
+                              status={status}
+                              isOptional={isOptionalPlatform(platform, form.primaryGoal)}
+                              whyConnect={getWhyConnect(platform, form.primaryGoal)}
+                              onConnect={() => connectMutation.mutate(platform)}
+                              onReconnect={() => reconnectMutation.mutate(platform)}
+                              isPending={connectMutation.isPending || reconnectMutation.isPending}
+                            />
+                          );
+                        })}
+                        {scanResult.missingPlatforms.length === 0 && (
+                          <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 px-4 py-5 text-sm text-muted-foreground">
+                            No additional platforms surfaced for this section.
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </Card>
 

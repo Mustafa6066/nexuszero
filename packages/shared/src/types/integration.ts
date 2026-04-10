@@ -20,10 +20,15 @@ export type Platform =
   | 'amplitude'
   | 'slack'
   | 'sendgrid'
-  | 'stripe_connect';
+  | 'stripe_connect'
+  | 'gong'
+  | 'apollo'
+  | 'instantly'
+  | 'quickbooks'
+  | 'youtube_data';
 
 /** Platform categories for grouping */
-export type PlatformCategory = 'analytics' | 'ads' | 'crm' | 'cms' | 'seo' | 'messaging' | 'payments';
+export type PlatformCategory = 'analytics' | 'ads' | 'crm' | 'cms' | 'seo' | 'messaging' | 'payments' | 'sales' | 'outbound' | 'accounting';
 
 /** Integration connection status */
 export type IntegrationStatus =

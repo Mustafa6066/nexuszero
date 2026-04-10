@@ -34,6 +34,44 @@ export const SAFE_TASK_TYPES: readonly string[] = [
   'drift_detection',
   'rate_limit_check',
   'api_version_check',
+
+  // Sales Pipeline — read-only analysis
+  'icp_learn',
+  'call_analyze',
+  'value_pricing_brief',
+
+  // Data Nexus — read-only experiments/reports
+  'experiment_score',
+  'experiment_playbook',
+  'weekly_scorecard',
+  'pacing_alert',
+  'revenue_attribution',
+  'client_report',
+
+  // Content Writer — read-only scoring
+  'expert_panel_review',
+  'quality_gate',
+  'editorial_brain',
+  'quote_mining',
+
+  // Ad Agent — read-only audits
+  'cro_audit',
+
+  // Social — read-only analysis
+  'yt_competitive_analysis',
+
+  // Finance — read-only analysis
+  'cfo_briefing',
+  'cost_estimate',
+  'scenario_model',
+
+  // Outbound — read-only monitoring
+  'competitive_monitor',
+  'cross_signal_detect',
+
+  // Podcast — read-only extraction
+  'content_extract',
+  'viral_score',
 ] as const;
 
 /** Check if a task type is safe (read-only) */

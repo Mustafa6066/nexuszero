@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { ArrowRight, Check, Loader2, Plug, Search, Rocket, AlertCircle, RefreshCw, Target } from 'lucide-react';
+import { wsClient } from '@/lib/ws-client';
+import { ArrowRight, Check, Loader2, Plug, Search, Rocket, AlertCircle, RefreshCw, Target, ChevronLeft } from 'lucide-react';
 import { useLang } from '@/app/providers';
 
 /* ─── First Mission routing by goal ─── */
@@ -124,6 +125,8 @@ export function CinematicOnboarding({ websiteUrl, primaryGoal, primaryChannel, o
   const [showConfetti, setShowConfetti] = useState(false);
   const [discoveries, setDiscoveries] = useState<{ label: string; value: string; icon: string }[]>([]);
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+  const [businessType, setBusinessType] = useState<string | null>(null);
+  const [dynamicMission, setDynamicMission] = useState<{ title: string; description: string; agentType?: string; estimatedImpact?: string } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activityFeedRef = useRef<HTMLDivElement>(null);
 
@@ -142,7 +145,7 @@ export function CinematicOnboarding({ websiteUrl, primaryGoal, primaryChannel, o
     });
   }, []);
 
-  // Start onboarding and poll for progress
+  // Start onboarding and listen for real-time progress via WebSocket
   useEffect(() => {
     let cancelled = false;
 
@@ -153,61 +156,87 @@ export function CinematicOnboarding({ websiteUrl, primaryGoal, primaryChannel, o
         addActivity('Onboarding initiated');
         addActivity('Scanning your website...', 'running');
 
-        // Simulate progress feed since we don't have websocket events yet
-        // In production this would poll the actual onboarding state
-        const timeline: { delay: number; text: string; step: VisualStep; discovery?: { label: string; value: string; icon: string } }[] = [
-          { delay: 2000, text: 'Detected: Google Analytics ✓', step: 'connecting', discovery: { label: 'Analytics', value: 'Google Analytics', icon: '📊' } },
-          { delay: 1500, text: 'Detected: WordPress ✓', step: 'connecting', discovery: { label: 'Platform', value: 'WordPress', icon: '🌐' } },
-          { delay: 2000, text: 'Platform connections established', step: 'connecting' },
-          { delay: 1000, text: 'SEO Agent analyzing keywords...', step: 'analyzing' },
-          { delay: 3000, text: 'SEO Agent found 847 keywords', step: 'analyzing', discovery: { label: 'Keywords Found', value: '847', icon: '🔑' } },
-          { delay: 1500, text: 'Ad Agent scanning campaign structure...', step: 'analyzing' },
-          { delay: 2500, text: 'Ad Agent mapped 3 campaign opportunities', step: 'analyzing', discovery: { label: 'Opportunities', value: '3 campaigns', icon: '📈' } },
-          { delay: 1500, text: 'Data Nexus running quality checks...', step: 'analyzing' },
-          { delay: 2000, text: 'Data quality score: 92%', step: 'analyzing', discovery: { label: 'Data Quality', value: '92%', icon: '✅' } },
-          { delay: 1500, text: 'Generating marketing strategy...', step: 'analyzing' },
-          { delay: 3000, text: 'Strategy document ready — 12 recommendations', step: 'analyzing', discovery: { label: 'Recommendations', value: '12 actions', icon: '📋' } },
-          { delay: 1000, text: 'Activating agent swarm...', step: 'launching' },
-          { delay: 2000, text: 'SEO Agent online ✓', step: 'launching' },
-          { delay: 1000, text: 'Ad Agent online ✓', step: 'launching' },
-          { delay: 1000, text: 'Data Nexus online ✓', step: 'launching' },
-          { delay: 1500, text: 'All systems operational — Welcome to NexusZero.', step: 'launching' },
-        ];
+        // Subscribe to real-time onboarding progress via WebSocket
+        const unsubWs = wsClient.subscribe('onboarding:progress', (event, data) => {
+          if (cancelled) return;
+          const payload = data as {
+            previousState?: string;
+            newState?: string;
+            progress?: { percentComplete?: number; currentStep?: number };
+            businessType?: string;
+            emailPlatforms?: string[];
+            paymentProcessors?: string[];
+            socialProfiles?: Array<{ platform: string; url: string }>;
+          };
 
-        let totalDelay = 0;
-        for (const entry of timeline) {
-          totalDelay += entry.delay;
-          setTimeout(() => {
-            if (cancelled) return;
-            setCurrentStep(entry.step);
-            if (entry.discovery) {
-              addDiscovery(entry.discovery.label, entry.discovery.value, entry.discovery.icon);
-            }
-            const isLast = entry === timeline[timeline.length - 1];
-            addActivity(entry.text, isLast ? 'done' : 'running');
-            if (isLast) {
+          if (event === 'state_changed' && payload.newState) {
+            const mapped = mapBackendState(payload.newState);
+            setCurrentStep(mapped.step);
+            addActivity(`${payload.previousState ?? '?'} → ${payload.newState}`, 'running');
+
+            if (payload.newState === 'active') {
               setIsComplete(true);
               setShowConfetti(true);
               setShowSuccessScreen(true);
               setTimeout(() => setShowConfetti(false), 4000);
-            }
-          }, totalDelay);
-        }
+              addActivity('All systems operational — Welcome to NexusZero.');
 
-        // Also poll backend state
+              // Fetch the LLM-generated strategy for dynamic first mission
+              api.getStrategy().then((strategy) => {
+                if (strategy?.firstMission) {
+                  setDynamicMission(strategy.firstMission);
+                }
+              }).catch(() => { /* strategy may not be ready yet, fall back to static */ });
+            }
+          }
+
+          // Handle discovery updates with business classification
+          if (event === 'discovery_update') {
+            if (payload.businessType) {
+              setBusinessType(payload.businessType);
+              const typeLabel = payload.businessType.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+              addDiscovery('Business Type', typeLabel, '🏢');
+              addActivity(`Classified as ${typeLabel}`);
+            }
+            if (payload.emailPlatforms?.length) {
+              addDiscovery('Email', payload.emailPlatforms.join(', '), '📧');
+              addActivity(`Detected email: ${payload.emailPlatforms.join(', ')}`);
+            }
+            if (payload.paymentProcessors?.length) {
+              addDiscovery('Payments', payload.paymentProcessors.join(', '), '💳');
+              addActivity(`Detected payments: ${payload.paymentProcessors.join(', ')}`);
+            }
+            if (payload.socialProfiles?.length) {
+              addDiscovery('Social', `${payload.socialProfiles.length} profiles`, '🔗');
+              addActivity(`Found ${payload.socialProfiles.length} social profile(s)`);
+            }
+          }
+        });
+
+        // Keep polling as fallback for when WS is not connected
         pollRef.current = setInterval(async () => {
           try {
             const me = await api.getMe();
             if (me?.onboardingState === 'active') {
               if (!cancelled) {
                 setIsComplete(true);
+                setShowSuccessScreen(true);
                 if (pollRef.current) clearInterval(pollRef.current);
               }
+            } else if (me?.onboardingState) {
+              // Update visual step from polling when WS is unavailable
+              const mapped = mapBackendState(me.onboardingState);
+              setCurrentStep(mapped.step);
             }
           } catch {
             // Silently retry
           }
         }, 5000);
+
+        // Cleanup WS subscription on unmount
+        return () => {
+          unsubWs();
+        };
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Onboarding failed');
@@ -232,8 +261,13 @@ export function CinematicOnboarding({ websiteUrl, primaryGoal, primaryChannel, o
 
   function handleContinue() {
     onComplete?.();
-    const mission = FIRST_MISSIONS[primaryGoal ?? ''];
-    router.push(mission?.route ?? '/dashboard');
+    if (dynamicMission) {
+      // Route to strategy page when LLM-generated strategy is available
+      router.push('/dashboard/strategy');
+    } else {
+      const mission = FIRST_MISSIONS[primaryGoal ?? ''];
+      router.push(mission?.route ?? '/dashboard');
+    }
   }
 
   function handleRetry() {
@@ -346,6 +380,26 @@ export function CinematicOnboarding({ websiteUrl, primaryGoal, primaryChannel, o
           </div>
         )}
 
+        {/* Business type strategy implications */}
+        {businessType && (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 animate-fade-in">
+            <div className="flex items-center gap-2 mb-2">
+              <Target size={16} className="text-primary" />
+              <span className="text-sm font-semibold text-foreground">Strategy tailored for {businessType.replace(/-/g, ' ')}</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {businessType === 'e-commerce' && 'Your strategy will prioritize product feed optimization, shopping ad performance, and conversion funnel analysis.'}
+              {businessType === 'saas' && 'Your strategy will focus on lead generation funnels, content-driven SEO, and trial-to-paid conversion tracking.'}
+              {businessType === 'agency' && 'Your strategy will emphasize portfolio visibility, case study SEO, and multi-client campaign management.'}
+              {businessType === 'local-business' && 'Your strategy will prioritize local SEO, Google Business Profile optimization, and location-based visibility.'}
+              {businessType === 'media' && 'Your strategy will focus on content distribution, audience growth, and engagement-driven monetization.'}
+              {businessType === 'non-profit' && 'Your strategy will emphasize donor acquisition, cause awareness campaigns, and community engagement.'}
+              {businessType === 'marketplace' && 'Your strategy will balance seller acquisition, buyer experience, and cross-side network effects.'}
+              {businessType === 'other' && 'Your strategy will be customized based on your specific goals and connected platforms.'}
+            </p>
+          </div>
+        )}
+
         {/* Activity feed */}
         <div className="rounded-2xl border border-border bg-card/60 overflow-hidden">
           <div className="px-5 py-3 border-b border-border flex items-center gap-2">
@@ -391,19 +445,37 @@ export function CinematicOnboarding({ websiteUrl, primaryGoal, primaryChannel, o
             <div className="flex-1">
               <p className="text-sm font-medium text-red-400">Setup encountered an issue</p>
               <p className="text-xs text-muted-foreground mt-1">{error}</p>
-              <p className="text-xs text-muted-foreground mt-1">Your previous progress is saved — we just need to retry the failed step.</p>
+              <p className="text-xs text-muted-foreground mt-1">Your previous progress is saved — you can retry or go back to the previous step.</p>
             </div>
-            <button
-              onClick={handleRetry}
-              className="shrink-0 rounded-lg bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors flex items-center gap-1.5"
-            >
-              <RefreshCw size={12} /> Retry
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={async () => {
+                  try {
+                    await api.stepBackOnboarding();
+                    setError(null);
+                  } catch (e) {
+                    setError((e as Error).message);
+                  }
+                }}
+                className="rounded-lg bg-secondary hover:bg-secondary/80 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors flex items-center gap-1.5"
+              >
+                <ChevronLeft size={12} /> Go Back
+              </button>
+              <button
+                onClick={handleRetry}
+                className="rounded-lg bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors flex items-center gap-1.5"
+              >
+                <RefreshCw size={12} /> Retry
+              </button>
+            </div>
           </div>
         )}
 
         {isComplete && showSuccessScreen && (() => {
-          const mission = FIRST_MISSIONS[primaryGoal ?? ''];
+          const staticMission = FIRST_MISSIONS[primaryGoal ?? ''];
+          const mission = dynamicMission
+            ? { title: dynamicMission.title, description: dynamicMission.description, route: '/dashboard/strategy', cta: 'View Your Strategy' }
+            : staticMission;
           return (
             <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-8 space-y-5 animate-fade-in">
               <div className="flex items-center justify-center">

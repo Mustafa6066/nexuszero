@@ -146,6 +146,46 @@ export const DEFAULT_CONNECTOR_CONFIGS: Record<Platform, ConnectorConfig> = {
     maxRetries: 3,
     retryBaseDelayMs: 2000,
   },
+  gong: {
+    maxRequestsPerMinute: 60,
+    timeoutMs: 30000,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetMs: 60000,
+    maxRetries: 3,
+    retryBaseDelayMs: 2000,
+  },
+  apollo: {
+    maxRequestsPerMinute: 100,
+    timeoutMs: 20000,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetMs: 60000,
+    maxRetries: 3,
+    retryBaseDelayMs: 1500,
+  },
+  instantly: {
+    maxRequestsPerMinute: 60,
+    timeoutMs: 15000,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetMs: 60000,
+    maxRetries: 3,
+    retryBaseDelayMs: 1000,
+  },
+  quickbooks: {
+    maxRequestsPerMinute: 500,
+    timeoutMs: 30000,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetMs: 60000,
+    maxRetries: 3,
+    retryBaseDelayMs: 2000,
+  },
+  youtube_data: {
+    maxRequestsPerMinute: 60,
+    timeoutMs: 30000,
+    circuitBreakerThreshold: 5,
+    circuitBreakerResetMs: 60000,
+    maxRetries: 3,
+    retryBaseDelayMs: 1000,
+  },
 };
 
 export function getConnectorConfig(platform: Platform): ConnectorConfig {

@@ -3,6 +3,8 @@ import {
   extractTraceContext,
   runWithTenantContextAsync,
   spanKindForMessagingConsumer,
+  captureException,
+  createLogger,
   type TenantContext,
   QUEUE_NAMES,
   withSpan,
@@ -14,6 +16,7 @@ import { getBullMQConnection, getRedisConnection } from './bullmq-client.js';
 import { publishTaskResult } from './producers.js';
 import { parseTenantFromQueue } from './queues.js';
 import { recordTaskStarted, recordTaskCompleted } from './priority-lanes.js';
+import { publishWsEvent } from './ws-events.js';
 import type { TaskPayload, TaskResult } from './events.js';
 
 export interface WorkerConfig {
@@ -40,9 +43,13 @@ export abstract class BaseAgentWorker {
   private shutdownRequested = false;
   private activeJobs = new Set<string>();
   private activeJobsByTenant = new Map<string, number>();
+  private consecutiveFailures = new Map<string, number>();
   private trackedTenantIds = new Set<string>();
+  protected readonly log;
 
-  constructor(protected readonly config: WorkerConfig) {}
+  constructor(protected readonly config: WorkerConfig) {
+    this.log = createLogger(config.agentLabel);
+  }
 
   /** Start the worker. Listens on all tenant-scoped queues for new jobs */
   async start(tenantIds: string[]): Promise<void> {
@@ -66,12 +73,10 @@ export abstract class BaseAgentWorker {
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
 
-    console.log(JSON.stringify({
-      level: 'info',
-      msg: `${this.config.agentLabel} worker started`,
+    this.log.info('Worker started', {
       queues: tenantIds.length + 1,
       concurrency: this.config.concurrency,
-    }));
+    });
   }
 
   /** Register a worker for an additional tenant (hot-add during runtime) */
@@ -92,7 +97,7 @@ export abstract class BaseAgentWorker {
       clearInterval(this.heartbeatInterval);
     }
 
-    console.log(JSON.stringify({ level: 'info', msg: `${this.config.agentLabel} shutting down`, activeJobs: this.activeJobs.size }));
+    this.log.info('Shutting down', { activeJobs: this.activeJobs.size });
 
     // Close all workers (waits for current jobs to finish)
     await Promise.all(this.workers.map(w => w.close()));
@@ -127,24 +132,20 @@ export abstract class BaseAgentWorker {
     );
 
     worker.on('failed', (job, err) => {
-      console.log(JSON.stringify({
-        level: 'error',
-        msg: 'Job failed',
+      this.log.error('Job failed', {
         jobId: job?.id,
         taskType: job?.data?.taskType,
         tenantId: job?.data?.tenantId,
         error: err.message,
         attempt: job?.attemptsMade,
-      }));
+      });
     });
 
     worker.on('error', (err) => {
-      console.log(JSON.stringify({
-        level: 'error',
-        msg: 'Worker error',
+      this.log.error('Worker error', {
         queue: queueName,
         error: err.message,
-      }));
+      });
     });
 
     this.workers.push(worker);
@@ -159,6 +160,18 @@ export abstract class BaseAgentWorker {
 
     // SLA: record task processing started
     recordTaskStarted(task.taskId).catch(() => {});
+
+    // Broadcast task start to WS clients
+    publishWsEvent(task.tenantId, 'task:progress', 'task_started', {
+      taskId: task.taskId,
+      taskType: task.taskType,
+      agentType: task.agentType,
+    });
+    publishWsEvent(task.tenantId, 'agent:status', 'agent_status_changed', {
+      agentType: task.agentType,
+      status: 'processing',
+      activeJobs: (this.activeJobsByTenant.get(task.tenantId) ?? 0),
+    });
 
     const tenantContext: TenantContext = {
       tenantId: task.tenantId,
@@ -195,7 +208,7 @@ export abstract class BaseAgentWorker {
 
       // Publish result to Kafka for downstream consumers
       await publishTaskResult(taskResult).catch(err => {
-        console.log(JSON.stringify({ level: 'warn', msg: 'Failed to publish task result', error: (err as Error).message }));
+        this.log.warn('Failed to publish task result', { error: (err as Error).message });
       });
 
       // SLA: record task completion
@@ -203,18 +216,33 @@ export abstract class BaseAgentWorker {
 
       this.onTaskCompleted(task, result);
 
-      console.log(JSON.stringify({
-        level: 'info',
-        msg: 'Task completed',
+      // Broadcast task completion to WS clients
+      publishWsEvent(task.tenantId, 'task:progress', 'task_completed', {
+        taskId: task.taskId,
+        taskType: task.taskType,
+        agentType: task.agentType,
+        durationMs: Date.now() - startTime,
+      });
+
+      // Reset consecutive failure counter on success
+      this.consecutiveFailures.delete(task.tenantId);
+
+      this.log.info('Task completed', {
         taskId: task.taskId,
         taskType: task.taskType,
         tenantId: task.tenantId,
         durationMs: Date.now() - startTime,
-      }));
+      });
 
       return result;
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
+
+      // Capture in Sentry with tenant context
+      captureException(err, {
+        tenantId: task.tenantId,
+        extra: { taskId: task.taskId, taskType: task.taskType, agentType: task.agentType },
+      });
 
       const taskResult: TaskResult = {
         taskId: task.taskId,
@@ -229,19 +257,55 @@ export abstract class BaseAgentWorker {
       };
 
       await publishTaskResult(taskResult).catch(pubErr => {
-        console.log(JSON.stringify({ level: 'warn', msg: 'Failed to publish failure result', error: (pubErr as Error).message }));
+        this.log.warn('Failed to publish failure result', { error: (pubErr as Error).message });
       });
 
       // SLA: record task completion (even on failure)
       recordTaskCompleted(task.taskId).catch(() => {});
 
       this.onTaskFailed(task, err);
+
+      // Broadcast task failure to WS clients
+      publishWsEvent(task.tenantId, 'task:progress', 'task_failed', {
+        taskId: task.taskId,
+        taskType: task.taskType,
+        agentType: task.agentType,
+        error: err.message,
+        durationMs: Date.now() - startTime,
+      });
+
+      // Track consecutive failures — emit degraded status on 3+
+      const failures = (this.consecutiveFailures.get(task.tenantId) ?? 0) + 1;
+      this.consecutiveFailures.set(task.tenantId, failures);
+      if (failures >= 3) {
+        publishWsEvent(task.tenantId, 'agent:status', 'agent_status_changed', {
+          agentType: task.agentType,
+          status: 'degraded',
+          consecutiveFailures: failures,
+        });
+      }
+
       throw error;
     } finally {
       this.activeJobs.delete(task.taskId);
       this.decrementTenantActivity(task.tenantId);
       await this.touchAgentHeartbeat(task.tenantId);
+
+      // Broadcast updated agent status after job completes
+      const remainingJobs = this.activeJobsByTenant.get(task.tenantId) ?? 0;
+      publishWsEvent(task.tenantId, 'agent:status', 'agent_status_changed', {
+        agentType: task.agentType,
+        status: remainingJobs > 0 ? 'processing' : 'idle',
+        activeJobs: remainingJobs,
+      });
     }
+  }
+
+  /** Resolve the current activity state for the Brain's perception layer */
+  protected resolveActivityState(): string {
+    if (this.shutdownRequested) return 'blocked';
+    if (this.activeJobs.size > 0) return 'active';
+    return 'idle';
   }
 
   private startHeartbeat(): void {
@@ -256,6 +320,7 @@ export abstract class BaseAgentWorker {
           uptime: process.uptime(),
           memoryMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
           timestamp: timestamp.toISOString(),
+          activityState: this.resolveActivityState(),
         };
         await redis.setex(
           `agent:${this.config.agentLabel}:heartbeat`,
@@ -267,11 +332,7 @@ export abstract class BaseAgentWorker {
           [...this.trackedTenantIds].map((tenantId) => this.touchAgentHeartbeat(tenantId, timestamp)),
         );
       } catch (err) {
-        console.log(JSON.stringify({
-          level: 'warn',
-          msg: 'Heartbeat failed',
-          error: (err as Error).message,
-        }));
+        this.log.warn('Heartbeat failed', { error: (err as Error).message });
       }
     }, this.config.heartbeatIntervalMs);
   }

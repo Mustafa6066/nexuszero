@@ -784,4 +784,58 @@ app.post('/onboarding/complete', async (c) => {
   }
 });
 
+// POST /integrations/onboarding/step-back — go back one step
+app.post('/onboarding/step-back', async (c) => {
+  const tenantId = c.get('tenantId');
+
+  try {
+    const taskId = await publishAgentTask({
+      tenantId,
+      agentType: 'compatibility',
+      type: 'onboarding_flow',
+      priority: 'critical',
+      input: { step: 'step_back' },
+    });
+    return c.json({ ok: true, taskId, status: 'queued' });
+  } catch (err) {
+    return c.json({ ok: false, error: (err as Error).message }, 400);
+  }
+});
+
+// POST /integrations/onboarding/pause — pause onboarding
+app.post('/onboarding/pause', async (c) => {
+  const tenantId = c.get('tenantId');
+
+  try {
+    const taskId = await publishAgentTask({
+      tenantId,
+      agentType: 'compatibility',
+      type: 'onboarding_flow',
+      priority: 'critical',
+      input: { step: 'pause' },
+    });
+    return c.json({ ok: true, taskId, status: 'queued' });
+  } catch (err) {
+    return c.json({ ok: false, error: (err as Error).message }, 400);
+  }
+});
+
+// POST /integrations/onboarding/resume — resume paused onboarding
+app.post('/onboarding/resume', async (c) => {
+  const tenantId = c.get('tenantId');
+
+  try {
+    const taskId = await publishAgentTask({
+      tenantId,
+      agentType: 'compatibility',
+      type: 'onboarding_flow',
+      priority: 'critical',
+      input: { step: 'resume' },
+    });
+    return c.json({ ok: true, taskId, status: 'queued' });
+  } catch (err) {
+    return c.json({ ok: false, error: (err as Error).message }, 400);
+  }
+});
+
 export const integrationRoutes = app;

@@ -3,8 +3,10 @@ import { serve } from '@hono/node-server';
 import { OnboardingWorker } from './worker.js';
 import { OnboardingStateMachine } from './state-machine.js';
 import { getDb, tenants } from '@nexuszero/db';
-import { initializeOpenTelemetry } from '@nexuszero/shared';
+import { initializeOpenTelemetry, initSentry } from '@nexuszero/shared';
 import { eq } from 'drizzle-orm';
+
+initSentry('onboarding-service');
 
 const app = new Hono();
 const worker = new OnboardingWorker();

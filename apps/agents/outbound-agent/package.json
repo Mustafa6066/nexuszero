@@ -1,0 +1,26 @@
+{
+  "name": "@nexuszero/outbound-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file=../../../.env src/index.ts",
+    "build": "tsup src/index.ts --format esm --dts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules/.cache"
+  },
+  "dependencies": {
+    "@nexuszero/shared": "workspace:*",
+    "@nexuszero/db": "workspace:*",
+    "@nexuszero/queue": "workspace:*",
+    "@nexuszero/llm-router": "workspace:*",
+    "drizzle-orm": "^0.30.10",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.11.0",
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.5"
+  }
+}

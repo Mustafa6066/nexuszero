@@ -2,7 +2,7 @@
 
 ## Overview
 
-NexusZero is a multi-tenant SaaS platform that deploys autonomous AI agent swarms to manage marketing, SEO, advertising, creative generation, and customer onboarding for B2B clients.
+NexusZero is a multi-tenant SaaS platform that deploys autonomous AI agent swarms plus a tenant-aware Hybrid Brain control layer to manage marketing, SEO, advertising, creative generation, and customer onboarding for B2B clients.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -23,8 +23,8 @@ NexusZero is a multi-tenant SaaS platform that deploys autonomous AI agent swarm
 │        └────────────┬───────────────────┬────────────────┘          │
 │                     │                   │                           │
 │        ┌────────────▼──────┐   ┌────────▼────────┐                  │
-│        │   Orchestrator    │   │ Webhook Service  │                  │
-│        │ (Task Graph, Cron)│   │ (Fan-out, HMAC)  │                  │
+│        │ Orchestrator +    │   │ Webhook Service  │                  │
+│        │ Hybrid Brain      │   │ (Fan-out, HMAC)  │                  │
 │        └─┬─────┬─────┬────┘   └─────────────────┘                  │
 │          │     │     │                                              │
 │    ┌─────▼┐ ┌─▼───┐ ├──────┐ ┌──────────┐ ┌──────────┐            │
@@ -90,12 +90,15 @@ agent/
 | AEO Agent | `aeo-tasks:{tid}` | citation_scan, entity_optimization, visibility_tracking, answer_optimization |
 | Creative | `creative-tasks:{tid}` | generate_creative, ab_test, brand_check |
 
+The active fleet also includes compatibility, content-writer, social, reddit, outbound, sales-pipeline, finance, podcast, and geo-focused workers.
+
 ### Inter-Agent Communication
 
 Agents communicate through Kafka signals:
 1. Agent completes a task and produces a signal (e.g., `seo.keyword_discovered`)
-2. Orchestrator's signal consumer routes the signal to dependent agents
-3. Target agent receives a new task in its BullMQ queue
+2. Orchestrator consumes the signal and forwards it to both the task router and the embedded Hybrid Brain
+3. The Hybrid Brain updates the tenant operating picture, scores follow-up opportunities, and can generate missions, task DAGs, or reactions
+4. Target agents receive new tasks in their tenant-scoped BullMQ queues
 
 ## Data Layer
 
@@ -118,6 +121,7 @@ Agents communicate through Kafka signals:
 - **Rate limiting** (sliding window per tenant)
 - **Agent heartbeats** and health monitoring
 - **Task graph state** for orchestrator DAG execution
+- **Brain control-plane state** including missions, reaction logs, rollback plans, strategy decisions, and temporary operating context caches
 
 ### Cloudflare R2
 
@@ -137,15 +141,32 @@ Agents communicate through Kafka signals:
 2. Key is SHA-256 hashed before storage; raw key returned once
 3. Requests include `X-API-Key: nzk_{key}` header
 
+## Hybrid Brain
+
+The Hybrid Brain lives in `packages/brain` and runs as an embedded control-plane package inside the orchestrator process.
+
+- **Perception layer**: aggregates Kafka signals, fleet heartbeats, queue depth, integrations, and recent outcomes into a tenant operating picture
+- **Reasoning layer**: scores opportunities, evaluates strategy drift, and computes blast radius for proposed actions
+- **Planning layer**: generates dynamic task DAGs and rollback plans instead of dispatching isolated one-off tasks
+- **Reaction layer**: handles failures, anomalies, budget thresholds, and agent degradation through configurable reactions and escalations
+- **Mission layer**: tracks multi-step work as missions spanning several tasks and agents
+- **Intelligence services**: maintains signal graphs, temporal hotspots, prediction hints, cost intelligence, stale strategy detection, and expertise maps
+- **Prompt/context assembly**: builds 4-layer prompts so downstream agents receive tenant context and historical outcome patterns
+
+See [hybrid-brain.md](hybrid-brain.md) for the package layout, control-loop phases, mission lifecycle, storage boundaries, rollout guidance, and validation workflow.
+
 ## Orchestrator
 
-The orchestrator manages the lifecycle of all agent tasks:
+The orchestrator is now the execution control plane for both routing and reasoning:
 
 - **Task Graph**: DAG-based execution with dependency resolution
+- **Embedded Brain Loop**: tenant-scoped perceive -> reason -> plan -> react cycle sourced from `@nexuszero/brain`
+- **Mission Lifecycle**: multi-step work tracked as higher-order missions instead of only independent tasks
 - **Priority Queue**: Critical > High > Medium > Low
 - **Scheduler**: 6 cron jobs (hourly rank checks, daily reports, etc.)
-- **Circuit Breaker**: Per-agent circuit breakers prevent cascade failures
 - **Signal Router**: Consumes Kafka signals and dispatches follow-up tasks
+- **Reaction Engine**: diagnose/retry, investigate/adjust, strategy proposal, throttling, and load redistribution paths
+- **Rollout Controls**: scheduled brain ticks are allowlisted via orchestrator env vars such as `BRAIN_TENANT_IDS`
 
 ## Webhook Service
 
