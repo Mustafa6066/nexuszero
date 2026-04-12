@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import { withTenantDb, agentActions } from '@nexuszero/db';
 import { getCurrentTenantId } from '@nexuszero/shared';
 import { publishAgentSignal } from '@nexuszero/queue';
+import { getChannel } from '@nexuszero/channels';
 import { llmPodcast } from '../llm.js';
 
 /**
@@ -10,22 +11,52 @@ import { llmPodcast } from '../llm.js';
  * Processes podcast episodes: transcript parsing, speaker diarization,
  * topic segmentation, timestamp mapping, metadata extraction.
  *
- * Ported from: ai-marketing-skills/podcast
+ * When no transcript is provided, falls back to the podcast channel
+ * (Whisper transcription → show notes) before giving up.
  */
 export class PodcastIngestHandler {
   async execute(input: any, job: Job): Promise<any> {
     const tenantId = getCurrentTenantId();
-    await job.updateProgress(10);
+    await job.updateProgress(5);
 
     const {
       episodeTitle,
-      transcript,
+      transcript: rawTranscript,
       speakers = [],
       duration = 0,
       showName,
       publishDate,
       episodeUrl,
+      feedUrl,
+      episodeGuid,
     } = input;
+
+    let transcript: string | undefined = rawTranscript;
+    let transcriptSource: 'input' | 'whisper' | 'show_notes' = 'input';
+
+    // If transcript is missing or too short, try the podcast channel
+    if (!transcript || transcript.length < 100) {
+      const target = episodeUrl || feedUrl;
+      if (target) {
+        try {
+          const podcastChannel = getChannel('podcast');
+          const result = await podcastChannel.fetch(target, { transcript: true });
+          const fetched = Array.isArray(result) ? result[0] : result;
+
+          if (fetched?.transcript && fetched.transcript.length >= 100) {
+            transcript = fetched.transcript;
+            transcriptSource = 'whisper';
+          } else if (fetched?.text && fetched.text.length >= 50) {
+            transcript = fetched.text;
+            transcriptSource = 'show_notes';
+          }
+        } catch {
+          // Channel fetch failed — fall through to error
+        }
+      }
+    }
+
+    await job.updateProgress(25);
 
     if (!transcript || transcript.length < 100) {
       return { error: 'Transcript too short or missing', completedAt: new Date().toISOString() };
@@ -83,7 +114,7 @@ Return JSON:
 }`;
 
     const raw = await llmPodcast(prompt);
-    await job.updateProgress(80);
+    await job.updateProgress(50);
 
     let result: any;
     try {
@@ -101,6 +132,7 @@ Return JSON:
         topics: result.topics?.length || 0,
         quotes: result.quotes?.length || 0,
         insights: result.keyInsights?.length || 0,
+        transcriptSource,
       },
     });
 
